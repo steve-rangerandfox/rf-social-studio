@@ -12,6 +12,19 @@ dist
 dist-ssr
 *.local
 
+# Environment files — NEVER commit real secrets
+.env
+.env.*
+!.env.example
+
+# TLS / certificate files — NEVER commit private keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

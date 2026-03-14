@@ -4,7 +4,49 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    <title>RF Social Studio</title>
+
+    <!-- Security: prevent clickjacking via frame embedding -->
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+
+    <!-- Security: control referrer information sent with requests -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <!--
+      Content Security Policy
+      ─────────────────────────────────────────────────────────────────────────
+      - default-src 'self'          only load resources from same origin by default
+      - script-src 'self'           no inline scripts; Vite bundles all JS
+      - style-src 'self' 'unsafe-inline' https://fonts.googleapis.com
+                                    inline styles needed for the template-literal
+                                    CSS injected by React (G string); Google Fonts
+      - font-src 'self' https://fonts.gstatic.com
+                                    Google Fonts glyphs
+      - img-src 'self' data: blob: https://graph.instagram.com https://scontent.cdninstagram.com https://*.cdninstagram.com
+                                    blob: for local file previews; Instagram CDN for media
+      - connect-src 'self' https://api.instagram.com https://graph.instagram.com
+                                    IG OAuth + Graph API
+      - frame-src 'none'            no iframes
+      - object-src 'none'           no Flash / plugins
+      - base-uri 'self'             prevent base-tag injection
+      - form-action 'self'          restrict form targets
+      ─────────────────────────────────────────────────────────────────────────
+      NOTE: 'unsafe-inline' for style-src is required because App.jsx injects
+      a CSS template-literal string via <style>{G}</style> at runtime. A future
+      refactor to a static .css file (or style nonce) would allow removing it.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: blob: https://graph.instagram.com https://scontent.cdninstagram.com https://*.cdninstagram.com;
+      connect-src 'self' https://api.instagram.com https://graph.instagram.com;
+      frame-src 'none';
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+    " />
   </head>
   <body>
     <div id="root"></div>

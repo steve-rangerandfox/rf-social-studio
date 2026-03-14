@@ -3,11 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "vite",
+    "dev:api": "node --env-file=.env.local server.js",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/validation.test.js tests/server.test.js",
+    "test:validation": "node --test tests/validation.test.js",
+    "test:server": "node --test tests/server.test.js"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.3",
