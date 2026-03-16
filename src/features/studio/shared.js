@@ -1,8 +1,8 @@
 export const T = {
-  bg: "#EFE8DD",
-  surface: "#FCFAF5",
-  s2: "#F5EEE4",
-  s3: "#E9DECF",
+  bg: "#F3EEE5",
+  surface: "#FEFCF8",
+  s2: "#F7F1E8",
+  s3: "#ECE1D3",
   border: "#D8CABA",
   border2: "#BAAA96",
   ink: "#181714",
