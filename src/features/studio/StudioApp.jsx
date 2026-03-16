@@ -221,10 +221,10 @@ button.stat{font:inherit;text-align:left}
 .btn-ghost:hover{color:${T.text};background:rgba(24,23,20,0.06)}
 .btn-primary{background:${T.ink};color:${T.surface};font-weight:600}
 .btn-primary:hover{background:#282620}
-.btn-ai{background:rgba(24,23,20,0.04);color:${T.textSub};border:1px solid rgba(24,23,20,0.06);font-weight:600}
-.btn-ai:hover{background:rgba(24,23,20,0.08);color:${T.text}}
-.btn-now{background:rgba(24,23,20,0.08);color:${T.text};border:1px solid rgba(24,23,20,0.08);font-weight:700}
-.btn-now:hover{background:rgba(24,23,20,0.12)}
+.btn-ai{background:rgba(229,106,11,0.1);color:${T.orange};border:1px solid rgba(229,106,11,0.24);font-weight:700}
+.btn-ai:hover{background:rgba(229,106,11,0.16);color:#A94D06;border-color:rgba(229,106,11,0.36)}
+.btn-now{background:${T.orange};color:${T.surface};border:1px solid ${T.orange};font-weight:700;box-shadow:0 10px 24px rgba(229,106,11,0.18)}
+.btn-now:hover{background:#D75E04;border-color:#D75E04}
 .btn-danger{background:rgba(220,38,38,0.06);color:${T.red};border:1px solid rgba(220,38,38,0.12)}
 .btn-danger:hover{background:rgba(220,38,38,0.1)}
 .btn:disabled{opacity:0.38;cursor:not-allowed}
@@ -474,12 +474,12 @@ button.stat{font:inherit;text-align:left}
 .readiness-icon{font-size:13px;flex-shrink:0;width:18px;text-align:center;color:${T.text}}
 .readiness-label{font-size:12.5px;color:${T.text};flex:1;font-weight:500}
 .readiness-ok{font-family:'Inter',sans-serif;font-size:11px;font-weight:700}
-.readiness-ok.pass{color:#111318}.readiness-ok.fail{color:#D93025}.readiness-ok.warn{color:#D97706}
+.readiness-ok.pass{color:#111318}.readiness-ok.fail{color:#D93025}.readiness-ok.warn{color:${T.orange}}
 
 .quick-status{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
 .qs-btn{padding:7px 12px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(24,23,20,0.1);background:rgba(255,255,255,0.75);color:${T.textSub};transition:all 0.1s;white-space:nowrap;letter-spacing:.02em}
 .qs-btn:hover{border-color:rgba(24,23,20,0.18);color:#0D0F12;background:rgba(24,23,20,0.05)}
-.qs-btn.active{border-color:currentColor}
+.qs-btn.active{border-color:currentColor;box-shadow:0 0 0 2px rgba(229,106,11,0.08)}
 
 /* Expand trigger */
 .row-menu{position:relative}

@@ -14,10 +14,10 @@ export const T = {
   textSub: "#4E473E",
   textDim: "#746B5E",
   red: "#DC2626",
-  amber: "#8A5E26",
+  amber: "#C96A12",
   blue: "#3F5963",
   pink: "#6D5C55",
-  orange: "#8A5E26",
+  orange: "#E56A0B",
   purple: "#5E554E",
 };
 
@@ -30,7 +30,7 @@ export const PLATFORMS = {
 export const STATUSES = {
   idea: { label: "Idea", dot: "#B5ADA0", next: "draft" },
   draft: { label: "Draft", dot: "#93897C", next: "needs_review" },
-  needs_review: { label: "Needs Review", dot: "#9B7441", next: "approved" },
+  needs_review: { label: "Needs Review", dot: "#E56A0B", next: "approved" },
   approved: { label: "Approved", dot: "#5E6659", next: "scheduled" },
   scheduled: { label: "Scheduled", dot: "#66727A", next: "posted" },
   posted: { label: "Posted", dot: "#181714", next: "idea" },
