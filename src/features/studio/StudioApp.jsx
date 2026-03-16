@@ -3,11 +3,9 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { SaveStatusBadge } from "../../components/SaveStatusBadge.jsx";
 import {
   disconnectInstagram,
-  exchangeInstagramCode,
   fetchInstagramFeed,
   generateCaption,
   generateStoryTips,
-  getInstagramAuthorizeUrl,
 } from "../../lib/api-client.js";
 import {
   appendAuditEntries,
@@ -21,10 +19,19 @@ import {
   restoreDeletedRow,
 } from "./document-store.js";
 import {
-  makeISO,
+  Analytics,
+  AssetLibrary,
+  CalendarView,
+  ConnectionPanel,
+  IGGridView,
+  SettingsModal,
+} from "./components/StudioSurfaces.jsx";
+import {
+  formatRelativeStamp,
+  getReadinessChecks,
+  isRowNeedingAttention,
   makeDefaultElements,
   MENTIONS,
-  MOCK_ANALYTICS,
   MONTHS_FULL,
   MONTHS_SHORT,
   nowPT,
@@ -36,77 +43,77 @@ import {
   toPTDisplay,
   uid,
   WD_SHORT,
-  WEEKDAYS,
 } from "./shared.js";
 
 // ─── STYLES ───────────────────────────────────────────────────────
 const G = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:${T.bg};color:${T.text};font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-feature-settings:'cv02','cv03','cv04','cv11';line-height:1.5}
-::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${T.border2};border-radius:99px}
+body{letter-spacing:-0.01em}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(94,88,79,0.18);border-radius:99px}
 input,textarea,select,button{font-family:inherit}
-.app{display:flex;height:100vh;overflow:hidden;position:relative}
+.app{display:flex;height:100vh;overflow:hidden;position:relative;background:${T.bg}}
 
 /* SIDEBAR */
-.sidebar{width:220px;flex-shrink:0;border-right:1px solid ${T.border};display:flex;flex-direction:column;background:${T.surface};overflow-y:auto}
-.s-logo{padding:22px 20px 18px;border-bottom:1px solid ${T.border};display:flex;align-items:center;gap:12px;flex-shrink:0}
-.logo-mark{width:30px;height:30px;border-radius:8px;background:${T.ink};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#F7F8FA;flex-shrink:0}
-.logo-name{font-size:13.5px;font-weight:700;color:${T.text};letter-spacing:-.2px}
-.logo-sub{font-size:10.5px;color:${T.textDim};font-weight:400;letter-spacing:.1px}
-.s-sect{padding:18px 12px 8px}
-.s-lbl{font-size:10px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:${T.textDim};padding:0 10px;margin-bottom:8px;font-family:'Inter',sans-serif;display:block;opacity:.7}
-.m-item{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:400;color:${T.textSub};transition:all 0.1s;margin-bottom:1px;position:relative;user-select:none;line-height:1.4}
-.m-item:hover{background:${T.s3};color:${T.text}}.m-item.on{background:${T.s3};color:${T.ink};font-weight:600}
-.m-item.on::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:2.5px;height:58%;background:${T.ink};border-radius:99px}
-.m-ct{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:${T.textDim};font-weight:500}
+.sidebar{width:248px;flex-shrink:0;border-right:1px solid rgba(24,23,20,0.06);display:flex;flex-direction:column;background:rgba(251,250,246,0.78);backdrop-filter:blur(18px);overflow-y:auto}
+.s-logo{padding:28px 22px 22px;border-bottom:1px solid rgba(24,23,20,0.06);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.logo-mark{width:32px;height:32px;border-radius:50%;background:${T.ink};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${T.surface};flex-shrink:0}
+.logo-name{font-size:14px;font-weight:600;color:${T.text};letter-spacing:-0.02em}
+.logo-sub{font-size:11px;color:${T.textDim};font-weight:400;letter-spacing:0}
+.s-sect{padding:22px 14px 10px}
+.s-lbl{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:${T.textDim};padding:0 10px;margin-bottom:10px;font-family:'JetBrains Mono',monospace;display:block}
+.m-item{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:${T.textSub};transition:background 0.12s,color 0.12s;margin-bottom:2px;position:relative;user-select:none;line-height:1.4}
+.m-item:hover{background:rgba(24,23,20,0.035);color:${T.text}}.m-item.on{background:rgba(24,23,20,0.06);color:${T.ink};font-weight:600}
+.m-item.on::before{display:none}
+.m-ct{font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim};font-weight:500}
 .m-item.on .m-ct{color:${T.textDim};opacity:0.8}
-.s-div{height:1px;background:${T.border};margin:8px 10px}
+.s-div{height:1px;background:rgba(24,23,20,0.06);margin:12px 12px}
 .s-team{padding:0 10px 8px}
-.team-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px}
-.av{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0}
-.team-name{font-size:13px;color:${T.textSub};font-weight:450}
+.team-row{display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:10px}
+.av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0}
+.team-name{font-size:13px;color:${T.textSub};font-weight:500}
 .online-dot{width:5px;height:5px;border-radius:50%;margin-left:auto;flex-shrink:0}
-.s-bottom{margin-top:auto;padding:12px 10px;border-top:1px solid ${T.border};flex-shrink:0}
-.conn-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px}
+.s-bottom{margin-top:auto;padding:14px 10px 16px;border-top:1px solid rgba(24,23,20,0.06);flex-shrink:0}
+.conn-row{display:flex;align-items:center;gap:8px;padding:9px 8px;border-radius:10px}
 .conn-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .conn-dot.on{background:${T.ink}}.conn-dot.off{background:${T.border2}}
-.conn-name{font-size:13px;color:${T.textSub};font-weight:450}
+.conn-name{font-size:13px;color:${T.textSub};font-weight:500}
 .conn-st{font-size:10px;margin-left:auto;font-family:'JetBrains Mono',monospace}
 .conn-st.on{color:${T.textSub};font-weight:600}.conn-st.off{color:${T.textDim}}
 
 /* MAIN */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.topbar{height:52px;border-bottom:1px solid ${T.border};display:flex;align-items:center;padding:0 24px;gap:10px;background:${T.surface};flex-shrink:0}
-.tb-month{font-size:16px;font-weight:700;color:${T.text};letter-spacing:-.4px;font-family:'Bricolage Grotesque',sans-serif}
-.tb-year{font-size:16px;font-weight:300;color:${T.textDim};margin-left:4px;font-family:'Bricolage Grotesque',sans-serif}
+.topbar{height:72px;border-bottom:1px solid rgba(24,23,20,0.06);display:flex;align-items:center;padding:0 28px;gap:12px;background:rgba(251,250,246,0.74);backdrop-filter:blur(14px);flex-shrink:0}
+.tb-month{font-size:20px;font-weight:600;color:${T.text};letter-spacing:-0.03em;font-family:'Bricolage Grotesque',sans-serif}
+.tb-year{font-size:20px;font-weight:400;color:${T.textDim};margin-left:2px;font-family:'Bricolage Grotesque',sans-serif}
 .tb-space{flex:1}
-.view-toggle{display:flex;border:1px solid ${T.border};border-radius:7px;overflow:hidden}
-.vt-btn{padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:${T.textDim};transition:all 0.1s;display:flex;align-items:center;gap:5px;white-space:nowrap;letter-spacing:.1px}
-.vt-btn:hover{color:${T.text}}.vt-btn.on{background:${T.s3};color:${T.text};font-weight:600}
+.view-toggle{display:flex;gap:2px;padding:3px;border-radius:999px;background:rgba(24,23,20,0.04)}
+.vt-btn{padding:7px 13px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:${T.textDim};transition:all 0.12s;display:flex;align-items:center;gap:5px;white-space:nowrap;letter-spacing:.01em;border-radius:999px}
+.vt-btn:hover{color:${T.text};background:rgba(24,23,20,0.04)}.vt-btn.on{background:${T.surface};color:${T.text};font-weight:600;box-shadow:0 1px 0 rgba(24,23,20,0.02)}
 
 /* STATS */
-.stats{display:flex;border-bottom:1px solid ${T.border};flex-shrink:0;background:${T.surface}}
-.stat{flex:1;padding:14px 28px;border-right:1px solid ${T.border}}
+.stats{display:flex;border-bottom:1px solid rgba(24,23,20,0.05);flex-shrink:0;background:transparent;padding:8px 18px 10px;gap:8px}
+.stat{flex:1;padding:14px 16px;border-right:none;background:rgba(251,250,246,0.55);border-radius:14px}
 .stat:last-child{border-right:none}
-.stat-val{font-size:20px;font-weight:600;letter-spacing:-0.5px;font-family:'Bricolage Grotesque',sans-serif;line-height:1;color:${T.text}}
-.stat-key{font-size:11px;color:${T.textDim};font-weight:400;margin-top:5px;letter-spacing:.01em}
+.stat-val{font-size:22px;font-weight:600;letter-spacing:-0.04em;font-family:'Bricolage Grotesque',sans-serif;line-height:1;color:${T.text}}
+.stat-key{font-size:11px;color:${T.textDim};font-weight:500;margin-top:6px;letter-spacing:.02em}
 
 /* TABLE */
-.t-area{flex:1;overflow-y:auto}
-.t-head{display:grid;grid-template-columns:32px 20px 100px minmax(180px,1fr) 96px 116px 148px 114px 48px;padding:0 32px 0 20px;height:36px;border-bottom:1px solid ${T.border};background:${T.surface};position:sticky;top:0;z-index:10;align-items:center}
-.th{font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.03em;color:${T.textDim}}
+.t-area{flex:1;overflow-y:auto;padding:10px 18px 18px}
+.t-head{display:grid;grid-template-columns:32px 20px 118px minmax(280px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;height:42px;background:transparent;position:sticky;top:0;z-index:10;align-items:center}
+.th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;color:${T.textDim};text-transform:uppercase}
 .th.r{text-align:right}
-.t-row{display:grid;grid-template-columns:32px 20px 100px minmax(180px,1fr) 96px 116px 148px 114px 48px;padding:0 32px 0 20px;min-height:60px;border-bottom:1px solid ${T.border};align-items:center;transition:background 0.08s;position:relative}
-.t-row:hover{background:#FAFBFD}.t-row.sel{background:${T.s3}}
-.t-row.dragging{opacity:0.3}.t-row.drag-over::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:${T.ink};border-radius:99px}
+.t-row{display:grid;grid-template-columns:32px 20px 118px minmax(280px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;min-height:74px;align-items:center;transition:background 0.12s,border-color 0.12s;position:relative;background:rgba(251,250,246,0.58);border:1px solid transparent;border-radius:16px;margin-bottom:8px}
+.t-row:hover{background:${T.surface};border-color:rgba(24,23,20,0.06)}.t-row.sel{background:${T.surface};border-color:rgba(24,23,20,0.1)}
+.t-row.dragging{opacity:0.3}.t-row.drag-over::before{content:'';position:absolute;top:-5px;left:18px;right:18px;height:1px;background:${T.ink};border-radius:99px}
 .t-row .ra{display:flex;gap:6px;justify-content:flex-end;align-items:center}
-.drag-handle{color:${T.border2};cursor:grab;font-size:14px;display:flex;align-items:center;padding:0 2px;user-select:none}
+.drag-handle{color:rgba(94,88,79,0.38);cursor:grab;font-size:14px;display:flex;align-items:center;padding:0 2px;user-select:none}
 .drag-handle:hover{color:${T.textSub}}.drag-handle:active{cursor:grabbing}
 
 /* DATETIME CELL */
-.dt-cell{display:flex;flex-direction:column;gap:2px;cursor:pointer;padding:4px 6px;border-radius:5px;transition:background 0.08s;border:1px solid transparent;min-width:80px}
-.dt-cell:hover{background:${T.s3};border-color:${T.border2}}
+.dt-cell{display:flex;flex-direction:column;gap:2px;cursor:pointer;padding:6px 8px;border-radius:10px;transition:background 0.08s;border:1px solid transparent;min-width:92px}
+.dt-cell:hover{background:rgba(24,23,20,0.04);border-color:rgba(24,23,20,0.05)}
 .dt-date{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:${T.text};line-height:1.3;letter-spacing:-.1px}
 .dt-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim};line-height:1.4;font-weight:400;margin-top:1px}
 .dt-empty{font-size:11px;color:${T.textDim};font-style:italic}
@@ -174,71 +181,71 @@ input,textarea,select,button{font-family:inherit}
 .note-in::placeholder{color:${T.textDim}}
 
 /* PILLS */
-.plat-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;outline:none;letter-spacing:.02em;transition:opacity .12s}
-.plat-pill:hover{opacity:.75}
-.pill-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;opacity:.85}
-.status-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 0;border-radius:0;font-size:12px;font-weight:400;cursor:pointer;border:none;background:transparent;color:${T.textSub};transition:color .1s;white-space:nowrap;letter-spacing:-.01em}
+.plat-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer;border:none;outline:none;letter-spacing:.08em;text-transform:uppercase;transition:background .12s,color .12s}
+.plat-pill:hover{background:rgba(24,23,20,0.06)}
+.pill-dot{width:4px;height:4px;border-radius:50%;flex-shrink:0;opacity:.75}
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 0;border-radius:0;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:${T.textSub};transition:color .1s;white-space:nowrap;letter-spacing:0}
 .status-pill:hover{color:${T.text}}
 .s-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-right:1px}
-.assignee-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 0;border-radius:0;font-size:12px;font-weight:400;cursor:pointer;border:none;background:transparent;color:${T.textSub};transition:color .1s}
+.assignee-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 0;border-radius:0;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:${T.textSub};transition:color .1s}
 .assignee-pill:hover{color:${T.text}}
 
 .ib{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border:1px solid transparent;background:transparent;border-radius:5px;cursor:pointer;color:${T.textDim};font-size:13px;transition:all 0.1s}
 
-.ib:hover{border-color:${T.border2};background:${T.s3};color:${T.text}}
+.ib:hover{border-color:rgba(24,23,20,0.06);background:rgba(24,23,20,0.04);color:${T.text}}
 .ib.p:hover{border-color:${T.border2};color:${T.text};background:${T.s3}}
 .ib.d{opacity:0;transition:opacity .12s;color:${T.textDim}}.ib.d:hover{border-color:${T.red};color:${T.red};background:rgba(255,77,77,0.08)}.t-row:hover .ib.d{opacity:1}
 .ib.c:hover{border-color:${T.purple};color:${T.purple};background:rgba(167,139,250,0.08)}
 .ib.n:hover{border-color:${T.orange};color:${T.orange};background:rgba(247,119,55,0.08)}
 
-.add-row{padding:0 20px;height:44px;display:flex;align-items:center;border-bottom:none}
-.add-btn{display:flex;align-items:center;gap:5px;background:transparent;border:none;color:${T.textDim};font-size:12.5px;font-weight:400;cursor:pointer;padding:6px 8px;border-radius:5px;transition:color 0.1s}
+.add-row{padding:10px 18px 0;height:auto;display:flex;align-items:center;border-bottom:none}
+.add-btn{display:flex;align-items:center;gap:5px;background:transparent;border:none;color:${T.textDim};font-size:12.5px;font-weight:500;cursor:pointer;padding:8px 10px;border-radius:999px;transition:color 0.1s,background 0.1s}
 .add-btn:hover{color:${T.textSub}}
 
 /* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-size:12.5px;font-weight:500;cursor:pointer;border:none;transition:all 0.12s;letter-spacing:.02em}
-.btn-ghost{background:transparent;color:${T.textSub};border:1px solid ${T.border2}}
-.btn-ghost:hover{color:${T.text};background:${T.s3}}
-.btn-primary{background:${T.ink};color:#F7F8FA;font-weight:600}
-.btn-primary:hover{background:#2E2C28}
-.btn-ai{background:rgba(167,139,250,0.12);color:${T.purple};border:1px solid rgba(167,139,250,0.25);font-weight:600}
-.btn-ai:hover{background:rgba(167,139,250,0.2)}
-.btn-now{background:rgba(59,130,246,0.12);color:${T.blue};border:1px solid rgba(59,130,246,0.25);font-weight:700}
-.btn-now:hover{background:rgba(59,130,246,0.22)}
-.btn-danger{background:rgba(255,77,77,0.1);color:${T.red};border:1px solid rgba(255,77,77,0.2)}
-.btn-danger:hover{background:rgba(255,77,77,0.18)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all 0.12s;letter-spacing:.01em}
+.btn-ghost{background:rgba(24,23,20,0.03);color:${T.textSub};border:1px solid rgba(24,23,20,0.06)}
+.btn-ghost:hover{color:${T.text};background:rgba(24,23,20,0.06)}
+.btn-primary{background:${T.ink};color:${T.surface};font-weight:600}
+.btn-primary:hover{background:#282620}
+.btn-ai{background:rgba(24,23,20,0.04);color:${T.textSub};border:1px solid rgba(24,23,20,0.06);font-weight:600}
+.btn-ai:hover{background:rgba(24,23,20,0.08);color:${T.text}}
+.btn-now{background:rgba(24,23,20,0.08);color:${T.text};border:1px solid rgba(24,23,20,0.08);font-weight:700}
+.btn-now:hover{background:rgba(24,23,20,0.12)}
+.btn-danger{background:rgba(220,38,38,0.06);color:${T.red};border:1px solid rgba(220,38,38,0.12)}
+.btn-danger:hover{background:rgba(220,38,38,0.1)}
 .btn:disabled{opacity:0.38;cursor:not-allowed}
 
 /* BULK BAR */
-.bulk{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:${T.s3};border:1px solid ${T.border2};border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,0.6);z-index:50;animation:bIn 0.18s cubic-bezier(0.34,1.56,0.64,1)}
+.bulk{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(251,250,246,0.92);border:1px solid rgba(24,23,20,0.06);border-radius:999px;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 18px 50px rgba(24,23,20,0.08);z-index:50;animation:bIn 0.18s cubic-bezier(0.34,1.56,0.64,1);backdrop-filter:blur(12px)}
 @keyframes bIn{from{transform:translateX(-50%) translateY(8px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
 .bulk-lbl{font-size:13.5px;color:${T.textSub};font-weight:400}.bulk-lbl b{color:${T.text};font-weight:600}
 
 /* CALENDAR VIEW */
-.cal-area{flex:1;overflow-y:auto;padding:24px 28px}
+.cal-area{flex:1;overflow-y:auto;padding:28px 30px 34px}
 .cal-header{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
-.cal-wd{font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:${T.textDim};text-align:center;padding-bottom:10px}
+.cal-wd{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:${T.textDim};text-align:center;padding-bottom:14px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:${T.border}}
-.cal-cell{background:${T.surface};min-height:130px;padding:10px;position:relative;transition:background 0.08s}
-.cal-cell.other{background:${T.surface};border-color:${T.border}}.cal-cell.today{background:${T.s2}}
+.cal-cell{background:${T.surface};min-height:152px;padding:12px;position:relative;transition:background 0.08s;border-radius:12px}
+.cal-cell.other{background:rgba(251,250,246,0.45);border-color:${T.border}}.cal-cell.today{background:${T.s2}}
 .cal-cell:hover{background:${T.s2}}
-.cal-dn{font-family:'Inter',sans-serif;font-size:11.5px;font-weight:400;color:${T.textDim};margin-bottom:8px}
+.cal-dn{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:${T.textDim};margin-bottom:10px}
 .cal-cell.today .cal-dn{color:${T.ink};font-weight:700}
 .cal-posts{display:flex;flex-direction:column;gap:3px}
-.cal-post{padding:4px 8px;border-radius:4px;font-size:10.5px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;overflow:hidden;margin-bottom:1px}
-.cal-post:hover{opacity:0.8}
+.cal-post{padding:7px 8px;border-radius:10px;font-size:11px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;overflow:hidden;margin-bottom:2px;background:rgba(24,23,20,0.04)}
+.cal-post:hover{background:rgba(24,23,20,0.06)}
 .cal-add{position:absolute;bottom:5px;right:5px;opacity:0;transition:opacity 0.1s}
 .cal-cell:hover .cal-add{opacity:1}
 .cal-add-btn{width:20px;height:20px;border-radius:4px;background:${T.s3};border:1px solid ${T.border2};cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;color:${T.textDim};transition:all 0.1s}
 .cal-add-btn:hover{border-color:${T.border2};color:${T.text}}
 
 /* ANALYTICS */
-.analytics-area{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:20px}
-.analytics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.an-card{background:${T.surface};border:1px solid ${T.border};border-radius:10px;padding:18px}
+.analytics-area{flex:1;overflow-y:auto;padding:28px;display:flex;flex-direction:column;gap:20px}
+.analytics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.an-card{background:rgba(251,250,246,0.72);border:1px solid rgba(24,23,20,0.06);border-radius:18px;padding:20px}
 .an-card.wide{grid-column:span 2}.an-card.full{grid-column:1/-1}
-.an-title{font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:${T.textDim};font-family:'Inter',sans-serif;margin-bottom:16px;opacity:.65}
-.an-big{font-size:34px;font-weight:700;letter-spacing:-1.5px;margin-bottom:5px;font-family:'Bricolage Grotesque',sans-serif;line-height:1}
+.an-title{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:${T.textDim};font-family:'JetBrains Mono',monospace;margin-bottom:16px}
+.an-big{font-size:32px;font-weight:600;letter-spacing:-0.05em;margin-bottom:5px;font-family:'Bricolage Grotesque',sans-serif;line-height:1}
 .an-sub{font-size:12.5px;color:${T.textDim};font-weight:400;line-height:1.5}
 .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .bar-label{font-size:11px;color:${T.textSub};width:60px;flex-shrink:0;font-family:'JetBrains Mono',monospace}
@@ -257,18 +264,18 @@ input,textarea,select,button{font-family:inherit}
 .perf-eng{font-size:12px;font-weight:600;width:44px;text-align:right}
 
 /* ASSET DRAWER */
-.asset-drawer{position:fixed;right:0;top:0;bottom:0;width:320px;background:${T.surface};border-left:1px solid ${T.border};z-index:80;display:flex;flex-direction:column;animation:drawerIn 0.2s cubic-bezier(0.34,1.1,0.64,1)}
+.asset-drawer{position:fixed;right:0;top:0;bottom:0;width:380px;background:rgba(251,250,246,0.9);border-left:1px solid rgba(24,23,20,0.06);z-index:80;display:flex;flex-direction:column;animation:drawerIn 0.2s cubic-bezier(0.34,1.1,0.64,1);backdrop-filter:blur(18px)}
 @keyframes drawerIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
-.asset-head{padding:18px 18px 14px;border-bottom:1px solid ${T.border};display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.asset-title{font-size:14px;font-weight:700}
-.asset-body{flex:1;overflow-y:auto;padding:14px}
-.asset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.asset-item{aspect-ratio:1;border-radius:7px;border:1px solid ${T.border};overflow:hidden;cursor:pointer;position:relative;background:${T.s3};transition:all 0.1s}
-.asset-item:hover{border-color:${T.border2};transform:scale(1.02)}
+.asset-head{padding:22px 20px 16px;border-bottom:1px solid rgba(24,23,20,0.06);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.asset-title{font-size:16px;font-weight:600;font-family:'Bricolage Grotesque',sans-serif}
+.asset-body{flex:1;overflow-y:auto;padding:18px}
+.asset-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+.asset-item{aspect-ratio:1;border-radius:14px;border:1px solid rgba(24,23,20,0.06);overflow:hidden;cursor:pointer;position:relative;background:${T.s2};transition:all 0.12s}
+.asset-item:hover{border-color:rgba(24,23,20,0.1);transform:translateY(-1px)}
 .asset-thumb{width:100%;height:100%;object-fit:cover}
 .asset-empty-thumb{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;opacity:0.4}
-.asset-name{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);font-size:9px;padding:3px 5px;color:${T.textSub};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'JetBrains Mono',monospace}
-.asset-upload{border:1.5px dashed ${T.border2};border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all 0.12s;margin-bottom:4px}
+.asset-name{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(24,23,20,0.78));font-size:9px;padding:12px 8px 6px;color:rgba(255,255,255,0.88);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+.asset-upload{border:1.5px dashed rgba(24,23,20,0.14);border-radius:16px;padding:28px 20px;text-align:center;cursor:pointer;transition:all 0.12s;margin-bottom:4px;background:rgba(251,250,246,0.7)}
 .asset-upload:hover{border-color:${T.ink};background:${T.inkFog}}
 
 /* MODAL */
@@ -345,63 +352,63 @@ input,textarea,select,button{font-family:inherit}
 .er2{font-size:13px;color:${T.red};font-weight:500;flex:1}
 
 /* EMPTY */
-.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:56px 0}
-.e-icon{font-size:26px;opacity:0.18;margin-bottom:4px}
-.e-t{font-size:14px;font-weight:600;color:${T.textSub}}.e-s{font-size:13px;color:${T.textDim};font-weight:400;line-height:1.6}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:72px 0}
+.e-icon{font-size:22px;opacity:0.18;margin-bottom:2px}
+.e-t{font-size:16px;font-weight:600;color:${T.text}}.e-s{font-size:13px;color:${T.textDim};font-weight:400;line-height:1.6;max-width:320px;text-align:center}
 
 /* TOAST */
-.toast{position:fixed;bottom:26px;right:22px;z-index:300;background:${T.s3};border:1px solid ${T.border2};border-radius:8px;padding:10px 15px;font-size:13px;color:${T.text};font-weight:500;box-shadow:0 12px 40px rgba(0,0,0,0.5);animation:tIn 0.18s cubic-bezier(0.34,1.2,0.64,1);display:flex;align-items:center;gap:8px;max-width:320px}
+.toast{position:fixed;bottom:26px;right:22px;z-index:300;background:rgba(251,250,246,0.94);border:1px solid rgba(24,23,20,0.08);border-radius:14px;padding:12px 16px;font-size:13px;color:${T.text};font-weight:500;box-shadow:0 20px 50px rgba(24,23,20,0.08);animation:tIn 0.18s cubic-bezier(0.34,1.2,0.64,1);display:flex;align-items:center;gap:8px;max-width:360px;backdrop-filter:blur(12px)}
 @keyframes tIn{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
 .t-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 /* ─── STORY DESIGNER SCENE GRAPH ─── */
 .s-modal{width:960px;max-width:96vw;height:90vh}
 .s-layout{display:flex;flex:1;overflow:hidden;min-height:0}
-.s-bar{width:268px;flex-shrink:0;border-right:1px solid #E5E7EB;overflow-y:auto;display:flex;flex-direction:column;background:#FFFFFF}
-.inspector-group{padding:13px 15px;border-bottom:1px solid #E5E7EB}
+.s-bar{width:268px;flex-shrink:0;border-right:1px solid ${T.border};overflow-y:auto;display:flex;flex-direction:column;background:${T.surface}}
+.inspector-group{padding:13px 15px;border-bottom:1px solid ${T.border}}
 .inspector-group:last-child{border-bottom:none}
-.inspector-group-title{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:${T.textDim};margin-bottom:10px;opacity:.65}
-.s-canvas-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px 24px;gap:12px;background:#DDDFE3;overflow:auto}
-.canvas-zoom-bar{display:flex;align-items:center;gap:8px;align-self:flex-start;background:rgba(0,0,0,0.35);border-radius:6px;padding:4px 8px;backdrop-filter:blur(8px)}
-.zoom-btn{background:transparent;border:none;color:rgba(255,255,255,0.8);font-size:15px;cursor:pointer;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.1s;line-height:1;font-weight:300}
-.zoom-btn:hover{background:rgba(255,255,255,0.15)}
-.zoom-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(255,255,255,0.6);letter-spacing:.5px;min-width:32px;text-align:center}
-.canvas-wrap{position:relative;border-radius:16px;box-shadow:0 40px 100px rgba(0,0,0,0.32),0 0 0 1px rgba(0,0,0,0.08);flex-shrink:0;transition:transform 0.2s cubic-bezier(0.4,0,0.2,1)}
-.canvas{width:290px;height:515px;border-radius:16px;position:relative;overflow:hidden;background:#080A0E;flex-shrink:0;cursor:crosshair}
+.inspector-group-title{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:${T.textDim};margin-bottom:10px;opacity:.75}
+.s-canvas-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:18px 24px;gap:14px;background:linear-gradient(180deg,${T.bg},${T.s2});overflow:auto}
+.canvas-zoom-bar{display:flex;align-items:center;gap:8px;align-self:flex-start;background:rgba(251,250,246,0.85);border:1px solid ${T.border};border-radius:999px;padding:4px 10px}
+.zoom-btn{background:transparent;border:none;color:${T.textSub};font-size:14px;cursor:pointer;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background 0.1s;line-height:1;font-weight:400}
+.zoom-btn:hover{background:${T.s3};color:${T.text}}
+.zoom-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim};letter-spacing:.5px;min-width:32px;text-align:center}
+.canvas-wrap{position:relative;border-radius:18px;box-shadow:0 24px 80px rgba(24,23,20,0.2),0 0 0 1px rgba(24,23,20,0.08);flex-shrink:0;transition:transform 0.2s cubic-bezier(0.4,0,0.2,1)}
+.canvas{width:290px;height:515px;border-radius:18px;position:relative;overflow:hidden;background:#080A0E;flex-shrink:0;cursor:crosshair}
 .canvas-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
 .canvas-ov{position:absolute;inset:0;pointer-events:none}
 .element-wrap{position:absolute;cursor:move;user-select:none}
 .element-wrap:hover .el-outline{opacity:1}
 .el-outline{position:absolute;inset:-2px;border:1px dashed rgba(0,165,114,0.45);border-radius:2px;pointer-events:none;opacity:0;transition:opacity 0.1s}
-.element-selected .el-outline{opacity:1;border-color:#111318;border-style:solid}
-.handle{position:absolute;width:8px;height:8px;background:#FFFFFF;border:1.5px solid #111318;border-radius:50%;z-index:20;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.element-selected .el-outline{opacity:1;border-color:${T.ink};border-style:solid}
+.handle{position:absolute;width:8px;height:8px;background:${T.surface};border:1.5px solid ${T.ink};border-radius:50%;z-index:20;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
 .handle-nw{top:-4px;left:-4px;cursor:nwse-resize}
 .handle-ne{top:-4px;right:-4px;cursor:nesw-resize}
 .handle-sw{bottom:-4px;left:-4px;cursor:nesw-resize}
 .handle-se{bottom:-4px;right:-4px;cursor:nwse-resize}
-.s-slider{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:#EFF0F2;outline:none;cursor:pointer;margin:4px 0 10px}
-.s-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#111318;cursor:pointer;border:2px solid #FFFFFF;box-shadow:0 1px 4px rgba(0,122,85,0.4)}
+.s-slider{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:${T.s3};outline:none;cursor:pointer;margin:4px 0 10px}
+.s-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:${T.ink};cursor:pointer;border:2px solid ${T.surface};box-shadow:0 1px 4px rgba(24,23,20,0.25)}
 .layers-stack{display:flex;flex-direction:column;gap:2px;max-height:130px;overflow-y:auto}
-.layer-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:500;color:#555D6E;transition:background 0.08s;border:1px solid transparent}
-.layer-item:hover{background:#F9FAFB;color:#0D0F12}
+.layer-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:500;color:${T.textSub};transition:background 0.08s;border:1px solid transparent}
+.layer-item:hover{background:${T.s2};color:${T.text}}
 .layer-item.active{background:${T.s3};border-color:${T.border2};color:${T.ink};font-weight:600}
 .layer-icon{font-size:11px;width:18px;text-align:center;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-weight:700}
 .layer-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px}
-.layer-del{background:transparent;border:none;color:#9AA0AE;cursor:pointer;font-size:13px;padding:1px 3px;border-radius:3px;line-height:1;opacity:0;transition:opacity 0.1s}
+.layer-del{background:transparent;border:none;color:${T.textDim};cursor:pointer;font-size:13px;padding:1px 3px;border-radius:3px;line-height:1;opacity:0;transition:opacity 0.1s}
 .layer-item:hover .layer-del{opacity:1}
 .layer-item:hover .layer-del:hover{color:#D93025}
 .color-swatches{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .color-swatch{width:22px;height:22px;border-radius:5px;cursor:pointer;border:2px solid transparent;transition:transform 0.1s,border-color 0.1s;flex-shrink:0}
 .color-swatch:hover{transform:scale(1.18)}
-.color-swatch.sel{border-color:#111318;box-shadow:0 0 0 1px #FFFFFF inset}
+.color-swatch.sel{border-color:${T.ink};box-shadow:0 0 0 1px ${T.surface} inset}
 .font-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
-.font-btn{background:#F0F1F3;border:1px solid #E5E7EB;border-radius:5px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;color:#555D6E;transition:all 0.1s;text-align:center}
+.font-btn{background:${T.s2};border:1px solid ${T.border};border-radius:6px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;color:${T.textSub};transition:all 0.1s;text-align:center}
 .font-btn.sel{background:${T.s3};border-color:${T.border2};color:${T.ink};font-weight:700}
-.ai-copilot{background:${T.s2};border:1px solid ${T.border};border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;animation:fIn 0.15s}
+.ai-copilot{background:${T.s2};border:1px solid ${T.border};border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;animation:fIn 0.15s}
 .ai-copilot-title{font-size:11.5px;font-weight:600;color:${T.textSub};display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif}
-.ai-suggestion{background:#FFFFFF;border:1px solid #E5E7EB;border-radius:6px;padding:9px 10px;font-size:11.5px;color:#555D6E;line-height:1.5;cursor:pointer;transition:border-color 0.1s}
+.ai-suggestion{background:${T.surface};border:1px solid ${T.border};border-radius:8px;padding:9px 10px;font-size:11.5px;color:${T.textSub};line-height:1.5;cursor:pointer;transition:border-color 0.1s}
 .ai-suggestion:hover{border-color:${T.border2};color:${T.text}}
 .ai-suggestion b{color:${T.text};font-weight:600}
-.del-btn{background:transparent;border:1px solid #E5E7EB;border-radius:5px;padding:4px 10px;font-size:11.5px;font-weight:600;color:#D93025;cursor:pointer;transition:all 0.1s;display:flex;align-items:center;gap:4px}
+.del-btn{background:transparent;border:1px solid ${T.border};border-radius:6px;padding:4px 10px;font-size:11.5px;font-weight:600;color:#D93025;cursor:pointer;transition:all 0.1s;display:flex;align-items:center;gap:4px}
 .del-btn:hover{background:rgba(217,48,37,0.06);border-color:#D93025}
 
 /* ─── STAGE WELL ─── */
@@ -409,61 +416,63 @@ input,textarea,select,button{font-family:inherit}
 .row-container.is-open .t-row{background:#FFFFFF;border-bottom:1px solid transparent;position:relative;z-index:4}
 .row-container.is-open .t-row::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;background:#E5E7EB}
 
-.stage-reveal-wrapper{display:grid;grid-template-rows:0fr;transition:grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1);overflow:hidden;background:#F9FAFB;border-bottom:1px solid transparent}
-.stage-reveal-wrapper.open{grid-template-rows:1fr;border-bottom:1px solid #E5E7EB}
-.stage-content-well{min-height:0;display:flex;gap:0;box-shadow:inset 0 3px 12px rgba(0,0,0,0.04)}
-
-/* Three columns */
-.stage-col{padding:22px 24px;border-right:1px solid #E5E7EB;display:flex;flex-direction:column;gap:14px}
-.stage-col:last-child{border-right:none}
-.stage-col-media{width:200px;flex-shrink:0}
-.stage-col-write{flex:1;min-width:0}
-.stage-col-gov{width:210px;flex-shrink:0}
-
-.stage-col-label{font-family:'Inter',sans-serif;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:${T.textDim};margin-bottom:4px;opacity:.7}
+.stage-reveal-wrapper{display:grid;grid-template-rows:0fr;transition:grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1);overflow:hidden;background:transparent;border-bottom:1px solid transparent}
+.stage-reveal-wrapper.open{grid-template-rows:1fr;border-bottom:none}
+.stage-content-well{min-height:0;padding:0 18px 14px}
+.stage-stack{display:flex;flex-direction:column;gap:12px;background:rgba(251,250,246,0.72);border:1px solid rgba(24,23,20,0.06);border-radius:20px;padding:18px}
+.stage-summary{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:4px}
+.stage-summary-title{font-size:18px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;letter-spacing:-0.03em}
+.stage-summary-meta{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:${T.textDim};font-family:'JetBrains Mono',monospace;letter-spacing:.03em;text-transform:uppercase;margin-top:6px}
+.stage-summary-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.stage-section{padding:16px 18px;background:rgba(255,255,255,0.4);border:1px solid rgba(24,23,20,0.05);border-radius:16px;display:flex;flex-direction:column;gap:12px}
+.stage-grid{display:grid;grid-template-columns:1.15fr 1.35fr;gap:12px}
+.stage-dual{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stage-col{padding:0;border-right:none;display:flex;flex-direction:column;gap:12px}
+.stage-col-media,.stage-col-write,.stage-col-gov{width:auto;min-width:0}
+.stage-col-label{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:${T.textDim};margin-bottom:2px}
 
 /* Media thumb */
-.stage-thumb{width:100%;aspect-ratio:9/16;border-radius:10px;background:#0D0F12;position:relative;overflow:hidden;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.18);flex-shrink:0;display:flex;align-items:center;justify-content:center;max-height:180px}
+.stage-thumb{width:100%;aspect-ratio:9/16;border-radius:18px;background:#E8E1D7;position:relative;overflow:hidden;cursor:pointer;box-shadow:none;flex-shrink:0;display:flex;align-items:center;justify-content:center;max-height:220px}
 .stage-thumb img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
 .stage-thumb-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.18s;backdrop-filter:saturate(1.2)}
 .stage-thumb:hover .stage-thumb-overlay{opacity:1}
 .stage-thumb-btn{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);border-radius:7px;padding:7px 14px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(8px)}
-.stage-post-placeholder{width:100%;border-radius:8px;border:1.5px dashed #D1D5DB;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:all 0.12s;background:transparent}
-.stage-post-placeholder:hover{border-color:${T.ink};background:rgba(0,122,85,0.04)}
+.stage-post-placeholder{width:100%;border-radius:18px;border:1.5px dashed rgba(24,23,20,0.12);min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.12s;background:rgba(251,250,246,0.7)}
+.stage-post-placeholder:hover{border-color:${T.ink};background:rgba(24,23,20,0.03)}
 .stage-post-placeholder input{display:none}
 
 /* Caption editor in stage */
-.stage-txa{background:#FFFFFF;border:1px solid ${T.border};border-radius:7px;color:${T.text};font-size:13.5px;padding:12px 14px;outline:none;width:100%;resize:none;min-height:100px;line-height:1.65;transition:border-color 0.1s;flex:1;font-family:'Inter',sans-serif;font-weight:400}
-.stage-txa:focus{border-color:#D1D5DB;box-shadow:0 0 0 3px rgba(0,122,85,0.06)}
+.stage-txa{background:rgba(255,255,255,0.55);border:1px solid rgba(24,23,20,0.06);border-radius:16px;color:${T.text};font-size:14px;padding:16px;outline:none;width:100%;resize:none;min-height:180px;line-height:1.72;transition:border-color 0.1s;flex:1;font-family:'Inter',sans-serif;font-weight:400}
+.stage-txa:focus{border-color:rgba(24,23,20,0.12);box-shadow:0 0 0 3px rgba(24,23,20,0.04)}
 .stage-txa::placeholder{color:#9AA0AE}
 .stage-char{font-family:'JetBrains Mono',monospace;font-size:10px;color:#9AA0AE}
 .stage-char.warn{color:#D97706}.stage-char.over{color:#D93025}
 
 /* AI panel in stage */
-.stage-ai{background:${T.s2};border:1px solid ${T.border};border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.stage-ai{background:rgba(24,23,20,0.025);border:1px solid rgba(24,23,20,0.05);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .stage-ai-header{display:flex;align-items:center;justify-content:space-between}
 .stage-ai-title{font-size:11px;font-weight:600;color:${T.textSub};display:flex;align-items:center;gap:5px;font-family:'Inter',sans-serif}
 .stage-ai-result{background:${T.surface};border:1px solid ${T.border};border-radius:6px;padding:10px 12px;font-size:13px;color:${T.textSub};line-height:1.65;white-space:pre-wrap;max-height:110px;overflow-y:auto}
 .stage-ai-typing::after{content:'▋';animation:blink 0.8s infinite;color:${T.textDim}}
 
 /* Governance column */
-.readiness-list{display:flex;flex-direction:column;gap:6px}
-.readiness-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;background:#FFFFFF;border:1px solid #E5E7EB}
+.readiness-list{display:flex;flex-direction:column;gap:8px}
+.readiness-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,0.55);border:1px solid rgba(24,23,20,0.05)}
 .readiness-icon{font-size:13px;flex-shrink:0;width:18px;text-align:center}
 .readiness-label{font-size:12.5px;color:${T.textSub};flex:1;font-weight:400}
 .readiness-ok{font-family:'Inter',sans-serif;font-size:11px;font-weight:600}
 .readiness-ok.pass{color:#111318}.readiness-ok.fail{color:#D93025}.readiness-ok.warn{color:#D97706}
 
-.quick-status{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
-.qs-btn{padding:5px 12px;border-radius:99px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid ${T.border};background:transparent;color:${T.textSub};transition:all 0.1s;white-space:nowrap;letter-spacing:.05px}
-.qs-btn:hover{border-color:#D1D5DB;color:#0D0F12;background:#F9FAFB}
+.quick-status{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.qs-btn{padding:7px 12px;border-radius:999px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid rgba(24,23,20,0.06);background:transparent;color:${T.textSub};transition:all 0.1s;white-space:nowrap;letter-spacing:.02em}
+.qs-btn:hover{border-color:rgba(24,23,20,0.1);color:#0D0F12;background:rgba(24,23,20,0.03)}
 .qs-btn.active{border-color:currentColor}
 
 /* Expand trigger */
-.expand-toggle{display:inline-flex;align-items:center;gap:5px;padding:0 13px;height:28px;border-radius:6px;border:1px solid;font-size:11.5px;font-weight:500;cursor:pointer;transition:all 0.12s;font-family:'Inter',sans-serif;letter-spacing:.01em;white-space:nowrap}
-.expand-toggle:not(.open){background:${T.surface};border-color:${T.border};color:${T.textSub}}
-.expand-toggle:not(.open):hover{background:${T.s3};border-color:${T.border2};color:${T.text}}
-.expand-toggle.open{background:${T.ink};border-color:${T.ink};color:#F7F8FA}
+.expand-toggle{display:inline-flex;align-items:center;gap:5px;padding:0 13px;height:32px;border-radius:999px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.12s;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.expand-toggle:not(.open){background:rgba(24,23,20,0.03);border-color:rgba(24,23,20,0.06);color:${T.textSub}}
+.expand-toggle:not(.open):hover{background:rgba(24,23,20,0.06);border-color:rgba(24,23,20,0.08);color:${T.text}}
+.expand-toggle.open{background:${T.ink};border-color:${T.ink};color:${T.surface}}
 .expand-toggle.open:hover{background:#2E2C28;border-color:#2E2C28}
 
 /* ─── VIDEO / RICH MEDIA ─── */
@@ -500,8 +509,8 @@ input,textarea,select,button{font-family:inherit}
 .thumb-el{position:absolute;font-family:'Bricolage Grotesque',sans-serif;line-height:1.2;overflow:hidden;pointer-events:none}
 
 /* ─── FONT SECTION HEADER ─── */
-.font-section-header{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#9AA0AE;margin:6px 0 4px;display:flex;align-items:center;gap:5px}
-.font-verified{color:#111318;font-size:9px}
+.font-section-header{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:${T.textDim};margin:6px 0 4px;display:flex;align-items:center;gap:5px}
+.font-verified{color:${T.text};font-size:9px}
 
 /* ─── YEAR VIEW ─── */
 .year-kpi{display:flex;gap:0;border-bottom:1px solid #E5E7EB;background:#FFFFFF;flex-shrink:0}
@@ -521,7 +530,7 @@ input,textarea,select,button{font-family:inherit}
 .month-spark-bar.ig{background:#BE185D33}
 .month-spark-bar.li{background:#0A66C233}
 .month-spark-bar.fill{opacity:1}
-.month-empty{padding:22px 22px 20px;display:flex;align-items:center;gap:12px}
+.month-empty{padding:24px 22px 20px;display:flex;align-items:center;gap:12px}
 .month-empty-text{font-size:12.5px;color:#9AA0AE;font-style:italic}
 .month-empty-add{background:transparent;border:1px dashed #D1D5DB;border-radius:6px;padding:4px 11px;font-size:11.5px;color:#9AA0AE;cursor:pointer;transition:all .1s;font-weight:500;white-space:nowrap}
 .month-empty-add:hover{border-color:#111318;color:#111318;background:rgba(0,122,85,.04)}
@@ -592,7 +601,7 @@ input,textarea,select,button{font-family:inherit}
 .s-settings-btn:hover{background:${T.s3};color:${T.text}}
 
 /* ─── IG GRID VIEW ─── */
-.ig-grid-area{flex:1;overflow-y:auto;padding:28px 24px 40px;display:flex;flex-direction:column;align-items:center;gap:0}
+.ig-grid-area{flex:1;overflow-y:auto;padding:32px 26px 42px;display:flex;flex-direction:column;align-items:center;gap:0}
 .ig-profile-wrap{width:100%;max-width:618px;display:flex;flex-direction:column}
 .ig-profile-header{display:flex;align-items:center;gap:28px;padding:8px 0 22px;border-bottom:1px solid ${T.border};margin-bottom:0}
 .ig-profile-avatar{width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;flex-shrink:0;background:linear-gradient(135deg,#BE185D,#7C3AED)}
@@ -605,11 +614,11 @@ input,textarea,select,button{font-family:inherit}
 .ig-profile-stat-key{font-size:10px;color:${T.textDim};font-weight:400}
 .ig-section-label{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:${T.textDim};padding:10px 3px 8px;display:flex;align-items:center;gap:8px}
 .ig-section-label::after{content:'';flex:1;height:1px;background:${T.border}}
-.ig-grid-frame{border:1px solid ${T.border};border-radius:10px;overflow:hidden;width:100%}
-.ig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:${T.border}}
-.ig-cell{aspect-ratio:1;position:relative;overflow:hidden;cursor:pointer;background:#080A0E;transition:filter .15s,opacity .15s}
+.ig-grid-frame{border:1px solid rgba(24,23,20,0.06);border-radius:20px;overflow:hidden;width:100%;background:rgba(251,250,246,0.8)}
+.ig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:transparent;padding:6px}
+.ig-cell{aspect-ratio:1;position:relative;overflow:hidden;cursor:pointer;background:#DED7CC;border-radius:12px;transition:filter .15s,opacity .15s,transform .15s}
 .ig-cell.is-queued{filter:brightness(0.82)}
-.ig-cell:hover{filter:brightness(1.1);opacity:.92}
+.ig-cell:hover{filter:brightness(1.04);opacity:.98;transform:translateY(-1px)}
 .ig-cell-overlay{position:absolute;inset:0;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;transition:background .18s;z-index:4}
 .ig-cell:hover .ig-cell-overlay{background:rgba(0,0,0,0.38)}
 .ig-cell-hover-label{color:#fff;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:.5px;opacity:0;transition:opacity .15s;pointer-events:none}
@@ -620,10 +629,131 @@ input,textarea,select,button{font-family:inherit}
 .ig-cell-badge{position:absolute;top:6px;right:6px;font-size:7px;font-weight:700;padding:2px 5px;border-radius:3px;letter-spacing:.6px;font-family:'JetBrains Mono',monospace;z-index:3}
 .ig-cell-badge.queued{background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.9);backdrop-filter:blur(4px)}
 .ig-cell-status{position:absolute;top:6px;left:6px;width:6px;height:6px;border-radius:50%;z-index:3}
-.ig-cell-empty{aspect-ratio:1;background:${T.s2}}
+.ig-cell-empty{aspect-ratio:1;background:${T.s2};border-radius:12px}
 .ig-cell-story-ring{position:absolute;inset:2px;border:1.5px solid rgba(255,255,255,0.28);border-radius:3px;pointer-events:none;z-index:3}
 .ig-queued-divider{grid-column:1/-1;background:rgba(255,255,255,0.04);border-top:1.5px dashed rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;padding:6px 0;gap:6px}
 .ig-queued-divider-label{font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:600;letter-spacing:1.2px;color:rgba(255,255,255,0.35);text-transform:uppercase}
+
+/* ─── OPERATIONS FILTERS ─── */
+.ops-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 18px 14px;border-bottom:1px solid rgba(24,23,20,0.05)}
+.ops-search{min-width:240px;flex:1;background:rgba(251,250,246,0.72);border:1px solid rgba(24,23,20,0.06);border-radius:999px;color:${T.text};padding:10px 14px;font-size:13px;outline:none}
+.ops-search::placeholder{color:${T.textDim}}
+.ops-tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ops-chip{padding:8px 11px;border-radius:999px;border:1px solid rgba(24,23,20,0.06);background:rgba(251,250,246,0.72);color:${T.textSub};font-size:11.5px;font-weight:500;cursor:pointer;transition:all 0.12s}
+.ops-chip:hover{background:rgba(24,23,20,0.05);color:${T.text}}
+.ops-chip.on{background:${T.ink};border-color:${T.ink};color:${T.surface}}
+.ops-clear{background:transparent;border:none;color:${T.textDim};font-size:11.5px;font-weight:600;cursor:pointer}
+.ops-count{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:${T.textDim}}
+
+/* ─── CALENDAR OVERRIDES ─── */
+.cal-area{padding:22px 24px 28px}
+.cal-shell{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.cal-main{min-width:0}
+.cal-topline{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.cal-title{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:600;letter-spacing:-0.04em;color:${T.text}}
+.cal-subtitle{font-size:12.5px;color:${T.textDim};margin-top:4px;line-height:1.55}
+.cal-grid{gap:8px;background:transparent}
+.cal-cell{min-height:164px;padding:12px;background:rgba(251,250,246,0.82);border:1px solid rgba(24,23,20,0.05);border-radius:18px}
+.cal-cell.selected{border-color:rgba(24,23,20,0.14);background:${T.surface}}
+.cal-cell-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.cal-count{min-width:22px;height:22px;border-radius:999px;padding:0 7px;display:flex;align-items:center;justify-content:center;background:rgba(24,23,20,0.05);font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim}}
+.cal-post{border:1px solid transparent}
+.cal-post.is-selected{border-color:rgba(24,23,20,0.14);background:${T.surface}}
+.cal-more{font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim};padding:4px 2px 0}
+.cal-panel{background:rgba(251,250,246,0.84);border:1px solid rgba(24,23,20,0.06);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:14px;position:sticky;top:18px;max-height:calc(100vh - 130px);overflow-y:auto}
+.cal-panel-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.cal-panel-day{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:600;letter-spacing:-0.03em}
+.cal-panel-sub{font-size:12.5px;color:${T.textDim};line-height:1.55}
+.cal-panel-section{display:flex;flex-direction:column;gap:10px;padding-top:4px}
+.cal-panel-empty{padding:14px;border-radius:16px;background:rgba(24,23,20,0.03);font-size:12.5px;color:${T.textDim};line-height:1.55}
+.cal-panel-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;border-radius:16px;border:1px solid rgba(24,23,20,0.05);background:rgba(255,255,255,0.44);cursor:pointer;text-align:left}
+.cal-panel-item.on{border-color:rgba(24,23,20,0.14);background:${T.surface}}
+.cal-panel-item-title{font-size:13px;font-weight:600;color:${T.text};line-height:1.4}
+.cal-panel-item-meta{font-size:10.5px;color:${T.textDim};font-family:'JetBrains Mono',monospace;margin-top:3px;text-transform:uppercase;letter-spacing:.08em}
+.cal-panel-item-time{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:${T.textSub};white-space:nowrap}
+.cal-editor{display:flex;flex-direction:column;gap:10px}
+.cal-chip-row{display:flex;flex-wrap:wrap;gap:6px}
+.cal-panel-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim};text-transform:uppercase;letter-spacing:.08em}
+
+/* ─── ANALYTICS OVERRIDES ─── */
+.analytics-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.an-card{padding:22px}
+.an-inline-stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.an-inline-stat{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border-radius:12px;background:rgba(24,23,20,0.03);min-width:120px;font-size:11.5px;color:${T.textSub}}
+.an-inline-stat strong{font-size:12px;color:${T.text};font-weight:600}
+.an-list{display:flex;flex-direction:column;gap:8px}
+.an-list-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(24,23,20,0.06)}
+.an-list-row:last-child{border-bottom:none;padding-bottom:0}
+.an-list-meta{font-size:10.5px;color:${T.textDim};font-family:'JetBrains Mono',monospace;margin-top:4px;text-transform:uppercase;letter-spacing:.08em}
+.an-list-trailing{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.an-status-text{font-size:11px;color:${T.textSub}}
+.an-empty-note{font-size:12.5px;color:${T.textDim};line-height:1.55}
+
+/* ─── ASSET LIBRARY OVERRIDES ─── */
+.asset-head-sub{font-size:11px;color:${T.textDim};margin-top:4px}
+.asset-toolbar{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.asset-search{width:100%;background:rgba(255,255,255,0.7);border:1px solid rgba(24,23,20,0.06);border-radius:999px;color:${T.text};padding:10px 14px;font-size:13px;outline:none}
+.asset-tabs{display:flex;flex-wrap:wrap;gap:6px}
+.asset-tab{padding:6px 10px;border-radius:999px;border:1px solid rgba(24,23,20,0.06);background:transparent;color:${T.textDim};font-size:11px;font-weight:600;cursor:pointer}
+.asset-tab.on{background:${T.ink};border-color:${T.ink};color:${T.surface}}
+.asset-focus{display:flex;flex-direction:column;gap:12px;padding:12px;border-radius:18px;background:rgba(255,255,255,0.55);border:1px solid rgba(24,23,20,0.06);margin-bottom:12px}
+.asset-focus-preview{border-radius:14px;overflow:hidden;background:${T.s2};aspect-ratio:16/10}
+.asset-focus-body{display:flex;flex-direction:column;gap:10px}
+.asset-focus-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.asset-focus-title{font-size:14px;font-weight:600;color:${T.text}}
+.asset-focus-meta{font-size:10.5px;color:${T.textDim};font-family:'JetBrains Mono',monospace;margin-top:4px;text-transform:uppercase;letter-spacing:.08em}
+.asset-star{padding:6px 10px;border-radius:999px;border:1px solid rgba(24,23,20,0.06);background:transparent;color:${T.textDim};font-size:11px;font-weight:600;cursor:pointer}
+.asset-star.on{background:rgba(24,23,20,0.05);color:${T.text}}
+.asset-item{aspect-ratio:0.94}
+.asset-item.on{border-color:rgba(24,23,20,0.14);background:${T.surface}}
+.asset-fav{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:999px;border:none;background:rgba(24,23,20,0.12);color:#fff;cursor:pointer;z-index:2}
+.asset-fav.on{background:rgba(24,23,20,0.74)}
+.asset-name{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;font-size:9px}
+.asset-name span:last-child{opacity:0.7;text-transform:uppercase}
+
+/* ─── CONNECTION / SETTINGS / GRID POLISH ─── */
+.cp-modal{width:430px}
+.cp-detail-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-top:10px}
+.cp-detail-card{padding:12px 13px;border-radius:14px;background:rgba(24,23,20,0.03);border:1px solid rgba(24,23,20,0.06)}
+.cp-detail-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:${T.textDim};margin-bottom:6px}
+.cp-detail-value{font-size:12.5px;line-height:1.55;color:${T.textSub}}
+.settings-note{margin:0 0 14px;padding:12px 14px;border-radius:14px;background:rgba(24,23,20,0.03);border:1px solid rgba(24,23,20,0.05);font-size:12.5px;color:${T.textSub};line-height:1.55}
+.settings-card{background:rgba(251,250,246,0.72);border:1px solid rgba(24,23,20,0.06);border-radius:16px;padding:14px}
+.settings-card-title{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:${T.textDim};margin-bottom:10px}
+.ig-profile-header{align-items:flex-start;gap:22px;padding:0 0 22px}
+.ig-profile-avatar{background:${T.ink};color:${T.surface};box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06)}
+.ig-profile-kicker{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:${T.textDim};margin-bottom:6px}
+.ig-profile-bio{max-width:420px}
+.ig-profile-stats{gap:16px;flex-wrap:wrap}
+.ig-profile-stat{align-items:flex-start}
+.ig-profile-rail{display:flex;flex-direction:column;gap:10px;min-width:190px}
+.ig-rail-card{padding:12px 13px;border-radius:16px;background:rgba(251,250,246,0.72);border:1px solid rgba(24,23,20,0.06)}
+.ig-rail-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:${T.textDim};margin-bottom:8px}
+.ig-rail-value{font-size:14px;font-weight:600;color:${T.text};line-height:1.35}
+.ig-rail-sub{font-size:11.5px;color:${T.textDim};line-height:1.55;margin-top:4px}
+.ig-grid-frame{border-radius:24px;background:rgba(251,250,246,0.88)}
+.ig-cell-empty{background:rgba(24,23,20,0.03);border:1px solid rgba(24,23,20,0.04)}
+
+/* ─── STAGE WELL RESPONSIVE / DETAIL ─── */
+.stage-summary-actions .btn{white-space:nowrap}
+.stage-section .cal-panel-empty{background:transparent;border:1px dashed rgba(24,23,20,0.08)}
+
+@media (max-width: 1200px){
+  .cal-shell{grid-template-columns:1fr}
+  .cal-panel{position:static;max-height:none}
+  .stage-grid,.stage-dual{grid-template-columns:1fr}
+  .ig-profile-header{flex-direction:column}
+  .ig-profile-rail{width:100%;min-width:0}
+}
+
+@media (max-width: 900px){
+  .sidebar{display:none}
+  .topbar{padding:0 16px;height:auto;min-height:72px;flex-wrap:wrap;align-content:center;padding-top:12px;padding-bottom:12px}
+  .stats,.ops-toolbar,.t-area,.analytics-area,.ig-grid-area,.cal-area{padding-left:14px;padding-right:14px}
+  .t-head,.t-row{grid-template-columns:28px 16px 108px minmax(180px,1fr) 80px 100px 120px 96px 36px;padding:0 12px}
+  .settings-tabs{overflow:auto}
+  .cp-modal,.settings-modal{width:min(94vw,430px)}
+}
 
 `;
 
@@ -660,14 +790,14 @@ function DateTimePicker({ isoValue, onChange, onClose, anchorRef }) {
     if (left + popW > window.innerWidth - 12) left = window.innerWidth - popW - 12;
     if (top + popH > window.innerHeight - 12) top = rect.top - popH - 6;
     setPos({ top, left });
-  }, []);
+  }, [anchorRef]);
 
   // Click outside close
   useEffect(() => {
     const h = (e) => { if (popRef.current && !popRef.current.contains(e.target) && !anchorRef?.current?.contains(e.target)) onClose(); };
     setTimeout(() => document.addEventListener("mousedown", h), 10);
     return () => document.removeEventListener("mousedown", h);
-  }, []);
+  }, [anchorRef, onClose]);
 
   const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
   const firstDay    = new Date(viewYear, viewMonth, 1).getDay();
@@ -840,10 +970,10 @@ function Composer({ row, onClose, onPosted, postNow }) {
       if(!data.success) throw new Error(data.error||"Unknown error");
       setSt("done"); onPosted?.();
     } catch(err){ setSt("error"); setErrMsg(err.message); }
-  }, [caption, fileUrl, plat, publishApiUrl]);
+  }, [caption, fileUrl, onPosted, plat, publishApiUrl]);
 
   // If postNow, fire immediately on mount
-  useEffect(() => { if(postNow) doPost(); }, []);
+  useEffect(() => { if(postNow) doPost(); }, [doPost, postNow]);
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -1092,7 +1222,7 @@ function StoryDesigner({ row, onClose, onSave }) {
   });
 
   // Auto-save elements to parent row whenever they change
-  useEffect(() => { if (onSave) onSave(elements); }, [elements]);
+  useEffect(() => { if (onSave) onSave(elements); }, [elements, onSave]);
 
   const [selectedId,  setSelectedId]  = useState(null);
   const [zoom,        setZoom]        = useState(1.0);
@@ -1276,7 +1406,7 @@ function StoryDesigner({ row, onClose, onSave }) {
 
                     <div className="s-toggle-row">
                       <div className="lbl" style={{margin:0}}>Text Shadow</div>
-                      <div className="s-toggle" style={{background:selected.shadow?"#111318":"#D1D5DB"}}
+                      <div className="s-toggle" style={{background:selected.shadow?T.ink:T.border2}}
                         onClick={()=>updateEl(selectedId,{shadow:!selected.shadow})}>
                         <div className="s-toggle-knob" style={{left:selected.shadow?14:2}}/>
                       </div>
@@ -1303,7 +1433,7 @@ function StoryDesigner({ row, onClose, onSave }) {
 
                     <div className="s-toggle-row">
                       <div className="lbl" style={{margin:0}}>Loop</div>
-                      <div className="s-toggle" style={{background:selected.loop!==false?"#111318":"#D1D5DB"}}
+                      <div className="s-toggle" style={{background:selected.loop!==false?T.ink:T.border2}}
                         onClick={()=>updateEl(selectedId,{loop:!(selected.loop!==false)})}>
                         <div className="s-toggle-knob" style={{left:selected.loop!==false?14:2}}/>
                       </div>
@@ -1311,7 +1441,7 @@ function StoryDesigner({ row, onClose, onSave }) {
 
                     <div className="s-toggle-row">
                       <div className="lbl" style={{margin:0}}>Mute</div>
-                      <div className="s-toggle" style={{background:selected.muted!==false?"#111318":"#D1D5DB"}}
+                      <div className="s-toggle" style={{background:selected.muted!==false?T.ink:T.border2}}
                         onClick={()=>updateEl(selectedId,{muted:!(selected.muted!==false)})}>
                         <div className="s-toggle-knob" style={{left:selected.muted!==false?14:2}}/>
                       </div>
@@ -1323,11 +1453,11 @@ function StoryDesigner({ row, onClose, onSave }) {
 
                     <div style={{marginTop:4}}>
                       <div className="lbl" style={{marginBottom:4}}>Trim (placeholder)</div>
-                      <div style={{height:20,background:"#EFF0F2",borderRadius:4,position:"relative",overflow:"hidden"}}>
-                        <div style={{position:"absolute",left:"10%",right:"20%",top:0,bottom:0,background:"rgba(0,122,85,.25)",borderLeft:"2px solid #111318",borderRight:"2px solid #111318",borderRadius:3}}/>
+                      <div style={{height:20,background:T.s3,borderRadius:6,position:"relative",overflow:"hidden",border:`1px solid ${T.border}`}}>
+                        <div style={{position:"absolute",left:"10%",right:"20%",top:0,bottom:0,background:"rgba(24,23,20,0.12)",borderLeft:`2px solid ${T.ink}`,borderRight:`2px solid ${T.ink}`,borderRadius:3}}/>
                       </div>
-                      <div style={{display:"flex",justifyContent:"space-between",marginTop:3,fontSize:9,color:"#9AA0AE",fontFamily:"'JetBrains Mono',monospace"}}>
-                        <span>0:00</span><span style={{color:T.ink}}>Selected range</span><span>0:15</span>
+                      <div style={{display:"flex",justifyContent:"space-between",marginTop:3,fontSize:9,color:T.textDim,fontFamily:"'JetBrains Mono',monospace"}}>
+                        <span>0:00</span><span style={{color:T.text}}>Selected range</span><span>0:15</span>
                       </div>
                     </div>
                   </>
@@ -1524,747 +1654,6 @@ function MonthMiniMap({ rows, year, currentMonth, onJump }) {
   );
 }
 
-// ─── ANALYTICS ───────────────────────────────────────────────────
-function Analytics({ rows }) {
-  const maxBar = Math.max(...MOCK_ANALYTICS.posts.map(p=>p.ig+p.li));
-  const maxReach = Math.max(...MOCK_ANALYTICS.posts.map(p=>p.reach));
-  const maxTime = Math.max(...MOCK_ANALYTICS.topTimes.map(t=>t.score));
-  return (
-    <div className="analytics-area">
-      <div className="analytics-grid">
-        <div className="an-card"><div className="an-title">Avg Reach / Post</div><div className="an-big" style={{color:T.mint}}>2,840</div><div className="an-sub">↑ 18% vs last month</div></div>
-        <div className="an-card"><div className="an-title">Avg Engagement</div><div className="an-big" style={{color:T.orange}}>4.8%</div><div className="an-sub">IG Stories leading at 7.8%</div></div>
-        <div className="an-card"><div className="an-title">Posts Published</div><div className="an-big" style={{color:T.blue}}>{rows.filter(r=>r.status==="posted").length||12}</div><div className="an-sub">Across IG + LinkedIn</div></div>
-        <div className="an-card wide">
-          <div className="an-title">Post Volume — Last 6 Months</div>
-          <div className="chart-bars">{MOCK_ANALYTICS.posts.map((p,i)=>(
-            <div key={i} className="chart-bar-wrap">
-              <div style={{display:"flex",flexDirection:"column",justifyContent:"flex-end",gap:1,flex:1,width:"100%"}}>
-                <div className="chart-bar" style={{height:`${(p.li/maxBar)*100}%`,background:T.blue,minHeight:3}}/>
-                <div className="chart-bar" style={{height:`${(p.ig/maxBar)*100}%`,background:T.pink,minHeight:3}}/>
-              </div>
-              <div className="chart-bar-label">{p.label}</div>
-            </div>
-          ))}</div>
-          <div style={{display:"flex",gap:14,marginTop:10}}>{[{c:T.pink,l:"Instagram"},{c:T.blue,l:"LinkedIn"}].map(x=><div key={x.l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSub}}><div style={{width:8,height:8,borderRadius:2,background:x.c}}/>{x.l}</div>)}</div>
-        </div>
-        <div className="an-card"><div className="an-title">Best Times to Post (PT)</div>{MOCK_ANALYTICS.topTimes.map(t=><div key={t.time} className="bar-row"><span className="bar-label">{t.time}</span><div className="bar-track"><div className="bar-fill" style={{width:`${t.score}%`,background:t.score===maxTime?T.mint:T.border2}}/></div><span className="bar-val">{t.score}</span></div>)}</div>
-        <div className="an-card">
-          <div className="an-title">Engagement by Platform</div>
-          {Object.entries(MOCK_ANALYTICS.engagement).map(([k,v])=>{const p=PLATFORMS[k];return(<div key={k} className="bar-row"><span className="bar-label">{p.short}</span><div className="bar-track"><div className="bar-fill" style={{width:`${(v/10)*100}%`,background:p.color}}/></div><span className="bar-val">{v}%</span></div>);})}
-          <div style={{height:10}}/><div className="an-title">Reach by Platform</div>
-          {Object.entries(MOCK_ANALYTICS.reach).map(([k,v])=>{const p=PLATFORMS[k];return(<div key={k} className="bar-row"><span className="bar-label">{p.short}</span><div className="bar-track"><div className="bar-fill" style={{width:`${(v/3000)*100}%`,background:p.color}}/></div><span className="bar-val" style={{fontSize:10}}>{v}</span></div>);})}
-        </div>
-        <div className="an-card wide"><div className="an-title">Reach Trend</div><div className="chart-bars" style={{height:72}}>{MOCK_ANALYTICS.posts.map((p,i)=><div key={i} className="chart-bar-wrap"><div className="chart-bar" style={{height:`${(p.reach/maxReach)*100}%`,background:`linear-gradient(to top,${T.mint}44,${T.mint})`,minHeight:4}}/><div className="chart-bar-label">{p.label}</div></div>)}</div></div>
-        <div className="an-card full"><div className="an-title">Recent Post Performance</div>{rows.slice(0,5).map(r=>{const p=PLATFORMS[r.platform];const eng=(Math.random()*6+1).toFixed(1);return(<div key={r.id} className="perf-row"><span className="perf-note">{r.note||"Untitled"}</span><span className="perf-plat" style={{background:p.bg,color:p.color}}>{p.short}</span><span className="perf-reach">{Math.floor(Math.random()*2000+500).toLocaleString()}</span><span className="perf-eng" style={{color:parseFloat(eng)>4?T.mint:T.textSub}}>{eng}%</span></div>);})}</div>
-      </div>
-    </div>
-  );
-}
-
-// ─── CALENDAR VIEW ────────────────────────────────────────────────
-function CalendarView({ rows, month: initMonth, year: initYear, onStory, onAddDay, onEdit }) {
-  const [calMonth, setCalMonth] = useState(initMonth);
-  const [calYear,  setCalYear]  = useState(initYear);
-  const [editRow,  setEditRow]  = useState(null); // row being edited in popup
-
-  const prevMonth = () => { if(calMonth===0){setCalMonth(11);setCalYear(y=>y-1);}else setCalMonth(m=>m-1); };
-  const nextMonth = () => { if(calMonth===11){setCalMonth(0);setCalYear(y=>y+1);}else setCalMonth(m=>m+1); };
-
-  const firstDay = new Date(calYear,calMonth,1).getDay();
-  const days = new Date(calYear,calMonth+1,0).getDate();
-  const today = new Date();
-  const isToday = d => today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
-
-  const rowDay = (r) => {
-    if(!r.scheduledAt) return null;
-    const d = new Date(r.scheduledAt);
-    if(d.getFullYear()!==calYear || d.getMonth()!==calMonth) return null;
-    return parseInt(new Intl.DateTimeFormat("en-US",{timeZone:"America/Los_Angeles",day:"numeric"}).format(d));
-  };
-
-  const cells = [];
-  // Prefix: last days of prev month
-  const prevDays = new Date(calYear, calMonth, 0).getDate();
-  for(let i=0;i<firstDay;i++) cells.push({ d: prevDays - firstDay + 1 + i, type:'prev' });
-  // Current month
-  for(let d=1;d<=days;d++) cells.push({ d, type:'curr' });
-  // Suffix: first days of next month to fill to 42 cells (6 rows)
-  const total = Math.ceil((firstDay + days) / 7) * 7;
-  for(let d=1; cells.length < total; d++) cells.push({ d, type:'next' });
-
-  return (
-    <div className="cal-area">
-      {/* Month nav */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,padding:"0 2px"}}>
-        <button className="cal-nav-btn" onClick={prevMonth}>‹</button>
-        <span style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:700,fontSize:15,letterSpacing:"-.3px",color:T.text}}>
-          {MONTHS_FULL[calMonth]} {calYear}
-        </span>
-        <button className="cal-nav-btn" onClick={nextMonth}>›</button>
-      </div>
-      <div className="cal-header">{WEEKDAYS.map(w=><div key={w} className="cal-wd">{w}</div>)}</div>
-      <div className="cal-grid">
-        {cells.map((cell,i)=>{
-          const { d, type } = cell;
-          const isCurr = type==='curr';
-          const isOther = type==='prev' || type==='next';
-          return (
-          <div key={i} className={`cal-cell ${isOther?"other":""} ${isCurr&&isToday(d)?"today":""}`}>
-            <div className="cal-dn" style={{color: isOther ? '#C9CDD5' : undefined}}>{d}</div>
-            {isCurr && <>
-              <div className="cal-posts">
-                {rows.filter(r=>rowDay(r)===d).map(r=>{
-                  const p=PLATFORMS[r.platform];
-                  return (
-                    <div key={r.id} className="cal-post" style={{background:p.bg,color:p.color}}
-                      onClick={e=>{e.stopPropagation();setEditRow(r);}}>
-                      <span style={{width:4,height:4,borderRadius:"50%",background:p.color,flexShrink:0,display:"inline-block"}}/>
-                      {r.note||p.short}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="cal-add"><button className="cal-add-btn" onClick={()=>onAddDay(d)}>+ Add</button></div>
-            </>}
-          </div>
-          );
-        })}
-      </div>
-
-      {/* Edit popup */}
-      {editRow && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}
-          onClick={()=>setEditRow(null)}>
-          <div style={{background:"#fff",borderRadius:14,width:480,maxWidth:"92vw",boxShadow:"0 24px 80px rgba(0,0,0,0.18)",overflow:"hidden"}}
-            onClick={e=>e.stopPropagation()}>
-            <div style={{padding:"16px 20px 14px",borderBottom:"1px solid #E5E7EB",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <div>
-                <div style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:700,fontSize:15,letterSpacing:"-.2px",color:T.text}}>{editRow.note||"Untitled post"}</div>
-                <div style={{fontSize:11,color:"#9AA0AE",fontFamily:"'JetBrains Mono',monospace",marginTop:2}}>{PLATFORMS[editRow.platform]?.label} · {STATUSES[editRow.status]?.label}</div>
-              </div>
-              <button onClick={()=>setEditRow(null)} style={{background:"transparent",border:"none",fontSize:18,cursor:"pointer",color:"#9AA0AE",padding:"2px 6px"}}>×</button>
-            </div>
-            <div style={{padding:"16px 20px 20px",display:"flex",flexDirection:"column",gap:12}}>
-              <div>
-                <div style={{fontSize:10,fontFamily:"'JetBrains Mono',monospace",fontWeight:600,color:"#9AA0AE",textTransform:"uppercase",letterSpacing:1,marginBottom:5}}>Caption</div>
-                <textarea style={{width:"100%",background:"#F9FAFB",border:"1px solid #E5E7EB",borderRadius:7,color:"#0D0F12",fontSize:13,padding:"9px 11px",outline:"none",resize:"none",minHeight:90,lineHeight:1.55}}
-                  value={editRow.caption||""} placeholder="Write caption…"
-                  onChange={e=>setEditRow(r=>({...r,caption:e.target.value}))}/>
-              </div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                {Object.entries(PLATFORMS).map(([k,pl])=>(
-                  <button key={k} onClick={()=>setEditRow(r=>({...r,platform:k}))}
-                    style={{padding:"5px 11px",borderRadius:99,fontSize:11,fontWeight:600,cursor:"pointer",
-                      border:"1.5px solid",borderColor:editRow.platform===k?pl.color:"#E5E7EB",
-                      background:editRow.platform===k?pl.bg:"transparent",color:editRow.platform===k?pl.color:"#9AA0AE"}}>
-                    {pl.label}
-                  </button>
-                ))}
-              </div>
-              <div style={{display:"flex",gap:8,justifyContent:"space-between",alignItems:"center",paddingTop:4,borderTop:"1px solid #E5E7EB"}}>
-                <button style={{background:"transparent",border:"1px solid #E5E7EB",borderRadius:6,padding:"6px 13px",fontSize:12,fontWeight:600,cursor:"pointer",color:"#D93025"}}
-                  onClick={()=>setEditRow(null)}>Cancel</button>
-                <div style={{display:"flex",gap:8}}>
-                  {editRow.platform==="ig_story"&&<button style={{background:"#080A0E",border:"none",borderRadius:6,padding:"6px 13px",fontSize:12,fontWeight:600,cursor:"pointer",color:T.ink}}
-                    onClick={()=>{onStory(editRow);setEditRow(null);}}>Open Designer</button>}
-                  <button style={{background:"#111318",border:"none",borderRadius:6,padding:"7px 16px",fontSize:12,fontWeight:700,cursor:"pointer",color:"#fff"}}
-                    onClick={()=>{onEdit(editRow);setEditRow(null);}}>Save & Close</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── ASSET LIBRARY ────────────────────────────────────────────────
-function AssetLibrary({ onClose, onSelect }) {
-  const [assets, setAssets] = useState([
-    {id:uid(),name:"RF Logo White",emoji:"RF",url:null},
-    {id:uid(),name:"Mint BG Texture",emoji:"BG",url:null},
-    {id:uid(),name:"Studio B-Roll",emoji:"vid",url:null},
-    {id:uid(),name:"Team Photo",emoji:"CAM",url:null},
-  ]);
-  const fRef = useRef(null);
-  const upload = (files) => Array.from(files).forEach(f=>{const url=f.type.startsWith("image/")?URL.createObjectURL(f):null;setAssets(a=>[...a,{id:uid(),name:f.name,type:f.type.startsWith("image/")?"image":"video",url,emoji:f.type.startsWith("image/")?"img":"vid"}]);});
-  return (
-    <div className="asset-drawer">
-      <div className="asset-head"><div className="asset-title">Asset Library</div><button className="m-x" onClick={onClose}>×</button></div>
-      <div className="asset-body">
-        <div className="asset-upload" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();upload(e.dataTransfer.files);}} onClick={()=>fRef.current?.click()}>
-          <input ref={fRef} type="file" accept="image/*,video/*,image/gif" multiple style={{display:"none"}} onChange={e=>upload(e.target.files)}/>
-          <div style={{fontSize:20,opacity:0.4,marginBottom:6}}>↑</div><div style={{fontSize:12,color:T.textSub}}>Upload brand assets</div>
-          <div style={{fontSize:10,color:T.textDim,marginTop:2,fontFamily:"'JetBrains Mono',monospace"}}>Images · Videos · GIFs</div>
-        </div>
-        <span className="s-lbl" style={{marginTop:4,display:"block"}}>Brand Assets</span>
-        <div className="asset-grid">
-          {assets.map(a=><div key={a.id} className="asset-item" onClick={()=>onSelect?.(a)} title={a.name}>{a.url?<img src={a.url} className="asset-thumb" alt={a.name}/>:<div className="asset-empty-thumb">{a.emoji}</div>}<div className="asset-name">{a.name}</div></div>)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── CONNECTION PANEL ────────────────────────────────────────────
-const IG_ICON = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>;
-
-function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) {
-  const [connecting, setConnecting] = useState(false);
-  const [syncing,    setSyncing]    = useState(false);
-  const [error,      setError]      = useState('');
-
-  const isConnected = !!igConfig?.username;
-  const redirectUri = window.location.origin;
-
-  const startOAuth = async () => {
-    setError(''); setConnecting(true);
-    let safeRedirectUri;
-    try {
-      safeRedirectUri = new URL(redirectUri).origin;
-    } catch {
-      setError('Invalid page origin — cannot start OAuth flow.'); setConnecting(false); return;
-    }
-
-    let authorizeUrl;
-    try {
-      const data = await getInstagramAuthorizeUrl(safeRedirectUri);
-      authorizeUrl = data.authorizeUrl;
-    } catch (e) {
-      setError(e.message || 'Instagram OAuth could not start.');
-      setConnecting(false);
-      return;
-    }
-
-    const popup = window.open(authorizeUrl, 'ig_oauth', 'width=620,height=720,scrollbars=yes,resizable=yes');
-    if (!popup) { setError('Popup blocked — allow popups for this page and try again.'); setConnecting(false); return; }
-    const timer = setInterval(() => {
-      try {
-        if (!popup || popup.closed) { clearInterval(timer); setConnecting(false); return; }
-        const pu = popup.location.href;
-        if (pu.startsWith(safeRedirectUri)) {
-          const params = new URL(pu).searchParams;
-          const code = params.get('code'), err = params.get('error'), state = params.get('state');
-          popup.close(); clearInterval(timer);
-          if (err) { setError('Denied: ' + (params.get('error_description') || err)); setConnecting(false); return; }
-          if (code && state) handleCode(code, safeRedirectUri, state);
-        }
-      } catch { /* still on instagram.com — keep polling */ }
-    }, 500);
-  };
-
-  const handleCode = async (code, safeRedirectUri, state) => {
-    try {
-      const tokenData = await exchangeInstagramCode({ code, redirectUri: safeRedirectUri, state });
-      onSave(tokenData.account);
-      const feed = await fetchInstagramFeed();
-      onMediaSync(feed);
-    } catch(e) {
-      setError(e.message || 'Connection failed. Is the API server running? (npm run dev:api)');
-    }
-    setConnecting(false);
-  };
-
-  const syncMedia = async () => {
-    setSyncing(true); setError('');
-    try { onMediaSync(await fetchInstagramFeed()); }
-    catch(e) { setError(e.message || 'Sync failed — token may have expired.'); }
-    setSyncing(false);
-  };
-
-  const daysLeft   = igConfig?.expiresAt ? Math.round((igConfig.expiresAt - Date.now()) / 86400000) : 0;
-  const mediaCount = igMedia?.data?.length || 0;
-  const syncedAt   = igMedia?._syncedAt ? new Date(igMedia._syncedAt).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : null;
-
-  if (isConnected) {
-    return (
-      <>
-        <div className="cp-status-row">
-          <div className="cp-status-dot" style={{background:'#10B981'}}/>
-          <span className="cp-status-text">Connected</span>
-          <span className="cp-status-ts">{syncedAt ? `Synced ${syncedAt}` : `${mediaCount} posts loaded`}</span>
-        </div>
-        <div className="cp-account-row">
-          <div className="cp-avatar" style={{background:'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)'}}>
-            {igConfig.username?.[0]?.toUpperCase() || 'I'}
-          </div>
-          <div>
-            <div className="cp-handle">@{igConfig.username}</div>
-            <div className="cp-meta">Instagram · {igConfig.mediaCount || mediaCount} posts</div>
-          </div>
-        </div>
-
-        <div style={{padding:"10px 0 4px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-            <span className="cp-section-title">Server Session</span>
-            <span style={{fontSize:11,fontFamily:"'JetBrains Mono',monospace",color: daysLeft < 10 ? T.amber : T.textSub}}>
-              {daysLeft > 0 ? `${daysLeft}d remaining` : 'expired — reconnect'}
-            </span>
-          </div>
-          <div className="cp-token-bar">
-            <div style={{height:'100%',width:`${Math.max(2,Math.min(100,(daysLeft/60)*100))}%`,background: daysLeft < 10 ? T.amber : '#10B981',borderRadius:99,transition:'width .3s'}}/>
-          </div>
-        </div>
-
-        <div style={{padding:"6px 0 0"}}>
-          <div className="cp-section-title">Permissions</div>
-          {['Read profile & media','Access media URLs & thumbnails','Read media metadata'].map(p => (
-            <div key={p} style={{display:'flex',alignItems:'center',gap:7,fontSize:12.5,color:T.textSub,padding:'3px 0'}}>
-              <span style={{color:'#10B981',fontWeight:700,fontSize:11}}>✓</span>{p}
-            </div>
-          ))}
-        </div>
-
-        {error && <div style={{fontSize:11.5,color:T.red,padding:"6px 0 0"}}>{error}</div>}
-
-        <div style={{display:"flex",gap:8,marginTop:14}}>
-          <button className="btn btn-ghost" style={{flex:1,padding:"7px 0",fontSize:12}} onClick={syncMedia} disabled={syncing}>
-            {syncing ? 'Syncing…' : `↻ Sync Posts (${mediaCount})`}
-          </button>
-          <button className="btn btn-danger" style={{padding:"7px 13px",fontSize:12}} onClick={onDisconnect}>
-            Disconnect
-          </button>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <div className="cp-status-row">
-        <div className="cp-status-dot" style={{background:T.border2}}/>
-        <span className="cp-status-text" style={{color:T.textDim}}>
-          {connecting ? 'Waiting for Instagram…' : 'Not connected'}
-        </span>
-      </div>
-      <div style={{fontSize:13,color:T.textSub,lineHeight:1.6,padding:"8px 0 14px"}}>
-        Sign in with your Instagram account to sync your real grid and publish posts directly from Social Studio.
-      </div>
-      {error && <div style={{fontSize:11.5,color:T.red,padding:"0 0 10px"}}>{error}</div>}
-      <button className="cp-ig-btn" onClick={startOAuth} disabled={connecting}>
-        {connecting
-          ? 'Waiting for Instagram…'
-          : <>{IG_ICON} Sign in with Instagram</>
-        }
-      </button>
-      <p className="cp-setup-note" style={{marginTop:10}}>
-        A popup will open on Instagram's website — sign in and approve access. You'll be redirected back automatically.
-      </p>
-    </>
-  );
-}
-
-function ConnectionPanel({ platform, connected, onConnect, onDisconnect, onClose, igConfig, igMedia, onIGSave, onIGMediaSync }) {
-  const isIG = platform === 'instagram';
-  const [simulating, setSimulating] = useState(false);
-
-  const simulate = async (action) => {
-    setSimulating(true);
-    await new Promise(r => setTimeout(r, 1200));
-    action();
-    setSimulating(false);
-  };
-
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal cp-modal" onClick={e => e.stopPropagation()}>
-        <div className="m-head">
-          <div>
-            <div className="m-title">{isIG ? 'Instagram' : 'LinkedIn'}</div>
-            <div className="m-sub">{isIG ? (igConfig?.username ? `@${igConfig.username}` : 'Not connected') : (connected ? '@rangerandfox · Company Page' : 'Not connected')}</div>
-          </div>
-          <button className="m-x" onClick={onClose}>×</button>
-        </div>
-        <div className="m-body">
-          {isIG ? (
-            <IGOAuthPanel
-              igConfig={igConfig}
-              igMedia={igMedia}
-              onSave={onIGSave}
-              onMediaSync={onIGMediaSync}
-              onDisconnect={onDisconnect}
-            />
-          ) : (
-            <>
-              <div className="cp-status-row">
-                <div className="cp-status-dot" style={{background: connected ? '#10B981' : T.border2}}/>
-                <span className="cp-status-text" style={{color: connected ? T.text : T.textDim}}>
-                  {simulating ? (connected ? 'Disconnecting…' : 'Connecting…') : connected ? 'Connected' : 'Not connected'}
-                </span>
-                {connected && <span className="cp-status-ts">Last sync: Today</span>}
-              </div>
-              {connected ? (
-                <>
-                  <div className="cp-account-row">
-                    <div className="cp-avatar" style={{background:`linear-gradient(135deg,${T.blue},#0A66C2)`}}>RF</div>
-                    <div><div className="cp-handle">@rangerandfox</div><div className="cp-meta">LinkedIn Company Page</div></div>
-                  </div>
-                  <div className="cp-stat-row">
-                    {[["2,140","Followers"],["89","Posts"],["4.1%","Eng."]].map(([v,k])=>(
-                      <div key={k} className="cp-stat"><span className="cp-stat-val">{v}</span><span className="cp-stat-key">{k}</span></div>))}
-                  </div>
-                </>
-              ) : (
-                <div style={{fontSize:13,color:T.textSub,lineHeight:1.6,padding:"6px 0 8px"}}>
-                  Connect your LinkedIn Company Page to publish posts directly from Social Studio.
-                  {[`Click "Connect with LinkedIn" below`,"Sign in and authorize Social Studio"].map((s,i) => (
-                    <div key={i} className="cp-step"><div className="cp-step-num">{i+1}</div><div className="cp-step-text">{s}</div></div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        {!isIG && (
-          <div className="m-foot">
-            <button className="btn btn-ghost" style={{padding:"6px 13px",fontSize:12}} onClick={onClose}>Close</button>
-            {connected
-              ? <button className="btn btn-danger" style={{padding:"6px 13px",fontSize:12}} disabled={simulating} onClick={()=>simulate(onDisconnect)}>
-                  {simulating ? 'Disconnecting…' : 'Disconnect'}
-                </button>
-              : <button className="btn btn-primary" style={{padding:"6px 14px",fontSize:12,background:T.blue}} disabled={simulating} onClick={()=>simulate(onConnect)}>
-                  {simulating ? 'Connecting…' : 'Connect with LinkedIn →'}
-                </button>
-            }
-          </div>
-        )}
-        {isIG && (
-          <div className="m-foot">
-            <button className="btn btn-ghost" style={{padding:"6px 13px",fontSize:12}} onClick={onClose}>Close</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── SETTINGS MODAL ──────────────────────────────────────────────
-const SETTINGS_TABS = ["General","Team","Notifications","Integrations"];
-
-function SettingsModal({ onClose }) {
-  const [tab, setTab] = useState("General");
-  const [notifs, setNotifs] = useState({ review:true, comment:true, scheduled:false, posted:true });
-  const ToggleRow = ({ label, sub, k }) => (
-    <div className="settings-field-row">
-      <div><div className="settings-field-label">{label}</div>{sub&&<div className="settings-field-sub">{sub}</div>}</div>
-      <button className="settings-toggle" style={{background:notifs[k]?T.ink:T.border2}}
-        onClick={()=>setNotifs(n=>({...n,[k]:!n[k]}))}>
-        <div className="settings-toggle-knob" style={{left:notifs[k]?16:2}}/>
-      </button>
-    </div>
-  );
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal settings-modal" onClick={e=>e.stopPropagation()}>
-        <div className="m-head">
-          <div><div className="m-title">Settings</div><div className="m-sub">Social Studio preferences</div></div>
-          <button className="m-x" onClick={onClose}>×</button>
-        </div>
-        <div className="m-body" style={{paddingTop:0}}>
-          <div className="settings-tabs">
-            {SETTINGS_TABS.map(t=>(
-              <button key={t} className={"settings-tab "+(tab===t?"on":"")} onClick={()=>setTab(t)}>{t}</button>
-            ))}
-          </div>
-
-          {tab==="General"&&(
-            <div style={{display:"flex",flexDirection:"column",gap:0}}>
-              <div className="field"><div className="lbl">Studio Name</div><input className="inp" defaultValue="Ranger & Fox"/></div>
-              <div className="field" style={{marginTop:12}}><div className="lbl">Default Platform</div>
-                <div className="plat-tabs" style={{marginTop:0}}>
-                  {Object.entries(PLATFORMS).map(([k,pl])=>(
-                    <button key={k} className="plat-tab" style={{fontSize:11.5}}>{pl.label}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="settings-field-row" style={{marginTop:12}}>
-                <div><div className="settings-field-label">Timezone</div><div className="settings-field-sub">All times shown in Pacific</div></div>
-                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.textSub,background:T.s3,padding:"4px 9px",borderRadius:5,border:`1px solid ${T.border}`}}>PT (UTC−8)</div>
-              </div>
-            </div>
-          )}
-
-          {tab==="Team"&&(
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {TEAM.map(t=>(
-                <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:T.s2,borderRadius:8,border:`1px solid ${T.border}`}}>
-                  <div className="av" style={{width:32,height:32,background:t.color+"22",color:t.color,fontSize:11,borderRadius:7}}>{t.initials}</div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:13,fontWeight:600,color:T.text}}>{t.name}</div>
-                    <div style={{fontSize:11,color:T.textDim,marginTop:1}}>{t.id}@rangerandfox.com</div>
-                  </div>
-                  <div style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:99,background:t.id==="stephen"?T.s3:"transparent",border:`1px solid ${T.border}`,color:T.textSub}}>
-                    {t.id==="stephen"?"Admin":"Editor"}
-                  </div>
-                </div>
-              ))}
-              <button className="btn btn-ghost" style={{fontSize:12,marginTop:4}}>+ Invite team member</button>
-            </div>
-          )}
-
-          {tab==="Notifications"&&(
-            <div>
-              <ToggleRow label="Needs Review" sub="Alert when a post enters review" k="review"/>
-              <ToggleRow label="New Comment" sub="Alert on post comments" k="comment"/>
-              <ToggleRow label="Scheduled" sub="Confirm when a post is scheduled" k="scheduled"/>
-              <ToggleRow label="Post Published" sub="Confirm when a post goes live" k="posted"/>
-            </div>
-          )}
-
-          {tab==="Integrations"&&(
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {[
-                {name:"Slack",sub:"Post activity to a Slack channel",on:false,color:"#611f69"},
-                {name:"Zapier",sub:"Automate post workflows",on:false,color:"#FF4A00"},
-                {name:"Google Drive",sub:"Import assets from Drive",on:false,color:"#4285F4"},
-              ].map(i=>(
-                <div key={i.name} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 13px",background:T.s2,borderRadius:8,border:`1px solid ${T.border}`}}>
-                  <div style={{width:32,height:32,borderRadius:7,background:i.color+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:i.color,flexShrink:0}}>{i.name[0]}</div>
-                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:T.text}}>{i.name}</div><div style={{fontSize:11,color:T.textDim,marginTop:1}}>{i.sub}</div></div>
-                  <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 11px"}}>Connect</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="m-foot">
-          <button className="btn btn-ghost" style={{fontSize:12}} onClick={onClose}>Close</button>
-          <button className="btn btn-primary" style={{fontSize:12}} onClick={onClose}>Save Changes</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── IG GRID VIEW ────────────────────────────────────────────────
-// Mock existing published posts — represents what's already live on @rangerandfox
-function pastISO(daysAgo, hour = 10) {
-  const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(hour, 0, 0, 0); return d.toISOString();
-}
-// thumbnailUrl: paste your actual hosted image URL for each post (jpg/png/webp from your CDN, S3, website, etc.)
-// Leave as null to show a gradient placeholder. Real Instagram media requires the Instagram Graph API.
-const EXISTING_IG_POSTS = [
-  { id:'ex1',  note:'Moonvalley x R&F pipeline reveal',     platform:'ig_post',  scheduledAt:pastISO(3),  _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#e65c00,#f9d423)" },
-  { id:'ex2',  note:'Motion tip #12 — Fabric transitions',  platform:'ig_story', scheduledAt:pastISO(5),  _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#0575e6,#021b79)" },
-  { id:'ex3',  note:'Clio Awards shortlist ★',              platform:'ig_post',  scheduledAt:pastISO(8),  _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#1a1a2e,#a8c0d6)" },
-  { id:'ex4',  note:'Microsoft Fabric — studio B-roll',     platform:'ig_post',  scheduledAt:pastISO(12), _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#000000,#e0e0e0)" },
-  { id:'ex5',  note:'Behind the scenes — Adobe collab',     platform:'ig_story', scheduledAt:pastISO(14), _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#8B0000,#DAA520)" },
-  { id:'ex6',  note:'Team spotlight — Jared R.',            platform:'ig_post',  scheduledAt:pastISO(18), _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#0a1628,#1a3a6c)" },
-  { id:'ex7',  note:'Motion tip #11 — Depth & parallax',   platform:'ig_story', scheduledAt:pastISO(21), _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#1565C0,#e3f2fd)" },
-  { id:'ex8',  note:'Stash Magazine feature',               platform:'ig_post',  scheduledAt:pastISO(24), _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#FF6D00,#FF0000)" },
-  { id:'ex9',  note:'New client: Moonvalley',               platform:'ig_post',  scheduledAt:pastISO(27), _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#4a00e0,#8e2de2)" },
-  { id:'ex10', note:'Studio open house recap',              platform:'ig_story', scheduledAt:pastISO(30), _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#005c97,#363795)" },
-  { id:'ex11', note:'Clio reel — making-of',                platform:'ig_post',  scheduledAt:pastISO(34), _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#0f0c29,#302b63,#24243e)" },
-  { id:'ex12', note:'Motion tip #10 — Camera moves',        platform:'ig_post',  scheduledAt:pastISO(38), _existing:true, thumbnailUrl:null, bg:"linear-gradient(145deg,#134e5e,#71b280)" },
-];
-
-// Fallback gradient palette for queued posts with no bg image yet
-const CELL_GRADIENTS = [
-  "linear-gradient(145deg,#0f0c29,#302b63)",
-  "linear-gradient(145deg,#1a0533,#7c3aed)",
-  "linear-gradient(145deg,#0c1445,#1a2a6c)",
-  "linear-gradient(145deg,#0a0a0a,#1c1c1c)",
-  "linear-gradient(145deg,#200122,#6f0000)",
-  "linear-gradient(145deg,#0f2027,#2c5364)",
-];
-
-// Scale factor for fitting a 290px-wide canvas into ~204px cell
-const MINI_SCALE = 0.703;
-
-function IGCell({ post, index, onOpen, isQueued }) {
-  const isStory = post.platform === 'ig_story';
-  const statusDot = STATUSES[post.status]?.dot || T.border2;
-  const storyEls = isStory ? (post.storyElements || makeDefaultElements(post.note)) : null;
-  const bgEl = storyEls?.find(e => e.locked);
-  // Real thumbnail URL takes priority; fall back to per-post bg gradient or indexed gradient
-  const fallbackBg = post.bg || CELL_GRADIENTS[index % CELL_GRADIENTS.length];
-
-  return (
-    <div
-      className={"ig-cell" + (isQueued ? " is-queued" : "")}
-      onClick={() => onOpen(post)}
-      title={post.note}
-    >
-      {/* Real thumbnail image (existing posts with thumbnailUrl set) */}
-      {post.thumbnailUrl && (
-        <img src={post.thumbnailUrl} alt={post.note}
-          style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',pointerEvents:'none'}}/>
-      )}
-
-      {/* Story cell: mini canvas render (when no real thumbnail) */}
-      {isStory && !post.thumbnailUrl && (
-        <div style={{position:'absolute',inset:0,overflow:'hidden',background:'#080A0E'}}>
-          <div style={{
-            position:'absolute',top:0,left:0,
-            width:290,height:515,
-            transform:`scale(${MINI_SCALE})`,
-            transformOrigin:'top left',
-          }}>
-            {!bgEl?.url && <div style={{position:'absolute',inset:0,background:fallbackBg}}/>}
-            {bgEl?.url && bgEl.mediaType !== 'video' && <img src={bgEl.url} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} alt=""/>}
-            {bgEl?.url && <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,0.25) 100%)'}}/>}
-            {storyEls.filter(e => !e.locked && e.type === 'text').map(el => (
-              <div key={el.id} style={{
-                position:'absolute',
-                left:el.x,top:el.y,
-                fontSize:el.fontSize,
-                color:el.color,
-                fontFamily:`'${el.fontFamily}',sans-serif`,
-                fontWeight:el.fontWeight||600,
-                letterSpacing:el.letterSpacing||0,
-                lineHeight:1.25,
-                whiteSpace:'pre-wrap',
-                maxWidth:200,
-                textShadow:el.shadow?'0 2px 12px rgba(0,0,0,0.8)':undefined,
-                pointerEvents:'none',
-              }}>{el.content}</div>
-            ))}
-            <div style={{position:'absolute',bottom:10,right:10,fontFamily:"'JetBrains Mono',monospace",fontSize:5,color:'rgba(255,255,255,0.18)',letterSpacing:2,textTransform:'uppercase'}}>R&F</div>
-          </div>
-        </div>
-      )}
-
-      {/* Post cell: styled brand card (when no real thumbnail) */}
-      {!isStory && !post.thumbnailUrl && (
-        <div style={{
-          position:'absolute',inset:0,
-          background:fallbackBg,
-          display:'flex',flexDirection:'column',
-          padding:'11px 10px 9px',
-        }}>
-          <div style={{position:'absolute',inset:0,background:'linear-gradient(to bottom,rgba(0,0,0,0.25) 0%,rgba(0,0,0,0) 40%,rgba(0,0,0,0.7) 100%)'}}/>
-          <div style={{position:'relative',zIndex:1,marginTop:'auto'}}>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:6,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:2,textTransform:'uppercase',marginBottom:4}}>RANGER & FOX</div>
-            <div style={{fontFamily:"'Bricolage Grotesque',sans-serif",fontSize:12,fontWeight:700,color:'#FFFFFF',lineHeight:1.2,letterSpacing:-0.3}}>{post.note || "Untitled"}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Overlay for posts with a real thumbnail */}
-      {post.thumbnailUrl && (
-        <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0) 50%)',pointerEvents:'none',zIndex:1}}/>
-      )}
-
-      {!isQueued && <div className="ig-cell-status" style={{background: statusDot}}/>}
-      {isStory && <div className="ig-cell-story-ring"/>}
-      {isQueued && <div className="ig-cell-badge queued">QUEUED</div>}
-      <div className="ig-cell-overlay">
-        <span className="ig-cell-hover-label">{isQueued ? "Edit" : "View"}</span>
-      </div>
-    </div>
-  );
-}
-
-function IGGridView({ rows, onOpen, igMedia, igAccount }) {
-  // Convert real Instagram API response to our post shape
-  const existingPosts = igMedia?.data?.length
-    ? igMedia.data.map(m => ({
-        id: m.id,
-        note: m.caption?.split('\n')[0]?.slice(0, 80) || 'Instagram post',
-        platform: 'ig_post',
-        scheduledAt: m.timestamp,
-        _existing: true,
-        thumbnailUrl: m.media_type === 'VIDEO' ? (m.thumbnail_url || null) : (m.media_url || null),
-        permalink: m.permalink,
-      }))
-    : EXISTING_IG_POSTS;
-
-  // Queued: future-dated IG posts not yet posted
-  const queued = [...rows]
-    .filter(r => r.platform.startsWith('ig') && r.status !== 'posted')
-    .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
-
-  // Combine existing (past) + queued (future), newest first (Instagram order)
-  const allPosts = [...existingPosts, ...queued]
-    .sort((a, b) => new Date(b.scheduledAt || 0) - new Date(a.scheduledAt || 0));
-
-  // Find the divider index — first queued post position in sorted list
-  const firstQueuedIndex = allPosts.findIndex(p => !p._existing);
-
-  // Pad to multiple of 3
-  const padded = [...allPosts];
-  while (padded.length % 3 !== 0) padded.push(null);
-
-  const totalPosts = existingPosts.length + queued.length;
-  const queuedCount = queued.length;
-
-  return (
-    <div className="ig-grid-area">
-      <div className="ig-profile-wrap">
-
-        {/* Profile header */}
-        <div className="ig-profile-header">
-          <div className="ig-profile-avatar">RF</div>
-          <div className="ig-profile-meta">
-            <div className="ig-profile-handle">{igAccount?.username || "rangerandfox"}</div>
-            <div className="ig-profile-bio">Motion graphics studio · Rochester, MI + LA<br/>Award-winning work for the world's best brands.</div>
-            <div className="ig-profile-stats">
-              {[
-                { val: igAccount?.mediaCount || totalPosts, key: "posts" },
-                { val: "4,281",    key: "followers" },
-                { val: "312",      key: "following" },
-              ].map(s => (
-                <div key={s.key} className="ig-profile-stat">
-                  <span className="ig-profile-stat-val">{s.val}</span>
-                  <span className="ig-profile-stat-key">{s.key}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:6,alignSelf:"flex-start",paddingTop:4}}>
-            <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSub}}>
-              <div style={{width:6,height:6,borderRadius:"50%",background:T.ink,flexShrink:0}}/>
-              Connected
-            </div>
-            <div style={{display:"flex",gap:8,marginTop:2}}>
-              {[["POST",PLATFORMS.ig_post.color],["STORY",PLATFORMS.ig_story.color]].map(([l,c])=>(
-                <div key={l} style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:T.textDim}}>
-                  <div style={{width:6,height:6,borderRadius:1,background:c}}/>
-                  {l}
-                </div>
-              ))}
-              <div style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:T.textDim}}>
-                <div style={{width:6,height:6,borderRadius:"50%",background:"rgba(255,255,255,0.25)",border:`1px solid ${T.border2}`}}/>
-                QUEUED
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Grid */}
-        <div className="ig-grid-frame" style={{borderTop:"none",borderRadius:"0 0 10px 10px"}}>
-          <div className="ig-grid">
-            {padded.map((post, i) => {
-              const showDivider = firstQueuedIndex > 0 && i === firstQueuedIndex && i % 3 === 0;
-              return (
-                <React.Fragment key={post?.id || `pad-${i}`}>
-                  {showDivider && (
-                    <div className="ig-queued-divider">
-                      <span className="ig-queued-divider-label">↑ Live on Instagram · Queued upcoming ↓</span>
-                    </div>
-                  )}
-                  {post
-                    ? <IGCell post={post} index={i} onOpen={onOpen} isQueued={!post._existing}/>
-                    : <div className="ig-cell-empty"/>
-                  }
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
-
-        {queuedCount > 0 && (
-          <div style={{fontSize:11,color:T.textDim,padding:"10px 2px 0",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",letterSpacing:.3}}>
-            {queuedCount} post{queuedCount!==1?"s":""} queued · click any queued tile to edit
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── ROW ─────────────────────────────────────────────────────────
 function StageAIWriter({ platform, note, caption, onAccept }) {
   const [prompt, setPrompt] = useState(caption || note || "");
@@ -2291,18 +1680,18 @@ function StageAIWriter({ platform, note, caption, onAccept }) {
   return (
     <div className="stage-ai">
       <div className="stage-ai-header">
-        <div className="stage-ai-title"><span>AI Caption</span></div>
+        <div className="stage-ai-title"><span>Caption assist</span></div>
         <button style={{background:"transparent",border:"none",color:T.textSub,fontSize:11,fontWeight:700,cursor:"pointer",padding:0}}
-          onClick={generate} disabled={loading}>{loading ? "Writing…" : "Generate"}</button>
+          onClick={generate} disabled={loading}>{loading ? "Drafting…" : "Generate"}</button>
       </div>
-      <input style={{background:"#fff",border:"1px solid #EEF2FF",borderRadius:6,fontSize:12,padding:"6px 9px",outline:"none",color:"#0D0F12",width:"100%"}}
+      <input style={{background:"rgba(255,255,255,0.72)",border:`1px solid ${T.border}`,borderRadius:10,fontSize:12,padding:"9px 11px",outline:"none",color:T.text,width:"100%"}}
         value={prompt} onChange={e=>setPrompt(e.target.value)}
-        onKeyDown={e=>e.key==="Enter"&&generate()} placeholder="Describe the post…"/>
+        onKeyDown={e=>e.key==="Enter"&&generate()} placeholder="Describe the angle you want…"/>
       {(result||loading) && (
         <div className={`stage-ai-result ${loading&&!result?"stage-ai-typing":""}`}>{result||" "}</div>
       )}
       {result && !loading && (
-        <button style={{background:T.s3,border:"1px solid "+T.border2,borderRadius:5,padding:"4px 10px",fontSize:11,fontWeight:700,color:T.textSub,cursor:"pointer",alignSelf:"flex-end"}}
+        <button style={{background:T.s3,border:`1px solid ${T.border2}`,borderRadius:999,padding:"7px 11px",fontSize:11,fontWeight:700,color:T.textSub,cursor:"pointer",alignSelf:"flex-end"}}
           onClick={() => onAccept(result)}>Use this ↑</button>
       )}
     </div>
@@ -2320,6 +1709,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   const assignee = row.assignee ? TEAM.find(t=>t.id===row.assignee) : null;
   const [commentText, setCommentText] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showAI, setShowAI] = useState(false);
   const [, setMediaFile]  = useState(null);
   const [mediaUrl,   setMediaUrl]   = useState(null);
   const storyElements = row.storyElements || makeDefaultElements(row.note);
@@ -2329,14 +1719,13 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   const max    = row.platform==="linkedin"?3000:2200;
   const capLen = (row.caption||"").length;
   const over   = capLen>max, warn = capLen>max*0.88;
-
-  // Readiness checks
-  const checks = [
-    { label:"Caption",      pass: capLen>0 && !over,      warn: warn, msg: over?"Over limit":capLen===0?"Missing":warn?"Near limit":"OK" },
-    { label:"Media",        pass: !!mediaUrl,              warn: false, msg: mediaUrl?"Attached":"Optional" },
-    { label:"Scheduled",    pass: !!row.scheduledAt,       warn: false, msg: row.scheduledAt?"Set":"Not set" },
-    { label:"Assignee",     pass: !!row.assignee,          warn: false, msg: row.assignee?TEAM.find(t=>t.id===row.assignee)?.name:"Unassigned" },
-    { label:"Status",       pass: row.status==="approved"||row.status==="scheduled", warn: row.status==="needs_review", msg: STATUSES[row.status]?.label },
+  const checks = getReadinessChecks(row, !!mediaUrl);
+  const readyCount = checks.filter((check) => check.pass).length;
+  const updatedLabel = formatRelativeStamp(row.updatedAt);
+  const activityMeta = [
+    { label: "Updated", value: updatedLabel },
+    { label: "Version", value: `v${row.version || 1}` },
+    { label: "Owner", value: assignee?.name || "Unassigned" },
   ];
 
   return (
@@ -2381,117 +1770,147 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
       {/* ── STAGE WELL ── */}
       <div className={"stage-reveal-wrapper "+(isExpanded?"open":"")}>
         <div className="stage-content-well">
-
-          {/* COL 1 — Visual Asset */}
-          <div className="stage-col stage-col-media">
-            <div className="stage-col-label">Platform & Media</div>
-            {/* Platform switcher */}
-            <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:10}}>
-              {Object.entries(PLATFORMS).map(([k,pl])=>(
-                <button key={k}
-                  style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:7,border:"1.5px solid",
-                    borderColor:row.platform===k?pl.color+"55":"#E5E7EB",
-                    background:row.platform===k?pl.bg:"transparent",
-                    color:row.platform===k?pl.color:"#9AA0AE",
-                    cursor:"pointer",fontSize:12,fontWeight:600,transition:"all .1s",textAlign:"left"}}
-                  onClick={()=>onChange({platform:k})}>
-                  <span style={{width:7,height:7,borderRadius:"50%",background:pl.color,flexShrink:0}}/>
-                  {pl.label}
-                </button>
-              ))}
-            </div>
-            <div className="stage-col-label">Media</div>
-            {row.platform==="ig_story" ? (
-              <StoryThumbnail elements={storyElements} onClick={onStory}/>
-            ) : (
+          <div className="stage-stack">
+            <div className="stage-summary">
               <div>
-                {mediaUrl ? (
-                  <div style={{position:"relative",borderRadius:8,overflow:"hidden",border:"1px solid #E5E7EB"}}>
-                    <img src={mediaUrl} alt="" style={{width:"100%",display:"block",maxHeight:140,objectFit:"cover"}}/>
-                    <button style={{position:"absolute",top:6,right:6,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:5,color:"#fff",padding:"3px 7px",fontSize:11,cursor:"pointer"}} onClick={()=>{setMediaFile(null);setMediaUrl(null);}}>✕</button>
-                  </div>
-                ) : (
-                  <>
-                    <input ref={mediaRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}}
-                      onChange={e=>{const f=e.target.files?.[0]; if(f){setMediaFile(f);const isImg=f.type.startsWith("image/");const isVid=f.type.startsWith("video/");if(isImg||isVid)setMediaUrl(URL.createObjectURL(f));} e.target.value="";}}/>
-                    <div className="stage-post-placeholder" onClick={()=>mediaRef.current?.click()}>
-                      <span style={{fontSize:22,opacity:0.22}}>↑</span>
-                      <span style={{fontSize:11.5,color:"#9AA0AE",fontWeight:500}}>Attach media</span>
-                      <span style={{fontSize:10,color:"#D1D5DB",fontFamily:"'JetBrains Mono',monospace"}}>JPG · PNG · GIF · MP4</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            <button className="btn btn-primary" style={{fontSize:12,padding:"7px 12px",width:"100%",marginTop:"auto"}}
-              onClick={() => { onPostNow(); setIsExpanded(false); }}>
-              Post Now
-            </button>
-          </div>
-
-          {/* COL 2 — Writing + AI */}
-          <div className="stage-col stage-col-write">
-            <div className="stage-col-label">Caption — {p.label}</div>
-            <textarea className="stage-txa"
-              value={row.caption||""}
-              placeholder={`Write your ${p.label} caption… type naturally`}
-              onChange={e=>onChange({caption:e.target.value})}
-              rows={5}/>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:-6}}>
-              <span className={`stage-char ${over?"over":warn?"warn":""}`}>{capLen} / {max}</span>
-            </div>
-            <StageAIWriter platform={row.platform} note={row.note} caption={row.caption}
-              onAccept={t=>onChange({caption:t})}/>
-          </div>
-
-          {/* COL 3 — Governance */}
-          <div className="stage-col stage-col-gov">
-            <div className="stage-col-label">Post Readiness</div>
-            <div className="readiness-list">
-              {checks.map(c=>(
-                <div key={c.label} className="readiness-item">
-                  <span className="readiness-icon">{c.pass?"✓":c.warn?"!":"–"}</span>
-                  <span className="readiness-label">{c.label}</span>
-                  <span className={"readiness-ok "+(c.pass?"pass":c.warn?"warn":"fail")}>{c.msg}</span>
+                <div className="stage-summary-title">{row.note || "Untitled post"}</div>
+                <div className="stage-summary-meta">
+                  <span>{p.label}</span>
+                  <span>{STATUSES[row.status]?.label}</span>
+                  <span>{readyCount}/{checks.length} ready</span>
+                  <span>Updated {updatedLabel}</span>
                 </div>
-              ))}
-            </div>
-
-            <div style={{marginTop:4}}>
-              <div className="stage-col-label" style={{marginBottom:6}}>Quick Status</div>
-              <div className="quick-status">
-                {Object.entries(STATUSES).map(([k,st])=>(
-                  <button key={k} className={"qs-btn "+(row.status===k?"active":"")}
-                    style={row.status===k?{color:st.dot,borderColor:st.dot,background:st.dot+"11"}:{}}
-                    onClick={()=>onChange({status:k})}>
-                    {st.label}
-                  </button>
-                ))}
+              </div>
+              <div className="stage-summary-actions">
+                <button className="btn btn-ghost" style={{padding:"8px 12px"}} onClick={() => setShowAI((current) => !current)}>
+                  {showAI ? "Hide assist" : "Caption assist"}
+                </button>
+                <button className="btn btn-primary" style={{padding:"8px 12px"}} onClick={() => { onPostNow(); setIsExpanded(false); }}>
+                  Post now
+                </button>
               </div>
             </div>
 
-            {/* Comments inline */}
-            <div style={{marginTop:6}}>
-              <div className="stage-col-label" style={{marginBottom:6}}>Comments {row.comments?.length>0&&`(${row.comments.length})`}</div>
-              {(row.comments||[]).slice(-2).map(c=>{
-                const m=TEAM.find(t=>t.id===c.author)||{initials:"?",color:T.textDim,name:"Unknown"};
-                return (
-                  <div key={c.id} style={{display:"flex",gap:7,alignItems:"flex-start",marginBottom:6}}>
-                    <div style={{width:20,height:20,borderRadius:5,background:m.color+"22",color:m.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8.5,fontWeight:700,flexShrink:0}}>{m.initials}</div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:10.5,fontWeight:700,color:T.text,marginBottom:1}}>{m.name} <span style={{color:T.textDim,fontWeight:400,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>{c.ts}</span></div>
-                      <div style={{fontSize:11.5,color:T.textSub,lineHeight:1.4}}>{c.text}</div>
-                    </div>
+            <div className="stage-grid">
+              <section className="stage-section">
+                <div className="stage-col-label">Media & Placement</div>
+                <div className="quick-status">
+                  {Object.entries(PLATFORMS).map(([key, platform]) => (
+                    <button
+                      key={key}
+                      className={"qs-btn " + (row.platform===key?"active":"")}
+                      style={row.platform===key?{color:platform.color,borderColor:platform.color,background:platform.bg}:{}}
+                      onClick={()=>onChange({platform:key})}
+                    >
+                      {platform.label}
+                    </button>
+                  ))}
+                </div>
+                {row.platform==="ig_story" ? (
+                  <StoryThumbnail elements={storyElements} onClick={onStory}/>
+                ) : (
+                  <div>
+                    {mediaUrl ? (
+                      <div className="stage-thumb">
+                        <img src={mediaUrl} alt="" />
+                        <div className="stage-thumb-overlay">
+                          <button className="stage-thumb-btn" onClick={() => { setMediaFile(null); setMediaUrl(null); }}>Remove</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <input ref={mediaRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}}
+                          onChange={e=>{const f=e.target.files?.[0]; if(f){setMediaFile(f);const isImg=f.type.startsWith("image/");const isVid=f.type.startsWith("video/");if(isImg||isVid)setMediaUrl(URL.createObjectURL(f));} e.target.value="";}}/>
+                        <div className="stage-post-placeholder" onClick={()=>mediaRef.current?.click()}>
+                          <span style={{fontSize:22,opacity:0.22}}>↑</span>
+                          <span style={{fontSize:11.5,color:T.textSub,fontWeight:500}}>Attach media</span>
+                          <span style={{fontSize:10,color:T.textDim,fontFamily:"'JetBrains Mono',monospace"}}>JPG · PNG · GIF · MP4</span>
+                        </div>
+                      </>
+                    )}
                   </div>
-                );
-              })}
-              <div style={{display:"flex",gap:6,marginTop:4}}>
-                <input className="comment-input" style={{fontSize:11.5,padding:"5px 9px"}} placeholder="Comment…" value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitComment()}/>
-                <button className="btn btn-ghost" style={{padding:"4px 10px",fontSize:11,flexShrink:0}} onClick={submitComment}>Send</button>
-              </div>
+                )}
+              </section>
+
+              <section className="stage-section">
+                <div className="stage-col-label">Caption</div>
+                <textarea className="stage-txa"
+                  value={row.caption||""}
+                  placeholder={`Write your ${p.label} caption in a calm, ready-to-publish draft`}
+                  onChange={e=>onChange({caption:e.target.value})}
+                  rows={5}/>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:-4}}>
+                  <span className={`stage-char ${over?"over":warn?"warn":""}`}>{capLen} / {max}</span>
+                  <span className="stage-char">{row.caption ? "Draft in progress" : "Start with the core message"}</span>
+                </div>
+                {showAI && (
+                  <StageAIWriter platform={row.platform} note={row.note} caption={row.caption}
+                    onAccept={t=>onChange({caption:t})}/>
+                )}
+              </section>
+            </div>
+
+            <div className="stage-dual">
+              <section className="stage-section">
+                <div className="stage-col-label">Readiness & Status</div>
+                <div className="readiness-list">
+                  {checks.map(c=>(
+                    <div key={c.label} className="readiness-item">
+                      <span className="readiness-icon">{c.pass?"✓":c.warn?"!":"–"}</span>
+                      <span className="readiness-label">{c.label}</span>
+                      <span className={"readiness-ok "+(c.pass?"pass":c.warn?"warn":"fail")}>{c.msg}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <div className="stage-col-label" style={{marginBottom:6}}>Approval</div>
+                  <div className="quick-status">
+                    {Object.entries(STATUSES).map(([k,st])=>(
+                      <button key={k} className={"qs-btn "+(row.status===k?"active":"")}
+                        style={row.status===k?{color:st.dot,borderColor:st.dot,background:st.dot+"11"}:{}}
+                        onClick={()=>onChange({status:k})}>
+                        {st.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="stage-col-label" style={{marginBottom:6}}>Activity</div>
+                  <div className="readiness-list">
+                    {activityMeta.map((item) => (
+                      <div key={item.label} className="readiness-item">
+                        <span className="readiness-label">{item.label}</span>
+                        <span className="readiness-ok pass">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              <section className="stage-section">
+                <div className="stage-col-label">Comments</div>
+                {(row.comments||[]).slice(-3).map(c=>{
+                  const m=TEAM.find(t=>t.id===c.author)||{initials:"?",color:T.textDim,name:"Unknown"};
+                  return (
+                    <div key={c.id} style={{display:"flex",gap:9,alignItems:"flex-start",marginBottom:2}}>
+                      <div style={{width:22,height:22,borderRadius:7,background:m.color+"22",color:m.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8.5,fontWeight:700,flexShrink:0}}>{m.initials}</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:11,fontWeight:600,color:T.text,marginBottom:2}}>{m.name} <span style={{color:T.textDim,fontWeight:400,fontFamily:"'JetBrains Mono',monospace",fontSize:9}}>{c.ts}</span></div>
+                        <div style={{fontSize:12.5,color:T.textSub,lineHeight:1.55}}>{c.text}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {(row.comments||[]).length===0 && <div className="cal-panel-empty" style={{padding:"10px 0 0"}}>No comments yet. Keep approvals and notes here.</div>}
+                <div style={{display:"flex",gap:8,marginTop:"auto"}}>
+                  <input className="comment-input" style={{fontSize:12,padding:"9px 11px"}} placeholder="Add a comment…" value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitComment()}/>
+                  <button className="btn btn-ghost" style={{padding:"8px 12px",fontSize:11.5,flexShrink:0}} onClick={submitComment}>Send</button>
+                </div>
+              </section>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -2516,7 +1935,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
 }
 // ─── TOAST ───────────────────────────────────────────────────────
 function Toast({ msg, color, onDone }) {
-  useEffect(()=>{const t=setTimeout(onDone,3200);return()=>clearTimeout(t);},[]);
+  useEffect(()=>{const t=setTimeout(onDone,3200);return()=>clearTimeout(t);},[onDone]);
   return <div className="toast"><div className="t-dot" style={{background:color||T.mint}}/>{msg}</div>;
 }
 
@@ -2569,7 +1988,7 @@ function UndoDeleteToast({ count, onUndo, onDone }) {
       return s - 1;
     }), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [onDone]);
   return (
     <div className="toast" style={{display:'flex',alignItems:'center',gap:10}}>
       <div className="t-dot" style={{background:T.red}}/>
@@ -2590,6 +2009,10 @@ export default function App() {
   const [studioDoc, setStudioDoc] = useState(loadStudioDocument);
   const [sel, setSel]             = useState(new Set());
   const [view, setView]           = useState("list");
+  const [query, setQuery]         = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [platformFilter, setPlatformFilter] = useState("all");
+  const [attentionOnly, setAttentionOnly] = useState(false);
   const [timeScale, setTimeScale] = useState("month"); // "month" | "year"
   const [composer, setComposer]   = useState(null);
   const [story, setStory]         = useState(null);
@@ -2616,6 +2039,18 @@ export default function App() {
   const currentUser = "stephen";
 
   const rows = studioDoc.rows.filter((row) => !row.deletedAt);
+  const filteredRows = rows.filter((row) => {
+    const q = query.trim().toLowerCase();
+    const assigneeName = TEAM.find((member) => member.id === row.assignee)?.name?.toLowerCase() || "";
+    const matchesQuery = !q || [row.note, row.caption, assigneeName].filter(Boolean).some((value) => value.toLowerCase().includes(q));
+    const matchesStatus = statusFilter === "all" || row.status === statusFilter;
+    const matchesPlatform =
+      platformFilter === "all" ||
+      (platformFilter === "instagram" ? row.platform.startsWith("ig") : row.platform === platformFilter);
+    const matchesAttention = !attentionOnly || isRowNeedingAttention(row);
+
+    return matchesQuery && matchesStatus && matchesPlatform && matchesAttention;
+  });
   const igConfig = studioDoc.instagram?.account || null;
   const igMedia = studioDoc.instagram?.media || null;
 
@@ -2639,11 +2074,11 @@ export default function App() {
       });
 
       if (!saved) {
-        setSaveState({
+        setSaveState((current) => ({
           status: "error",
           error: "Browser storage is full. Your latest changes are not safely persisted yet.",
-          lastSavedAt: saveState.lastSavedAt,
-        });
+          lastSavedAt: current.lastSavedAt,
+        }));
         return;
       }
 
@@ -2723,7 +2158,7 @@ export default function App() {
     }
   }, [igConfig, showToast, updateDocument]);
 
-  const allSorted = [...rows].sort((a,b) => {
+  const allSorted = [...filteredRows].sort((a,b) => {
     const da = a.scheduledAt ? new Date(a.scheduledAt) : new Date(0);
     const db = b.scheduledAt ? new Date(b.scheduledAt) : new Date(0);
     if (da.getTime() === db.getTime()) {
@@ -2750,8 +2185,8 @@ export default function App() {
     }),
   }));
 
-  const add = (targetMonth=month, day=1) => {
-    const iso = makeISO(day, 9, 0, targetMonth);
+  const add = (targetMonth=month, day=1, targetYear=year) => {
+    const iso = ptPickerToISO(targetYear, targetMonth, day, 9, 0);
     updateDocument(
       (current) => ({
         ...current,
@@ -2861,14 +2296,15 @@ export default function App() {
     />
   );
 
-  const igC    = rows.filter(r=>r.platform!=="linkedin").length;
-  const liC    = rows.filter(r=>r.platform==="linkedin").length;
-  const readyC = rows.filter(r=>r.status==="approved"||r.status==="scheduled").length;
-  const reviewC= rows.filter(r=>r.status==="needs_review").length;
+  const igC    = filteredRows.filter(r=>r.platform!=="linkedin").length;
+  const liC    = filteredRows.filter(r=>r.platform==="linkedin").length;
+  const readyC = filteredRows.filter(r=>r.status==="approved"||r.status==="scheduled").length;
+  const reviewC= filteredRows.filter(r=>r.status==="needs_review").length;
+  const attentionCount = filteredRows.filter((row) => isRowNeedingAttention(row)).length;
 
   // Month sparkline data (post counts per month, scaled)
   const monthCounts = MONTHS_FULL.map((_, mi) =>
-    allSorted.filter(r => r.scheduledAt && new Date(r.scheduledAt).getMonth()===mi && new Date(r.scheduledAt).getFullYear()===year).length
+    rows.filter(r => r.scheduledAt && new Date(r.scheduledAt).getMonth()===mi && new Date(r.scheduledAt).getFullYear()===year).length
   );
   const maxMonthCount = Math.max(...monthCounts, 1);
 
@@ -2985,6 +2421,50 @@ export default function App() {
           )
         }
 
+        {view !== "analytics" && (
+          <div className="ops-toolbar">
+            <input
+              className="ops-search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search titles, captions, or owner"
+            />
+            <div className="ops-tabs">
+              {[
+                ["all", "All statuses"],
+                ["needs_review", "Needs review"],
+                ["approved", "Approved"],
+                ["scheduled", "Scheduled"],
+                ["posted", "Posted"],
+              ].map(([value, label]) => (
+                <button key={value} className={`ops-chip ${statusFilter === value ? "on" : ""}`} onClick={() => setStatusFilter(value)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="ops-tabs">
+              {[
+                ["all", "All channels"],
+                ["instagram", "Instagram"],
+                ["linkedin", "LinkedIn"],
+              ].map(([value, label]) => (
+                <button key={value} className={`ops-chip ${platformFilter === value ? "on" : ""}`} onClick={() => setPlatformFilter(value)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button className={`ops-chip ${attentionOnly ? "on" : ""}`} onClick={() => setAttentionOnly((current) => !current)}>
+              Needs attention {attentionCount > 0 ? `(${attentionCount})` : ""}
+            </button>
+            {(query || statusFilter !== "all" || platformFilter !== "all" || attentionOnly) && (
+              <button className="ops-clear" onClick={() => { setQuery(""); setStatusFilter("all"); setPlatformFilter("all"); setAttentionOnly(false); }}>
+                Reset
+              </button>
+            )}
+            <div className="ops-count">{filteredRows.length} shown</div>
+          </div>
+        )}
+
         {/* LIST VIEW */}
         {view==="list"&&(
           <div className="t-area">
@@ -3042,12 +2522,12 @@ export default function App() {
           </div>
         )}
 
-        {view==="calendar"&&<CalendarView rows={rows} month={month} year={year}
+        {view==="calendar"&&<CalendarView rows={filteredRows} month={month} year={year}
           onCompose={r=>setComposer({row:r,postNow:false})} onStory={r=>setStory(r)}
-          onEdit={r=>update(r.id,{caption:r.caption,platform:r.platform})}
-          onAddDay={d=>{add(month,d);showToast(`Added post for ${MONTHS_FULL[month]} ${d}`,T.mint);}}/>}
+          onEdit={r=>update(r.id,{note:r.note,caption:r.caption,platform:r.platform,status:r.status})}
+          onAddDay={(d, targetMonth = month, targetYear = year)=>{add(targetMonth,d,targetYear);showToast(`Added post for ${MONTHS_FULL[targetMonth]} ${d}`,T.mint);}}/>}
 
-        {view==="grid"&&<IGGridView rows={rows} igMedia={igMedia} igAccount={igConfig}
+        {view==="grid"&&<IGGridView rows={filteredRows} igMedia={igMedia} igAccount={igConfig}
           onOpen={r=>r.platform==="ig_story"?setStory(r):setComposer({row:r,postNow:false})}/>}
 
         {view==="analytics"&&<Analytics rows={rows}/>}

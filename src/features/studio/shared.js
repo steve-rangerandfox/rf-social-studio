@@ -1,39 +1,39 @@
 export const T = {
-  bg: "#F7F8FA",
-  surface: "#FFFFFF",
-  s2: "#FAFBFC",
-  s3: "#F0F1F4",
-  border: "#E5E7EB",
-  border2: "#D1D5DB",
-  ink: "#111318",
-  inkFog: "rgba(17,19,24,0.05)",
-  mint: "#111318",
-  mintDim: "#0A0B0F",
-  mintFog: "rgba(17,19,24,0.05)",
-  text: "#111318",
-  textSub: "#4B5563",
-  textDim: "#9CA3AF",
+  bg: "#F4F1EA",
+  surface: "#FBFAF6",
+  s2: "#F7F4EE",
+  s3: "#F0EAE1",
+  border: "#E2DBD0",
+  border2: "#D2C8BA",
+  ink: "#181714",
+  inkFog: "rgba(24,23,20,0.05)",
+  mint: "#181714",
+  mintDim: "#11100E",
+  mintFog: "rgba(24,23,20,0.05)",
+  text: "#181714",
+  textSub: "#5E584F",
+  textDim: "#8B8377",
   red: "#DC2626",
-  amber: "#D97706",
-  blue: "#2563EB",
-  pink: "#DB2777",
-  orange: "#EA580C",
-  purple: "#7C3AED",
+  amber: "#9B7441",
+  blue: "#45606A",
+  pink: "#766861",
+  orange: "#9B7441",
+  purple: "#6E655D",
 };
 
 export const PLATFORMS = {
-  ig_post: { label: "IG Post", short: "IG Post", color: "#BE185D", bg: "rgba(190,24,93,0.07)" },
-  ig_story: { label: "IG Story", short: "IG Story", color: "#9333EA", bg: "rgba(147,51,234,0.07)" },
-  linkedin: { label: "LinkedIn", short: "LI", color: "#0A66C2", bg: "rgba(10,102,194,0.07)" },
+  ig_post: { label: "Instagram Post", short: "IG Post", color: "#49433B", bg: "rgba(73,67,59,0.07)" },
+  ig_story: { label: "Instagram Story", short: "Story", color: "#6E655D", bg: "rgba(110,101,93,0.07)" },
+  linkedin: { label: "LinkedIn", short: "LinkedIn", color: "#4B5F66", bg: "rgba(75,95,102,0.08)" },
 };
 
 export const STATUSES = {
-  idea: { label: "Idea", dot: "#9CA3AF", next: "draft" },
-  draft: { label: "Draft", dot: "#6B7280", next: "needs_review" },
-  needs_review: { label: "Needs Review", dot: "#F59E0B", next: "approved" },
-  approved: { label: "Approved", dot: "#10B981", next: "scheduled" },
-  scheduled: { label: "Scheduled", dot: "#3B82F6", next: "posted" },
-  posted: { label: "Posted", dot: "#111318", next: "idea" },
+  idea: { label: "Idea", dot: "#B5ADA0", next: "draft" },
+  draft: { label: "Draft", dot: "#93897C", next: "needs_review" },
+  needs_review: { label: "Needs Review", dot: "#9B7441", next: "approved" },
+  approved: { label: "Approved", dot: "#5E6659", next: "scheduled" },
+  scheduled: { label: "Scheduled", dot: "#66727A", next: "posted" },
+  posted: { label: "Posted", dot: "#181714", next: "idea" },
 };
 
 export const TEAM = [
@@ -131,6 +131,56 @@ export function uid() {
   }
 
   return Math.random().toString(36).slice(2, 11);
+}
+
+export function formatRelativeStamp(isoString) {
+  if (!isoString) {
+    return "Not saved yet";
+  }
+
+  const stamp = new Date(isoString);
+  const diffMs = Date.now() - stamp.getTime();
+  const diffMins = Math.max(0, Math.round(diffMs / 60000));
+
+  if (diffMins < 1) {
+    return "Just now";
+  }
+
+  if (diffMins < 60) {
+    return `${diffMins}m ago`;
+  }
+
+  const diffHours = Math.round(diffMins / 60);
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+
+  return stamp.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function getReadinessChecks(row, mediaAttached = false) {
+  const max = row.platform === "linkedin" ? 3000 : 2200;
+  const capLen = (row.caption || "").length;
+  const over = capLen > max;
+  const warn = capLen > max * 0.88;
+
+  return [
+    { label: "Caption", pass: capLen > 0 && !over, warn, msg: over ? "Over limit" : capLen === 0 ? "Missing" : warn ? "Near limit" : "Ready" },
+    { label: "Media", pass: !!mediaAttached || row.platform === "linkedin", warn: !mediaAttached && row.platform !== "linkedin", msg: mediaAttached ? "Attached" : row.platform === "linkedin" ? "Optional" : "Needs asset" },
+    { label: "Scheduled", pass: !!row.scheduledAt, warn: false, msg: row.scheduledAt ? "Set" : "Missing" },
+    { label: "Owner", pass: !!row.assignee, warn: false, msg: row.assignee ? TEAM.find((teamMember) => teamMember.id === row.assignee)?.name || "Assigned" : "Unassigned" },
+    { label: "Approval", pass: row.status === "approved" || row.status === "scheduled" || row.status === "posted", warn: row.status === "needs_review", msg: STATUSES[row.status]?.label || "Unknown" },
+  ];
+}
+
+export function isRowNeedingAttention(row, mediaAttached = false) {
+  const checks = getReadinessChecks(row, mediaAttached);
+  return checks.some((check) => !check.pass || check.warn);
 }
 
 export function clampNote(value) {
