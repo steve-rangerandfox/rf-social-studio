@@ -383,7 +383,7 @@ input,textarea,select,button{font-family:inherit}
 .canvas{width:290px;height:515px;border-radius:18px;position:relative;overflow:hidden;background:#080A0E;flex-shrink:0;cursor:crosshair}
 .canvas-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
 .canvas-ov{position:absolute;inset:0;pointer-events:none}
-.element-wrap{position:absolute;cursor:move;user-select:none}
+.element-wrap{position:absolute;cursor:move;user-select:none;transform-origin:top left}
 .element-wrap:hover .el-outline{opacity:1}
 .el-outline{position:absolute;inset:-2px;border:1px dashed rgba(0,165,114,0.45);border-radius:2px;pointer-events:none;opacity:0;transition:opacity 0.1s}
 .element-selected .el-outline{opacity:1;border-color:${T.ink};border-style:solid}
@@ -1059,6 +1059,21 @@ const FONTS = ["Bricolage Grotesque","JetBrains Mono"];
 function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
   const videoRef = useRef(null);
   const [muted, setMuted] = useState(true);
+  const isVideo = data.mediaType === 'video';
+  const mediaScale = data.scale || 1;
+  const mediaBaseSize = isVideo ? 100 : 120;
+  const wrapperStyle = {
+    left: data.x,
+    top: data.y,
+    zIndex: isSelected ? 10 : 2,
+    ...(data.type === "image"
+      ? {
+          width: mediaBaseSize,
+          height: mediaBaseSize,
+          transform: `scale(${mediaScale})`,
+        }
+      : null),
+  };
 
   const handleDrag = (e) => {
     if (data.locked) return;
@@ -1109,13 +1124,10 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
     );
   }
 
-  const isVideo = data.mediaType === 'video';
-  const scale   = data.scale || 1;
-
   return (
     <div
       className={"element-wrap " + (isSelected ? "element-selected" : "")}
-      style={{ left: data.x, top: data.y, zIndex: isSelected ? 10 : 2 }}
+      style={wrapperStyle}
       onMouseDown={handleDrag}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
     >
@@ -1133,7 +1145,7 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
           {data.content}
         </div>
       ) : isVideo ? (
-        <div className="video-el" style={{transform:`scale(${scale})`,transformOrigin:'top left'}}>
+        <div className="video-el">
           <video ref={videoRef} src={data.url}
             style={{width:100,height:100,objectFit:'cover',borderRadius:4,display:'block'}}
             autoPlay={data.autoPlay!==false} loop={data.loop!==false}
@@ -1145,7 +1157,7 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
         </div>
       ) : (
         <img src={data.url} alt="" draggable="false"
-          style={{transform:`scale(${scale})`,transformOrigin:'top left',display:'block',maxWidth:120,maxHeight:120,borderRadius:4,pointerEvents:'none'}}/>
+          style={{display:'block',width:120,height:120,objectFit:'cover',borderRadius:4,pointerEvents:'none'}}/>
       )}
       {isSelected && (
         <>
@@ -1243,7 +1255,7 @@ function StoryDesigner({ row, onClose, onSave }) {
   useEffect(() => { if (onSave) onSave(elements); }, [elements, onSave]);
 
   const [selectedId,  setSelectedId]  = useState(null);
-  const [zoom,        setZoom]        = useState(1.0);
+  const [zoom,        setZoom]        = useState(1.5);
   const [postState,   setPostState]   = useState("idle");
   const [showCopilot, setShowCopilot] = useState(false);
   const [aiLoading,   setAiLoading]   = useState(false);
@@ -1587,7 +1599,7 @@ function StoryDesigner({ row, onClose, onSave }) {
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.max(0.4,parseFloat((z-0.1).toFixed(1))))} title="Zoom out">−</button>
                 <span className="zoom-label">{Math.round(zoom*100)}%</span>
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.min(2.0,parseFloat((z+0.1).toFixed(1))))} title="Zoom in">+</button>
-                <button className="zoom-btn" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 4px"}} onClick={()=>setZoom(1.0)} title="Reset zoom">1:1</button>
+                <button className="zoom-btn" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 4px"}} onClick={()=>setZoom(1.5)} title="Reset zoom">150%</button>
               </div>
             </div>
             <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top center"}}>
