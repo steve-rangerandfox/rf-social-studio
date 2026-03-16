@@ -6,9 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RF Social Studio</title>
 
-    <!-- Security: prevent clickjacking via frame embedding -->
-    <meta http-equiv="X-Frame-Options" content="DENY" />
-
     <!-- Security: control referrer information sent with requests -->
     <meta name="referrer" content="strict-origin-when-cross-origin" />
 
@@ -16,20 +13,24 @@
       Content Security Policy
       ─────────────────────────────────────────────────────────────────────────
       - default-src 'self'          only load resources from same origin by default
-      - script-src 'self'           no inline scripts; Vite bundles all JS
+      - script-src 'self' https://*.clerk.accounts.dev
+                                    allow Clerk to load its hosted auth bundle
       - style-src 'self' 'unsafe-inline' https://fonts.googleapis.com
                                     inline styles needed for the template-literal
                                     CSS injected by React (G string); Google Fonts
       - font-src 'self' https://fonts.gstatic.com
                                     Google Fonts glyphs
-      - img-src 'self' data: blob: https://graph.instagram.com https://scontent.cdninstagram.com https://*.cdninstagram.com
-                                    blob: for local file previews; Instagram CDN for media
-      - connect-src 'self' https://api.instagram.com https://graph.instagram.com
-                                    IG OAuth + Graph API
-      - frame-src 'none'            no iframes
+      - img-src 'self' data: blob: https:
+                                    blob: for local file previews; remote auth/media
+      - connect-src 'self' https://api.instagram.com https://graph.instagram.com https://*.clerk.accounts.dev https://*.clerk.dev https://clerk.com
+                                    IG OAuth + Clerk auth
+      - frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com
+                                    Clerk auth UI and challenge flows
+      - frame-ancestors 'none'      prevent this app from being embedded
       - object-src 'none'           no Flash / plugins
       - base-uri 'self'             prevent base-tag injection
-      - form-action 'self'          restrict form targets
+      - form-action 'self' https://*.clerk.accounts.dev
+                                    allow Clerk-hosted auth submissions
       ─────────────────────────────────────────────────────────────────────────
       NOTE: 'unsafe-inline' for style-src is required because App.jsx injects
       a CSS template-literal string via <style>{G}</style> at runtime. A future
@@ -37,15 +38,17 @@
     -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self';
+      script-src 'self' https://*.clerk.accounts.dev;
+      script-src-elem 'self' https://*.clerk.accounts.dev;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
-      img-src 'self' data: blob: https://graph.instagram.com https://scontent.cdninstagram.com https://*.cdninstagram.com;
-      connect-src 'self' https://api.instagram.com https://graph.instagram.com;
-      frame-src 'none';
+      img-src 'self' data: blob: https:;
+      connect-src 'self' https://api.instagram.com https://graph.instagram.com https://*.clerk.accounts.dev https://*.clerk.dev https://clerk.com;
+      frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com;
+      frame-ancestors 'none';
       object-src 'none';
       base-uri 'self';
-      form-action 'self';
+      form-action 'self' https://*.clerk.accounts.dev;
     " />
   </head>
   <body>
