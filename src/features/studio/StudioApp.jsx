@@ -645,10 +645,14 @@ input,textarea,select,button{font-family:inherit}
 .ops-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 18px 14px;border-bottom:1px solid rgba(24,23,20,0.05)}
 .ops-search{min-width:240px;flex:1;background:rgba(251,250,246,0.72);border:1px solid rgba(24,23,20,0.06);border-radius:999px;color:${T.text};padding:10px 14px;font-size:13px;outline:none}
 .ops-search::placeholder{color:${T.textDim}}
-.ops-tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ops-group{display:flex;align-items:center;gap:8px}
+.ops-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:${T.textDim}}
+.ops-select{appearance:none;-webkit-appearance:none;background:rgba(251,250,246,0.78);border:1px solid rgba(24,23,20,0.06);border-radius:999px;color:${T.text};padding:9px 34px 9px 12px;font-size:12px;font-weight:500;min-width:138px;outline:none;background-image:linear-gradient(45deg,transparent 50%,${T.textDim} 50%),linear-gradient(135deg,${T.textDim} 50%,transparent 50%);background-position:calc(100% - 16px) calc(50% - 2px),calc(100% - 11px) calc(50% - 2px);background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.ops-select:focus{border-color:rgba(24,23,20,0.14)}
 .ops-chip{padding:8px 11px;border-radius:999px;border:1px solid rgba(24,23,20,0.06);background:rgba(251,250,246,0.72);color:${T.textSub};font-size:11.5px;font-weight:500;cursor:pointer;transition:all 0.12s}
 .ops-chip:hover{background:rgba(24,23,20,0.05);color:${T.text}}
 .ops-chip.on{background:${T.ink};border-color:${T.ink};color:${T.surface}}
+.ops-chip.subtle{background:transparent}
 .ops-clear{background:transparent;border:none;color:${T.textDim};font-size:11.5px;font-weight:600;cursor:pointer}
 .ops-count{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:${T.textDim}}
 
@@ -757,7 +761,9 @@ input,textarea,select,button{font-family:inherit}
   .sidebar{display:none}
   .topbar{padding:0 16px;height:auto;min-height:72px;flex-wrap:wrap;align-content:center;padding-top:12px;padding-bottom:12px}
   .stats,.ops-toolbar,.t-area,.analytics-area,.ig-grid-area,.cal-area{padding-left:14px;padding-right:14px}
-  .t-head,.t-row{grid-template-columns:28px 16px 108px minmax(180px,1fr) 80px 100px 120px 96px 36px;padding:0 12px}
+  .t-head,.t-row{grid-template-columns:28px 16px 120px minmax(168px,1fr) 80px 100px 120px 96px 36px;padding:0 12px}
+  .ops-group{width:100%}
+  .ops-select{flex:1;min-width:0}
   .settings-tabs{overflow:auto}
   .cp-modal,.settings-modal{width:min(94vw,430px)}
 }
@@ -2459,31 +2465,25 @@ export default function App() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search titles, captions, or owner"
             />
-            <div className="ops-tabs">
-              {[
-                ["all", "All statuses"],
-                ["needs_review", "Needs review"],
-                ["approved", "Approved"],
-                ["scheduled", "Scheduled"],
-                ["posted", "Posted"],
-              ].map(([value, label]) => (
-                <button key={value} className={`ops-chip ${statusFilter === value ? "on" : ""}`} onClick={() => setStatusFilter(value)}>
-                  {label}
-                </button>
-              ))}
+            <div className="ops-group">
+              <span className="ops-label">Status</span>
+              <select className="ops-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="all">All statuses</option>
+                <option value="needs_review">Needs review</option>
+                <option value="approved">Approved</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="posted">Posted</option>
+              </select>
             </div>
-            <div className="ops-tabs">
-              {[
-                ["all", "All channels"],
-                ["instagram", "Instagram"],
-                ["linkedin", "LinkedIn"],
-              ].map(([value, label]) => (
-                <button key={value} className={`ops-chip ${platformFilter === value ? "on" : ""}`} onClick={() => setPlatformFilter(value)}>
-                  {label}
-                </button>
-              ))}
+            <div className="ops-group">
+              <span className="ops-label">Channel</span>
+              <select className="ops-select" value={platformFilter} onChange={(event) => setPlatformFilter(event.target.value)}>
+                <option value="all">All channels</option>
+                <option value="instagram">Instagram</option>
+                <option value="linkedin">LinkedIn</option>
+              </select>
             </div>
-            <button className={`ops-chip ${attentionOnly ? "on" : ""}`} onClick={() => setAttentionOnly((current) => !current)}>
+            <button className={`ops-chip subtle ${attentionOnly ? "on" : ""}`} onClick={() => setAttentionOnly((current) => !current)}>
               Needs attention {attentionCount > 0 ? `(${attentionCount})` : ""}
             </button>
             {(query || statusFilter !== "all" || platformFilter !== "all" || attentionOnly) && (
