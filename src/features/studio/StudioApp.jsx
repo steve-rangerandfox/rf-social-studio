@@ -1854,11 +1854,20 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   return (
     <div className={"row-container " + (isExpanded?"is-open":"")}>
       <div className={`t-row ${sel?"sel":""} ${dragHandlers.isDragging?"dragging":""} ${dragHandlers.isDragOver?"drag-over":""}`}
-        draggable onDragStart={dragHandlers.onDragStart} onDragOver={dragHandlers.onDragOver}
-        onDrop={dragHandlers.onDrop} onDragEnd={dragHandlers.onDragEnd}
+        onDragOver={dragHandlers.onDragOver}
+        onDrop={dragHandlers.onDrop}
         onClick={() => { if (!isEditingTitle) setIsExpanded((current) => !current); }}>
         <div style={{display:"flex",alignItems:"center"}} onClick={(e)=>e.stopPropagation()}><input type="checkbox" className="cb" checked={sel} onChange={e=>onSel(e.target.checked)}/></div>
-        <div className="drag-handle" style={{letterSpacing:"-1px",fontSize:"10px",opacity:0.4}} onClick={(e)=>e.stopPropagation()}>· ·<br/>· ·</div>
+        <div
+          className="drag-handle"
+          style={{letterSpacing:"-1px",fontSize:"10px",opacity:0.4}}
+          draggable
+          onDragStart={dragHandlers.onDragStart}
+          onDragEnd={dragHandlers.onDragEnd}
+          onClick={(e)=>e.stopPropagation()}
+        >
+          · ·<br/>· ·
+        </div>
 
         <div onClick={(e)=>e.stopPropagation()}>
           <DateTimeCell isoValue={row.scheduledAt} onChange={v=>onChange({scheduledAt:v})}/>
@@ -2408,7 +2417,7 @@ export default function App() {
   const makeDrag = (row,idx) => ({
     isDragging: draggingId===row.id,
     isDragOver: dragOverId===row.id,
-    onDragStart:(e)=>{dragIdx.current=idx;setDraggingId(row.id);e.dataTransfer.effectAllowed="move";},
+    onDragStart:(e)=>{dragIdx.current=idx;setDraggingId(row.id);e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain", row.id);},
     onDragOver:(e)=>{e.preventDefault();if(dragOverId!==row.id)setDragOverId(row.id);},
     onDrop:(e)=>{
       e.preventDefault();
