@@ -96,8 +96,12 @@ input,textarea,select,button{font-family:inherit}
 .stats{display:flex;border-bottom:1px solid rgba(24,23,20,0.05);flex-shrink:0;background:transparent;padding:8px 18px 10px;gap:8px}
 .stat{flex:1;padding:14px 16px;border-right:none;background:rgba(251,250,246,0.55);border-radius:14px}
 .stat:last-child{border-right:none}
+.stat.clickable{border:1px solid rgba(24,23,20,0.05);cursor:pointer;transition:transform 0.12s,background 0.12s,border-color 0.12s,box-shadow 0.12s}
+.stat.clickable:hover{background:${T.surface};border-color:rgba(24,23,20,0.12);transform:translateY(-1px);box-shadow:0 12px 30px rgba(24,23,20,0.06)}
+.stat.clickable:active{transform:translateY(0)}
 .stat-val{font-size:22px;font-weight:600;letter-spacing:-0.04em;font-family:'Bricolage Grotesque',sans-serif;line-height:1;color:${T.text}}
 .stat-key{font-size:11px;color:${T.textDim};font-weight:500;margin-top:6px;letter-spacing:.02em}
+button.stat{font:inherit;text-align:left}
 
 /* TABLE */
 .t-area{flex:1;overflow-y:auto;padding:10px 18px 18px}
@@ -2136,7 +2140,11 @@ export default function App() {
     const q = query.trim().toLowerCase();
     const assigneeName = TEAM.find((member) => member.id === row.assignee)?.name?.toLowerCase() || "";
     const matchesQuery = !q || [row.note, row.caption, assigneeName].filter(Boolean).some((value) => value.toLowerCase().includes(q));
-    const matchesStatus = statusFilter === "all" || row.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "ready"
+        ? row.status === "approved" || row.status === "scheduled"
+        : row.status === statusFilter);
     const matchesPlatform =
       platformFilter === "all" ||
       (platformFilter === "instagram" ? row.platform.startsWith("ig") : row.platform === platformFilter);
@@ -2394,6 +2402,13 @@ export default function App() {
   const readyC = filteredRows.filter(r=>r.status==="approved"||r.status==="scheduled").length;
   const reviewC= filteredRows.filter(r=>r.status==="needs_review").length;
   const attentionCount = filteredRows.filter((row) => isRowNeedingAttention(row)).length;
+  const jumpToStatsFilter = (next) => {
+    setView("list");
+    setQuery("");
+    setAttentionOnly(false);
+    setStatusFilter(next.status ?? "all");
+    setPlatformFilter(next.platform ?? "all");
+  };
 
   // Month sparkline data (post counts per month, scaled)
   const monthCounts = MONTHS_FULL.map((_, mi) =>
@@ -2499,16 +2514,16 @@ export default function App() {
           : (
             <div className="stats">
               {[
-                {val:sorted.length, key:"Total posts"},
-                {val:igC,           key:"Instagram"},
-                {val:liC,           key:"LinkedIn"},
-                {val:reviewC,       key:"Needs review"},
-                {val:readyC,        key:"Approved / sched"},
+                { val: sorted.length, key: "Total posts", onClick: () => jumpToStatsFilter({}) },
+                { val: igC, key: "Instagram", onClick: () => jumpToStatsFilter({ platform: "instagram" }) },
+                { val: liC, key: "LinkedIn", onClick: () => jumpToStatsFilter({ platform: "linkedin" }) },
+                { val: reviewC, key: "Needs review", onClick: () => jumpToStatsFilter({ status: "needs_review" }) },
+                { val: readyC, key: "Approved / sched", onClick: () => jumpToStatsFilter({ status: "ready" }) },
               ].map((s,i)=>(
-                <div key={i} className="stat">
+                <button key={i} className="stat clickable" onClick={s.onClick}>
                   <div className="stat-val">{s.val}</div>
                   <div className="stat-key">{s.key}</div>
-                </div>
+                </button>
               ))}
             </div>
           )
@@ -2529,6 +2544,7 @@ export default function App() {
               options={[
                 { value: "all", label: "All statuses" },
                 { value: "needs_review", label: "Needs review" },
+                { value: "ready", label: "Approved / sched" },
                 { value: "approved", label: "Approved" },
                 { value: "scheduled", label: "Scheduled" },
                 { value: "posted", label: "Posted" },
