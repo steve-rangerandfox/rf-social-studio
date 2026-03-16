@@ -430,6 +430,7 @@ button.stat{font:inherit;text-align:left}
 .stage-reveal-wrapper{display:grid;grid-template-rows:0fr;transition:grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1);overflow:hidden;background:transparent;border-bottom:1px solid transparent}
 .stage-reveal-wrapper.open{grid-template-rows:1fr;border-bottom:none}
 .stage-content-well{min-height:0;padding:0 18px 14px;max-width:1600px;width:100%;margin:0 auto}
+.stage-reveal-wrapper:not(.open) .stage-content-well{padding:0;height:0}
 .stage-stack{display:flex;flex-direction:column;gap:14px;background:rgba(255,255,255,0.88);border:1px solid rgba(24,23,20,0.1);border-radius:22px;padding:20px;box-shadow:0 18px 46px rgba(24,23,20,0.06)}
 .stage-summary{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:10px;border-bottom:1px solid rgba(24,23,20,0.08)}
 .stage-summary-title{font-size:20px;font-family:'Bricolage Grotesque',sans-serif;font-weight:600;letter-spacing:-0.04em;color:${T.text}}
