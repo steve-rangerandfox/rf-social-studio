@@ -190,6 +190,8 @@ button.stat{font:inherit;text-align:left}
 .note-in{width:100%;background:transparent;border:none;color:${T.text};font-size:13px;font-weight:400;padding:4px 0;border-radius:4px;outline:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em;font-family:"Inter",sans-serif}
 .note-in:focus{background:${T.s3};outline:none;border-radius:4px;padding:4px 6px}
 .note-in::placeholder{color:${T.textDim}}
+.note-display{width:100%;background:transparent;border:none;color:${T.text};font-size:13px;font-weight:500;padding:4px 0;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em;font-family:"Inter",sans-serif}
+.note-display:hover{color:${T.ink}}
 
 /* PILLS */
 .plat-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer;border:none;outline:none;letter-spacing:.08em;text-transform:uppercase;transition:background .12s,color .12s}
@@ -480,11 +482,14 @@ button.stat{font:inherit;text-align:left}
 .qs-btn.active{border-color:currentColor}
 
 /* Expand trigger */
-.expand-toggle{display:inline-flex;align-items:center;gap:5px;padding:0 13px;height:32px;border-radius:999px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.12s;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
-.expand-toggle:not(.open){background:rgba(24,23,20,0.03);border-color:rgba(24,23,20,0.06);color:${T.textSub}}
-.expand-toggle:not(.open):hover{background:rgba(24,23,20,0.06);border-color:rgba(24,23,20,0.08);color:${T.text}}
-.expand-toggle.open{background:${T.ink};border-color:${T.ink};color:${T.surface}}
-.expand-toggle.open:hover{background:#2E2C28;border-color:#2E2C28}
+.row-menu{position:relative}
+.row-menu-trigger{width:32px;height:32px;border-radius:50%;border:1px solid rgba(24,23,20,0.08);background:rgba(255,255,255,0.72);display:flex;align-items:center;justify-content:center;color:${T.textSub};cursor:pointer;transition:background 0.12s,border-color 0.12s,color 0.12s}
+.row-menu-trigger:hover{background:rgba(24,23,20,0.05);border-color:rgba(24,23,20,0.14);color:${T.text}}
+.row-menu-dots{display:flex;flex-direction:column;gap:3px}
+.row-menu-dots span{width:3px;height:3px;border-radius:50%;background:currentColor}
+.row-menu-popover{position:absolute;top:calc(100% + 8px);right:0;min-width:140px;padding:8px;background:rgba(251,250,246,0.98);border:1px solid rgba(24,23,20,0.08);border-radius:14px;box-shadow:0 18px 50px rgba(24,23,20,0.12);z-index:35}
+.row-menu-option{width:100%;padding:9px 10px;border:none;background:transparent;border-radius:10px;color:${T.textSub};font-size:12px;font-weight:500;text-align:left;cursor:pointer}
+.row-menu-option:hover{background:rgba(24,23,20,0.04);color:${T.text}}
 
 /* ─── VIDEO / RICH MEDIA ─── */
 .video-el{position:relative;display:block}
@@ -1806,11 +1811,15 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   const assignee = row.assignee ? TEAM.find(t=>t.id===row.assignee) : null;
   const [commentText, setCommentText] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [, setMediaFile]  = useState(null);
   const [mediaUrl,   setMediaUrl]   = useState(null);
   const storyElements = row.storyElements || makeDefaultElements(row.note);
   const mediaRef = useRef(null);
+  const titleInputRef = useRef(null);
+  const menuRef = useRef(null);
 
   const submitComment = () => { if(!commentText.trim()) return; onAddComment({id:uid(),author:currentUser,text:commentText,ts:"just now"}); setCommentText(""); };
   const max    = row.platform==="linkedin"?3000:2200;
@@ -1825,38 +1834,78 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
     { label: "Owner", value: assignee?.name || "Unassigned" },
   ];
 
+  useEffect(() => {
+    if (!isEditingTitle) return;
+    titleInputRef.current?.focus();
+    titleInputRef.current?.select();
+  }, [isEditingTitle]);
+
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+    const handlePointerDown = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isMenuOpen]);
+
   return (
     <div className={"row-container " + (isExpanded?"is-open":"")}>
       <div className={`t-row ${sel?"sel":""} ${dragHandlers.isDragging?"dragging":""} ${dragHandlers.isDragOver?"drag-over":""}`}
         draggable onDragStart={dragHandlers.onDragStart} onDragOver={dragHandlers.onDragOver}
-        onDrop={dragHandlers.onDrop} onDragEnd={dragHandlers.onDragEnd}>
-        <div style={{display:"flex",alignItems:"center"}}><input type="checkbox" className="cb" checked={sel} onChange={e=>onSel(e.target.checked)}/></div>
-        <div className="drag-handle" style={{letterSpacing:"-1px",fontSize:"10px",opacity:0.4}}>· ·<br/>· ·</div>
+        onDrop={dragHandlers.onDrop} onDragEnd={dragHandlers.onDragEnd}
+        onClick={() => { if (!isEditingTitle) setIsExpanded((current) => !current); }}>
+        <div style={{display:"flex",alignItems:"center"}} onClick={(e)=>e.stopPropagation()}><input type="checkbox" className="cb" checked={sel} onChange={e=>onSel(e.target.checked)}/></div>
+        <div className="drag-handle" style={{letterSpacing:"-1px",fontSize:"10px",opacity:0.4}} onClick={(e)=>e.stopPropagation()}>· ·<br/>· ·</div>
 
-        <DateTimeCell isoValue={row.scheduledAt} onChange={v=>onChange({scheduledAt:v})}/>
-
-        <div style={{minWidth:0}}><input className="note-in" value={row.note} placeholder="Post title…" onChange={e=>onChange({note:e.target.value})} title={row.note}/></div>
-
-        <div>
-          <button className={"expand-toggle "+(isExpanded?"open":"")}
-            onClick={e=>{e.stopPropagation();setIsExpanded(v=>!v);}}>
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{transition:"transform 0.22s ease",transform:isExpanded?"rotate(180deg)":"rotate(0deg)"}}>
-              <path d="M1.5 3.5L5.5 7.5L9.5 3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span>{isExpanded ? "Close" : "Open"}</span>
-          </button>
+        <div onClick={(e)=>e.stopPropagation()}>
+          <DateTimeCell isoValue={row.scheduledAt} onChange={v=>onChange({scheduledAt:v})}/>
         </div>
 
-        <div><button className="plat-pill" style={{background:p.bg,color:p.color}} onClick={nextP}><span className="pill-dot" style={{background:p.color}}/>{p.short}</button></div>
-        <div><button className="status-pill" onClick={nextS} title={`Next: ${STATUSES[s.next]?.label}`}><span className="s-dot" style={{background:s.dot}}/>{s.label}</button></div>
+        <div style={{minWidth:0}} onClick={isEditingTitle ? (e)=>e.stopPropagation() : undefined}>
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              className="note-in"
+              value={row.note}
+              placeholder="Post title…"
+              onChange={e=>onChange({note:e.target.value})}
+              onBlur={()=>setIsEditingTitle(false)}
+              onKeyDown={(e)=>{ if (e.key === "Enter") setIsEditingTitle(false); if (e.key === "Escape") setIsEditingTitle(false); }}
+              title={row.note}
+            />
+          ) : (
+            <div className="note-display" title={row.note || "Untitled post"}>
+              {row.note || "Untitled post"}
+            </div>
+          )}
+        </div>
 
-        <div>
+        <div className="row-menu" ref={menuRef} onClick={(e)=>e.stopPropagation()}>
+          <button className="row-menu-trigger" onClick={() => setIsMenuOpen((current) => !current)}>
+            <span className="row-menu-dots"><span/><span/><span/></span>
+          </button>
+          {isMenuOpen && (
+            <div className="row-menu-popover">
+              <button className="row-menu-option" onClick={() => { setIsMenuOpen(false); setIsEditingTitle(true); }}>
+                Edit title
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div onClick={(e)=>e.stopPropagation()}><button className="plat-pill" style={{background:p.bg,color:p.color}} onClick={nextP}><span className="pill-dot" style={{background:p.color}}/>{p.short}</button></div>
+        <div onClick={(e)=>e.stopPropagation()}><button className="status-pill" onClick={nextS} title={`Next: ${STATUSES[s.next]?.label}`}><span className="s-dot" style={{background:s.dot}}/>{s.label}</button></div>
+
+        <div onClick={(e)=>e.stopPropagation()}>
           <button className="assignee-pill" onClick={nextAssignee} style={{color:T.textDim,fontStyle:"italic"}}>
             {assignee ? <><div className="av" style={{width:18,height:18,background:assignee.color+"22",color:assignee.color,fontSize:8,borderRadius:4}}>{assignee.initials}</div><span style={{fontSize:11}}>{assignee.name.split(" ")[0]}</span></> : <span style={{fontSize:11,color:T.textDim}}>Assign</span>}
           </button>
         </div>
 
-        <div className="ra">
+        <div className="ra" onClick={(e)=>e.stopPropagation()}>
           {row.comments?.length > 0 && (
             <span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",padding:"2px 6px",background:T.s3,borderRadius:10,border:"1px solid "+T.border,color:T.textDim}}>{row.comments.length}</span>
           )}
