@@ -112,11 +112,18 @@ input,textarea,select,button{font-family:inherit}
 .drag-handle:hover{color:${T.textSub}}.drag-handle:active{cursor:grabbing}
 
 /* DATETIME CELL */
-.dt-cell{display:flex;flex-direction:column;gap:2px;cursor:pointer;padding:6px 8px;border-radius:10px;transition:background 0.08s;border:1px solid transparent;min-width:92px}
-.dt-cell:hover{background:rgba(24,23,20,0.04);border-color:rgba(24,23,20,0.05)}
-.dt-date{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:${T.text};line-height:1.3;letter-spacing:-.1px}
-.dt-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim};line-height:1.4;font-weight:400;margin-top:1px}
-.dt-empty{font-size:11px;color:${T.textDim};font-style:italic}
+.dt-cell{display:flex;align-items:center;gap:12px;cursor:pointer;padding:8px 10px;border-radius:14px;transition:background 0.12s,border-color 0.12s,transform 0.12s;border:1px solid transparent;min-width:102px}
+.dt-cell:hover{background:rgba(24,23,20,0.04);border-color:rgba(24,23,20,0.06);transform:translateY(-1px)}
+.dt-badge{width:48px;min-width:48px;height:52px;border-radius:16px;background:linear-gradient(180deg,rgba(24,23,20,0.04),rgba(24,23,20,0.01));border:1px solid rgba(24,23,20,0.08);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,0.45)}
+.dt-badge-month{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;color:${T.textDim};line-height:1;letter-spacing:.12em;text-transform:uppercase}
+.dt-badge-day{margin-top:6px;font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:600;color:${T.text};line-height:.9;letter-spacing:-.05em}
+.dt-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dt-date{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;color:${T.textDim};line-height:1.2;letter-spacing:.12em;text-transform:uppercase}
+.dt-time{font-family:'Inter',sans-serif;font-size:13px;color:${T.text};line-height:1.35;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.dt-zone{font-family:'JetBrains Mono',monospace;font-size:9px;color:${T.textDim};letter-spacing:.12em;text-transform:uppercase}
+.dt-empty{display:flex;flex-direction:column;gap:4px}
+.dt-empty-title{font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:${T.textSub};line-height:1.2}
+.dt-empty-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:${T.textDim};letter-spacing:.12em;text-transform:uppercase}
 
 /* DATETIME PICKER POPUP */
 .dt-popup{position:fixed;background:${T.s2};border:1px solid ${T.border2};border-radius:12px;padding:14px;z-index:500;box-shadow:0 24px 60px rgba(0,0,0,0.7);width:240px;animation:popIn 0.15s cubic-bezier(0.34,1.3,0.64,1)}
@@ -860,14 +867,25 @@ function DateTimeCell({ isoValue, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const disp = isoValue ? toPTDisplay(isoValue) : null;
+  const weekday = isoValue
+    ? new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", weekday: "short" }).format(new Date(isoValue))
+    : null;
+  const monthLabel = disp ? MONTHS_SHORT[Math.max(0, Number(disp.month) - 1)] : null;
 
   return (
     <div style={{position:"relative"}} ref={ref}>
       <div className="dt-cell" onClick={()=>setOpen(v=>!v)}>
         {disp ? <>
-          <div className="dt-date">{disp.month}/{disp.day}</div>
-          <div className="dt-time">{disp.hour}:{disp.minute} {disp.ampm} PT</div>
-        </> : <div className="dt-empty">Set date</div>}
+          <div className="dt-badge">
+            <div className="dt-badge-month">{monthLabel}</div>
+            <div className="dt-badge-day">{disp.day}</div>
+          </div>
+          <div className="dt-copy">
+            <div className="dt-date">{weekday}</div>
+            <div className="dt-time">{disp.hour}:{disp.minute} {disp.ampm}</div>
+            <div className="dt-zone">Pacific Time</div>
+          </div>
+        </> : <div className="dt-empty"><div className="dt-empty-title">Set schedule</div><div className="dt-empty-sub">Date and time</div></div>}
       </div>
       {open && <DateTimePicker isoValue={isoValue} onChange={onChange} onClose={()=>setOpen(false)} anchorRef={ref}/>}
     </div>
