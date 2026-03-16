@@ -101,10 +101,10 @@ input,textarea,select,button{font-family:inherit}
 
 /* TABLE */
 .t-area{flex:1;overflow-y:auto;padding:10px 18px 18px}
-.t-head{display:grid;grid-template-columns:32px 20px 118px minmax(280px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;height:42px;background:transparent;position:sticky;top:0;z-index:10;align-items:center}
+.t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;height:42px;background:transparent;position:sticky;top:0;z-index:10;align-items:center}
 .th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;color:${T.textDim};text-transform:uppercase}
 .th.r{text-align:right}
-.t-row{display:grid;grid-template-columns:32px 20px 118px minmax(280px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;min-height:74px;align-items:center;transition:background 0.12s,border-color 0.12s;position:relative;background:rgba(251,250,246,0.58);border:1px solid transparent;border-radius:16px;margin-bottom:8px}
+.t-row{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;min-height:74px;align-items:center;transition:background 0.12s,border-color 0.12s;position:relative;background:rgba(251,250,246,0.58);border:1px solid transparent;border-radius:16px;margin-bottom:8px}
 .t-row:hover{background:${T.surface};border-color:rgba(24,23,20,0.06)}.t-row.sel{background:${T.surface};border-color:rgba(24,23,20,0.1)}
 .t-row.dragging{opacity:0.3}.t-row.drag-over::before{content:'';position:absolute;top:-5px;left:18px;right:18px;height:1px;background:${T.ink};border-radius:99px}
 .t-row .ra{display:flex;gap:6px;justify-content:flex-end;align-items:center}
@@ -112,7 +112,7 @@ input,textarea,select,button{font-family:inherit}
 .drag-handle:hover{color:${T.textSub}}.drag-handle:active{cursor:grabbing}
 
 /* DATETIME CELL */
-.dt-cell{display:flex;align-items:center;gap:12px;cursor:pointer;padding:8px 10px;border-radius:14px;transition:background 0.12s,border-color 0.12s,transform 0.12s;border:1px solid transparent;min-width:102px}
+.dt-cell{display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 8px;border-radius:14px;transition:background 0.12s,border-color 0.12s,transform 0.12s;border:1px solid transparent;min-width:150px}
 .dt-cell:hover{background:rgba(24,23,20,0.04);border-color:rgba(24,23,20,0.06);transform:translateY(-1px)}
 .dt-badge{width:48px;min-width:48px;height:52px;border-radius:16px;background:linear-gradient(180deg,rgba(24,23,20,0.04),rgba(24,23,20,0.01));border:1px solid rgba(24,23,20,0.08);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,0.45)}
 .dt-badge-month{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;color:${T.textDim};line-height:1;letter-spacing:.12em;text-transform:uppercase}
