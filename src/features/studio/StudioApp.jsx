@@ -1854,16 +1854,13 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   return (
     <div className={"row-container " + (isExpanded?"is-open":"")}>
       <div className={`t-row ${sel?"sel":""} ${dragHandlers.isDragging?"dragging":""} ${dragHandlers.isDragOver?"drag-over":""}`}
-        onDragOver={dragHandlers.onDragOver}
-        onDrop={dragHandlers.onDrop}
+        onMouseEnter={dragHandlers.onMouseEnter}
         onClick={() => { if (!isEditingTitle) setIsExpanded((current) => !current); }}>
         <div style={{display:"flex",alignItems:"center"}} onClick={(e)=>e.stopPropagation()}><input type="checkbox" className="cb" checked={sel} onChange={e=>onSel(e.target.checked)}/></div>
         <div
           className="drag-handle"
           style={{letterSpacing:"-1px",fontSize:"10px",opacity:0.4}}
-          draggable
-          onDragStart={dragHandlers.onDragStart}
-          onDragEnd={dragHandlers.onDragEnd}
+          onMouseDown={dragHandlers.onMouseDown}
           onClick={(e)=>e.stopPropagation()}
         >
           · ·<br/>· ·
@@ -2188,6 +2185,7 @@ export default function App() {
   const [toast, setToast]         = useState(null);
   const showToast = useCallback((msg, color) => setToast({msg, color, id:uid()}), []);
   const dragIdx = useRef(null);
+  const dragOverIdx = useRef(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
   const monthRefs = useRef({});
@@ -2414,30 +2412,48 @@ export default function App() {
     }
   };
 
+  const commitReorder = useCallback((from, to) => {
+    if (from === null || to === null || from === to) {
+      return;
+    }
+    const reordered = [...sorted];
+    const [moved] = reordered.splice(from,1);
+    reordered.splice(to,0,moved);
+    const orderMap = new Map(reordered.map((item, order) => [item.id, order]));
+    updateDocument(
+      (current) => ({
+        ...current,
+        rows: current.rows.map((item) => (orderMap.has(item.id) ? applyRowPatch(item, { order: orderMap.get(item.id) }, currentUser) : item)),
+      }),
+      () => createAuditEntry("post.reordered", currentUser, "Reordered posts in the current view", { from, to }),
+    );
+  }, [currentUser, sorted, updateDocument]);
+
   const makeDrag = (row,idx) => ({
     isDragging: draggingId===row.id,
-    isDragOver: dragOverId===row.id,
-    onDragStart:(e)=>{dragIdx.current=idx;setDraggingId(row.id);e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain", row.id);},
-    onDragOver:(e)=>{e.preventDefault();if(dragOverId!==row.id)setDragOverId(row.id);},
-    onDrop:(e)=>{
+    isDragOver: dragOverId===row.id && draggingId!==row.id,
+    onMouseDown:(e)=>{
       e.preventDefault();
-      const from=dragIdx.current;
-      if(from===null||from===idx)return;
-      const reordered = [...sorted];
-      const [moved] = reordered.splice(from,1);
-      reordered.splice(idx,0,moved);
-      const orderMap = new Map(reordered.map((item, order) => [item.id, order]));
-      updateDocument(
-        (current) => ({
-          ...current,
-          rows: current.rows.map((item) => (orderMap.has(item.id) ? applyRowPatch(item, { order: orderMap.get(item.id) }, currentUser) : item)),
-        }),
-        () => createAuditEntry("post.reordered", currentUser, "Reordered posts in the current view", { from, to: idx }),
-      );
-      setDragOverId(null);
-      dragIdx.current=null;
+      e.stopPropagation();
+      dragIdx.current = idx;
+      dragOverIdx.current = idx;
+      setDraggingId(row.id);
+      setDragOverId(row.id);
+      const onUp = () => {
+        commitReorder(dragIdx.current, dragOverIdx.current);
+        setDraggingId(null);
+        setDragOverId(null);
+        dragIdx.current = null;
+        dragOverIdx.current = null;
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mouseup", onUp);
     },
-    onDragEnd:()=>{setDraggingId(null);setDragOverId(null);dragIdx.current=null;},
+    onMouseEnter:()=>{
+      if (dragIdx.current === null) return;
+      dragOverIdx.current = idx;
+      if (dragOverId !== row.id) setDragOverId(row.id);
+    },
   });
 
   const renderRow = (row, idx) => (
