@@ -647,8 +647,16 @@ input,textarea,select,button{font-family:inherit}
 .ops-search::placeholder{color:${T.textDim}}
 .ops-group{display:flex;align-items:center;gap:8px}
 .ops-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:${T.textDim}}
-.ops-select{appearance:none;-webkit-appearance:none;background:rgba(251,250,246,0.78);border:1px solid rgba(24,23,20,0.06);border-radius:999px;color:${T.text};padding:9px 34px 9px 12px;font-size:12px;font-weight:500;min-width:138px;outline:none;background-image:linear-gradient(45deg,transparent 50%,${T.textDim} 50%),linear-gradient(135deg,${T.textDim} 50%,transparent 50%);background-position:calc(100% - 16px) calc(50% - 2px),calc(100% - 11px) calc(50% - 2px);background-size:5px 5px,5px 5px;background-repeat:no-repeat}
-.ops-select:focus{border-color:rgba(24,23,20,0.14)}
+.ops-menu{position:relative}
+.ops-trigger{display:inline-flex;align-items:center;justify-content:space-between;gap:10px;min-width:148px;padding:9px 12px;border-radius:999px;border:1px solid rgba(24,23,20,0.06);background:rgba(251,250,246,0.78);color:${T.text};font-size:12px;font-weight:500;cursor:pointer;transition:border-color 0.12s,background 0.12s,transform 0.12s}
+.ops-trigger:hover{background:${T.surface};border-color:rgba(24,23,20,0.12)}
+.ops-trigger.open{border-color:rgba(24,23,20,0.14);background:${T.surface}}
+.ops-trigger-caret{width:7px;height:7px;border-right:1.5px solid ${T.textDim};border-bottom:1.5px solid ${T.textDim};transform:rotate(45deg) translateY(-1px);flex-shrink:0}
+.ops-popover{position:absolute;top:calc(100% + 8px);left:0;min-width:100%;padding:8px;background:rgba(251,250,246,0.96);border:1px solid rgba(24,23,20,0.08);border-radius:16px;box-shadow:0 18px 50px rgba(24,23,20,0.12);backdrop-filter:blur(16px);z-index:40}
+.ops-option{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border:none;background:transparent;border-radius:10px;color:${T.textSub};font-size:12px;font-weight:500;cursor:pointer;text-align:left}
+.ops-option:hover{background:rgba(24,23,20,0.04);color:${T.text}}
+.ops-option.on{background:rgba(24,23,20,0.06);color:${T.text};font-weight:600}
+.ops-option-mark{font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim};letter-spacing:.08em}
 .ops-chip{padding:8px 11px;border-radius:999px;border:1px solid rgba(24,23,20,0.06);background:rgba(251,250,246,0.72);color:${T.textSub};font-size:11.5px;font-weight:500;cursor:pointer;transition:all 0.12s}
 .ops-chip:hover{background:rgba(24,23,20,0.05);color:${T.text}}
 .ops-chip.on{background:${T.ink};border-color:${T.ink};color:${T.surface}}
@@ -763,7 +771,8 @@ input,textarea,select,button{font-family:inherit}
   .stats,.ops-toolbar,.t-area,.analytics-area,.ig-grid-area,.cal-area{padding-left:14px;padding-right:14px}
   .t-head,.t-row{grid-template-columns:28px 16px 120px minmax(168px,1fr) 80px 100px 120px 96px 36px;padding:0 12px}
   .ops-group{width:100%}
-  .ops-select{flex:1;min-width:0}
+  .ops-menu{flex:1}
+  .ops-trigger{width:100%;min-width:0}
   .settings-tabs{overflow:auto}
   .cp-modal,.settings-modal{width:min(94vw,430px)}
 }
@@ -894,6 +903,54 @@ function DateTimeCell({ isoValue, onChange }) {
         </> : <div className="dt-empty"><div className="dt-empty-title">Set schedule</div><div className="dt-empty-sub">Date and time</div></div>}
       </div>
       {open && <DateTimePicker isoValue={isoValue} onChange={onChange} onClose={()=>setOpen(false)} anchorRef={ref}/>}
+    </div>
+  );
+}
+
+function FilterMenu({ label, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const active = options.find((option) => option.value === value) || options[0];
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  return (
+    <div className="ops-group">
+      <span className="ops-label">{label}</span>
+      <div className="ops-menu" ref={ref}>
+        <button className={`ops-trigger ${open ? "open" : ""}`} onClick={() => setOpen((current) => !current)}>
+          <span>{active?.label}</span>
+          <span className="ops-trigger-caret" />
+        </button>
+        {open && (
+          <div className="ops-popover">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                className={`ops-option ${value === option.value ? "on" : ""}`}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+              >
+                <span>{option.label}</span>
+                <span className="ops-option-mark">{value === option.value ? "Set" : ""}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2465,24 +2522,28 @@ export default function App() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search titles, captions, or owner"
             />
-            <div className="ops-group">
-              <span className="ops-label">Status</span>
-              <select className="ops-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="all">All statuses</option>
-                <option value="needs_review">Needs review</option>
-                <option value="approved">Approved</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="posted">Posted</option>
-              </select>
-            </div>
-            <div className="ops-group">
-              <span className="ops-label">Channel</span>
-              <select className="ops-select" value={platformFilter} onChange={(event) => setPlatformFilter(event.target.value)}>
-                <option value="all">All channels</option>
-                <option value="instagram">Instagram</option>
-                <option value="linkedin">LinkedIn</option>
-              </select>
-            </div>
+            <FilterMenu
+              label="Status"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: "all", label: "All statuses" },
+                { value: "needs_review", label: "Needs review" },
+                { value: "approved", label: "Approved" },
+                { value: "scheduled", label: "Scheduled" },
+                { value: "posted", label: "Posted" },
+              ]}
+            />
+            <FilterMenu
+              label="Channel"
+              value={platformFilter}
+              onChange={setPlatformFilter}
+              options={[
+                { value: "all", label: "All channels" },
+                { value: "instagram", label: "Instagram" },
+                { value: "linkedin", label: "LinkedIn" },
+              ]}
+            />
             <button className={`ops-chip subtle ${attentionOnly ? "on" : ""}`} onClick={() => setAttentionOnly((current) => !current)}>
               Needs attention {attentionCount > 0 ? `(${attentionCount})` : ""}
             </button>
