@@ -108,7 +108,7 @@ button.stat{font:inherit;text-align:left}
 .t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;height:42px;background:transparent;position:sticky;top:0;z-index:10;align-items:center}
 .th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;color:${T.textDim};text-transform:uppercase}
 .th.r{text-align:right}
-.t-row{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;min-height:74px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s;position:relative;background:rgba(252,250,245,0.86);border:1px solid rgba(24,23,20,0.08);border-radius:16px;margin-bottom:8px}
+.t-row{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;min-height:74px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s;position:relative;background:rgba(252,250,245,0.86);border:1px solid rgba(24,23,20,0.08);border-radius:16px;margin-bottom:8px;cursor:pointer}
 .t-row:hover{background:${T.surface};border-color:rgba(24,23,20,0.16);box-shadow:0 12px 30px rgba(24,23,20,0.05)}.t-row.sel{background:${T.surface};border-color:rgba(24,23,20,0.18)}
 .t-row.dragging{opacity:0.3}.t-row.drag-over::before{content:'';position:absolute;top:-5px;left:18px;right:18px;height:1px;background:${T.ink};border-radius:99px}
 .t-row .ra{display:flex;gap:6px;justify-content:flex-end;align-items:center}
