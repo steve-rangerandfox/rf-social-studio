@@ -481,6 +481,11 @@ button.stat{font:inherit;text-align:left}
 
 /* Governance column */
 .readiness-list{display:flex;flex-direction:column;gap:8px}
+.readiness-strip{display:flex;flex-wrap:wrap;gap:8px}
+.readiness-chip{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,241,232,0.96));border:1px solid rgba(24,23,20,0.12);box-shadow:0 6px 18px rgba(24,23,20,0.03);white-space:nowrap}
+.readiness-chip.pass{border-color:rgba(24,23,20,0.12)}
+.readiness-chip.warn{border-color:rgba(229,106,11,0.26);background:linear-gradient(180deg,rgba(255,248,241,0.98),rgba(255,243,228,0.98))}
+.readiness-chip.fail{border-color:rgba(220,38,38,0.18);background:linear-gradient(180deg,rgba(255,250,250,0.98),rgba(255,241,241,0.98))}
 .readiness-item{display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:14px;background:#FFFDF9;border:1px solid rgba(24,23,20,0.1)}
 .readiness-icon{font-size:13px;flex-shrink:0;width:18px;text-align:center;color:${T.text}}
 .readiness-label{font-size:12.5px;color:${T.text};flex:1;font-weight:500}
@@ -2016,11 +2021,11 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
             <div className="stage-dual">
               <section className="stage-section">
                 <div className="stage-col-label">Readiness & Status</div>
-                <div className="readiness-list">
+                <div className="readiness-strip">
                   {checks.map(c=>(
-                    <div key={c.label} className="readiness-item">
+                    <div key={c.label} className={"readiness-chip "+(c.pass?"pass":c.warn?"warn":"fail")}>
                       <span className="readiness-icon">{c.pass?"✓":c.warn?"!":"–"}</span>
-                      <span className="readiness-label">{c.label}</span>
+                      <span className="readiness-label" style={{flex:"0 0 auto"}}>{c.label}</span>
                       <span className={"readiness-ok "+(c.pass?"pass":c.warn?"warn":"fail")}>{c.msg}</span>
                     </div>
                   ))}
