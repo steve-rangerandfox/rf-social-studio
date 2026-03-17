@@ -1163,20 +1163,33 @@ function Composer({ row, onClose, onPosted, postNow }) {
 const BRAND_COLORS = ["#111318","#7C3AED","#F59E0B","#0A66C2","#BE185D","#FFFFFF","#F7F8FA","#10B981","#E5E7EB"];
 const FONTS = ["Bricolage Grotesque","JetBrains Mono"];
 
+function fitMediaBox(width, height, maxWidth = 180, maxHeight = 220) {
+  if (!width || !height) {
+    return { width: 140, height: 140 };
+  }
+
+  const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+  return {
+    width: Math.max(48, Math.round(width * scale)),
+    height: Math.max(48, Math.round(height * scale)),
+  };
+}
+
 function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
   const videoRef = useRef(null);
   const [muted, setMuted] = useState(true);
   const isVideo = data.mediaType === 'video';
   const mediaScale = data.scale || 1;
-  const mediaBaseSize = isVideo ? 100 : 120;
+  const mediaWidth = data.width || 140;
+  const mediaHeight = data.height || 140;
   const wrapperStyle = {
     left: data.x,
     top: data.y,
     zIndex: isSelected ? 10 : 2,
     ...(data.type === "image"
       ? {
-          width: mediaBaseSize,
-          height: mediaBaseSize,
+          width: mediaWidth,
+          height: mediaHeight,
           transform: `scale(${mediaScale})`,
         }
       : null),
@@ -1254,9 +1267,15 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
       ) : isVideo ? (
         <div className="video-el">
           <video ref={videoRef} src={data.url}
-            style={{width:100,height:100,objectFit:'cover',borderRadius:4,display:'block'}}
+            style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:4,display:'block'}}
             autoPlay={data.autoPlay!==false} loop={data.loop!==false}
-            muted={data.muted!==false} playsInline draggable={false}/>
+            muted={data.muted!==false} playsInline draggable={false}
+            onLoadedMetadata={(e)=>{
+              if (!data.width || !data.height) {
+                const fitted = fitMediaBox(e.currentTarget.videoWidth, e.currentTarget.videoHeight);
+                onUpdate(fitted);
+              }
+            }}/>
           <div className="video-badge">{data.trimLabel||'VID'}</div>
           <button className="mute-toggle" onClick={e=>{e.stopPropagation();onUpdate({muted:!data.muted});}}>
             {data.muted!==false?'Mute':'Sound'}
@@ -1264,7 +1283,13 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
         </div>
       ) : (
         <img src={data.url} alt="" draggable="false"
-          style={{display:'block',width:120,height:120,objectFit:'cover',borderRadius:4,pointerEvents:'none'}}/>
+          style={{display:'block',width:'100%',height:'100%',objectFit:'cover',borderRadius:4,pointerEvents:'none'}}
+          onLoad={(e)=>{
+            if (!data.width || !data.height) {
+              const fitted = fitMediaBox(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight);
+              onUpdate(fitted);
+            }
+          }}/>
       )}
       {isSelected && (
         <>
@@ -1390,7 +1415,22 @@ function StoryDesigner({ row, onClose, onSave }) {
     const isGif  = file.type === "image/gif";
     const isVid  = !isGif && file.type.startsWith("video/");
     const mType  = isGif ? 'gif' : isVid ? 'video' : 'image';
-    const el     = { id:uid(), type:"image", url, x:56, y:140, scale:1, locked:false, mediaType: mType, loop:true, muted:true, autoPlay:true, trimLabel: file.name.split('.').pop().toUpperCase() };
+    const el     = {
+      id:uid(),
+      type:"image",
+      url,
+      x:56,
+      y:140,
+      scale:1,
+      width: 160,
+      height: isVid ? 90 : 120,
+      locked:false,
+      mediaType: mType,
+      loop:true,
+      muted:true,
+      autoPlay:true,
+      trimLabel: file.name.split('.').pop().toUpperCase(),
+    };
     setElements(els => [...els, el]); setSelectedId(el.id);
   };
 
