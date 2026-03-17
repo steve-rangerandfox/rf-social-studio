@@ -450,6 +450,7 @@ button.stat{font:inherit;text-align:left}
 .stage-summary-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .stage-section{padding:18px;background:linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,255,255,0.56));border:1px solid rgba(24,23,20,0.1);border-radius:18px;display:flex;flex-direction:column;gap:14px;min-width:0;min-height:100%;box-shadow:inset 0 1px 0 rgba(255,255,255,0.64)}
 .stage-grid,.stage-dual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
+.stage-single{display:block}
 .stage-col{padding:0;border-right:none;display:flex;flex-direction:column;gap:12px}
 .stage-col-media,.stage-col-write,.stage-col-gov{width:auto;min-width:0}
 .stage-col-label{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${T.text};margin-bottom:4px}
@@ -1844,12 +1845,6 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   const checks = getReadinessChecks(row, !!mediaUrl);
   const readyCount = checks.filter((check) => check.pass).length;
   const updatedLabel = formatRelativeStamp(row.updatedAt);
-  const activityMeta = [
-    { label: "Updated", value: updatedLabel },
-    { label: "Version", value: `v${row.version || 1}` },
-    { label: "Owner", value: assignee?.name || "Unassigned" },
-  ];
-
   useEffect(() => {
     if (!isEditingTitle) return;
     titleInputRef.current?.focus();
@@ -2018,45 +2013,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
               </section>
             </div>
 
-            <div className="stage-dual">
-              <section className="stage-section">
-                <div className="stage-col-label">Readiness & Status</div>
-                <div className="readiness-strip">
-                  {checks.map(c=>(
-                    <div key={c.label} className={"readiness-chip "+(c.pass?"pass":c.warn?"warn":"fail")}>
-                      <span className="readiness-icon">{c.pass?"✓":c.warn?"!":"–"}</span>
-                      <span className="readiness-label" style={{flex:"0 0 auto"}}>{c.label}</span>
-                      <span className={"readiness-ok "+(c.pass?"pass":c.warn?"warn":"fail")}>{c.msg}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <div className="stage-col-label" style={{marginBottom:6}}>Approval</div>
-                  <div className="quick-status">
-                    {Object.entries(STATUSES).map(([k,st])=>(
-                      <button key={k} className={"qs-btn "+(row.status===k?"active":"")}
-                        style={row.status===k?{color:st.dot,borderColor:st.dot,background:st.dot+"11"}:{}}
-                        onClick={()=>onChange({status:k})}>
-                        {st.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="stage-col-label" style={{marginBottom:6}}>Activity</div>
-                  <div className="readiness-list">
-                    {activityMeta.map((item) => (
-                      <div key={item.label} className="readiness-item">
-                        <span className="readiness-label">{item.label}</span>
-                        <span className="readiness-ok pass">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-
+            <div className="stage-single">
               <section className="stage-section">
                 <div className="stage-col-label">Comments</div>
                 {(row.comments||[]).slice(-3).map(c=>{
