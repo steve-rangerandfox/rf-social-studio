@@ -497,6 +497,22 @@ button.stat{font:inherit;text-align:left}
 .qs-btn{padding:8px 13px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid rgba(24,23,20,0.12);background:linear-gradient(180deg,rgba(255,255,255,0.88),rgba(247,241,232,0.9));color:${T.textSub};transition:all 0.1s;white-space:nowrap;letter-spacing:.04em;box-shadow:0 6px 18px rgba(24,23,20,0.03)}
 .qs-btn:hover{border-color:rgba(24,23,20,0.22);color:#0D0F12;background:linear-gradient(180deg,rgba(255,255,255,1),rgba(243,236,225,0.96));transform:translateY(-1px)}
 .qs-btn.active{border-color:currentColor;box-shadow:0 0 0 2px rgba(229,106,11,0.08),0 10px 24px rgba(229,106,11,0.12);font-weight:800}
+.stage-governance{display:flex;flex-direction:column;gap:16px}
+.stage-select{position:relative}
+.stage-select-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border-radius:16px;border:1px solid rgba(24,23,20,0.12);background:linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,241,232,0.96));color:${T.text};font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:0 8px 20px rgba(24,23,20,0.04)}
+.stage-select-trigger:hover{border-color:rgba(24,23,20,0.18)}
+.stage-select-copy{display:flex;align-items:center;gap:8px;min-width:0}
+.stage-select-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:${T.textDim}}
+.stage-select-value{display:flex;align-items:center;gap:8px;color:${T.text};min-width:0}
+.stage-select-caret{width:8px;height:8px;border-right:1.5px solid ${T.textDim};border-bottom:1.5px solid ${T.textDim};transform:rotate(45deg) translateY(-2px);flex-shrink:0}
+.stage-select-menu{position:absolute;top:calc(100% + 8px);left:0;right:0;padding:8px;background:rgba(251,250,246,0.98);border:1px solid rgba(24,23,20,0.08);border-radius:16px;box-shadow:0 18px 50px rgba(24,23,20,0.12);backdrop-filter:blur(16px);z-index:30}
+.stage-select-option{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border:none;background:transparent;border-radius:10px;color:${T.textSub};font-size:12px;font-weight:600;text-align:left;cursor:pointer}
+.stage-select-option:hover{background:rgba(24,23,20,0.04);color:${T.text}}
+.stage-select-option.on{background:rgba(24,23,20,0.06);color:${T.text}}
+.stage-mini-stack{display:flex;flex-direction:column;gap:8px}
+.stage-mini-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;border-radius:14px;background:#FFFDF9;border:1px solid rgba(24,23,20,0.1)}
+.stage-mini-key{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:${T.textDim}}
+.stage-mini-val{font-size:12px;font-weight:700;color:${T.text}}
 
 /* Expand trigger */
 .row-menu{position:relative}
@@ -1830,6 +1846,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [, setMediaFile]  = useState(null);
   const [mediaUrl,   setMediaUrl]   = useState(null);
@@ -1837,6 +1854,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   const mediaRef = useRef(null);
   const titleInputRef = useRef(null);
   const menuRef = useRef(null);
+  const approvalRef = useRef(null);
 
   const submitComment = () => { if(!commentText.trim()) return; onAddComment({id:uid(),author:currentUser,text:commentText,ts:"just now"}); setCommentText(""); };
   const max    = row.platform==="linkedin"?3000:2200;
@@ -1861,6 +1879,17 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    if (!isApprovalOpen) return undefined;
+    const handlePointerDown = (event) => {
+      if (approvalRef.current && !approvalRef.current.contains(event.target)) {
+        setIsApprovalOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isApprovalOpen]);
 
   return (
     <div className={"row-container " + (isExpanded?"is-open":"")}>
@@ -2013,7 +2042,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
               </section>
             </div>
 
-            <div className="stage-single">
+            <div className="stage-dual">
               <section className="stage-section">
                 <div className="stage-col-label">Comments</div>
                 {(row.comments||[]).slice(-3).map(c=>{
@@ -2032,6 +2061,59 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
                 <div style={{display:"flex",gap:8,marginTop:"auto"}}>
                   <input className="comment-input" style={{fontSize:12,padding:"9px 11px"}} placeholder="Add a comment…" value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submitComment()}/>
                   <button className="btn btn-ghost" style={{padding:"8px 12px",fontSize:11.5,flexShrink:0}} onClick={submitComment}>Send</button>
+                </div>
+              </section>
+
+              <section className="stage-section">
+                <div className="stage-col-label">Approval</div>
+                <div className="stage-governance">
+                  <div className="stage-select" ref={approvalRef}>
+                    <button className="stage-select-trigger" onClick={() => setIsApprovalOpen((current) => !current)}>
+                      <span className="stage-select-copy">
+                        <span className="stage-select-label">State</span>
+                        <span className="stage-select-value">
+                          <span className="s-dot" style={{background:s.dot, marginRight:0}} />
+                          {s.label}
+                        </span>
+                      </span>
+                      <span className="stage-select-caret" />
+                    </button>
+                    {isApprovalOpen && (
+                      <div className="stage-select-menu">
+                        {Object.entries(STATUSES).map(([k, st]) => (
+                          <button
+                            key={k}
+                            className={"stage-select-option " + (row.status === k ? "on" : "")}
+                            onClick={() => {
+                              onChange({ status: k });
+                              setIsApprovalOpen(false);
+                            }}
+                          >
+                            <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
+                              <span className="s-dot" style={{background:st.dot, marginRight:0}} />
+                              {st.label}
+                            </span>
+                            {row.status === k ? <span className="ops-option-mark">Current</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="stage-mini-stack">
+                    <div className="stage-mini-row">
+                      <span className="stage-mini-key">Owner</span>
+                      <span className="stage-mini-val">{assignee?.name || "Unassigned"}</span>
+                    </div>
+                    <div className="stage-mini-row">
+                      <span className="stage-mini-key">Updated</span>
+                      <span className="stage-mini-val">{updatedLabel}</span>
+                    </div>
+                    <div className="stage-mini-row">
+                      <span className="stage-mini-key">Readiness</span>
+                      <span className="stage-mini-val">{readyCount}/{checks.length} ready</span>
+                    </div>
+                  </div>
                 </div>
               </section>
             </div>
