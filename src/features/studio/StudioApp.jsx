@@ -450,7 +450,7 @@ button.stat{font:inherit;text-align:left}
 .stage-summary-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .stage-section{padding:18px;background:linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,255,255,0.56));border:1px solid rgba(24,23,20,0.1);border-radius:18px;display:flex;flex-direction:column;gap:14px;min-width:0;min-height:100%;box-shadow:inset 0 1px 0 rgba(255,255,255,0.64)}
 .stage-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
-.stage-dual{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,0.85fr);gap:14px;align-items:stretch}
+.stage-dual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
 .stage-single{display:block}
 .stage-col{padding:0;border-right:none;display:flex;flex-direction:column;gap:12px}
 .stage-col-media,.stage-col-write,.stage-col-gov{width:auto;min-width:0}
