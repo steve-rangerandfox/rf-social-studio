@@ -14,6 +14,14 @@ const LEGACY_IG_MEDIA_KEY = "rf_ig_media";
 const STORE_VERSION = 2;
 const MAX_AUDIT_ENTRIES = 200;
 
+function normalizeScope(scope = "anonymous") {
+  return String(scope || "anonymous").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_") || "anonymous";
+}
+
+function getDocumentStorageKey(scope = "anonymous") {
+  return `${DOCUMENT_STORAGE_KEY}:${normalizeScope(scope)}`;
+}
+
 function lsGet(key) {
   try {
     return JSON.parse(localStorage.getItem(key) || "null");
@@ -22,9 +30,9 @@ function lsGet(key) {
   }
 }
 
-export function persistStudioDocument(document) {
+export function persistStudioDocument(document, scope = "anonymous") {
   try {
-    localStorage.setItem(DOCUMENT_STORAGE_KEY, JSON.stringify(document));
+    localStorage.setItem(getDocumentStorageKey(scope), JSON.stringify(document));
     return true;
   } catch {
     return false;
@@ -128,9 +136,24 @@ function migrateLegacyDocument() {
   };
 }
 
-export function loadStudioDocument() {
-  const stored = lsGet(DOCUMENT_STORAGE_KEY);
+export function loadStudioDocument(scope = "anonymous") {
+  const storageKey = getDocumentStorageKey(scope);
+  const stored = lsGet(storageKey);
   if (!stored || typeof stored !== "object") {
+    if (scope !== "anonymous") {
+      const legacy = lsGet(DOCUMENT_STORAGE_KEY);
+      if (legacy && typeof legacy === "object") {
+        return {
+          schemaVersion: STORE_VERSION,
+          rows: Array.isArray(legacy.rows) ? legacy.rows.filter(isValidRow).map((row) => normalizeRow(row)) : createInitialDocument().rows,
+          auditLog: Array.isArray(legacy.auditLog)
+            ? legacy.auditLog.slice(0, MAX_AUDIT_ENTRIES).map(normalizeAuditEntry)
+            : [],
+          instagram: legacy.instagram || { account: null, media: null, syncedAt: null },
+          lastSavedAt: legacy.lastSavedAt || null,
+        };
+      }
+    }
     return migrateLegacyDocument();
   }
 

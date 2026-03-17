@@ -55,12 +55,18 @@ const sharedEnv = {
   allowedOrigins: new Set(["http://localhost:5173"]),
 };
 
+const userHeaders = {
+  origin: "http://localhost:5173",
+  host: "localhost:3001",
+  "x-rf-user-id": "user_test_123",
+};
+
 test("OPTIONS /api/ig-oauth returns 204", async () => {
   const res = await runRequest(
     new MockRequest({
       method: "OPTIONS",
       url: "/api/ig-oauth",
-      headers: { origin: "http://localhost:5173", host: "localhost:3001" },
+      headers: userHeaders,
     }),
     sharedEnv,
   );
@@ -73,7 +79,7 @@ test("GET /api/ig-oauth returns authorize URL and state cookie", async () => {
     new MockRequest({
       method: "GET",
       url: "/api/ig-oauth?redirectUri=http%3A%2F%2Flocalhost%3A5173",
-      headers: { origin: "http://localhost:5173", host: "localhost:3001" },
+      headers: userHeaders,
     }),
     sharedEnv,
   );
@@ -89,7 +95,7 @@ test("POST /api/ig-oauth rejects invalid redirect URIs", async () => {
     new MockRequest({
       method: "POST",
       url: "/api/ig-oauth",
-      headers: { origin: "http://localhost:5173", host: "localhost:3001" },
+      headers: userHeaders,
       body: {
         code: "abc123",
         redirectUri: "https://evil.example.com/callback",
@@ -108,7 +114,7 @@ test("GET /api/ig-posts returns 401 when disconnected", async () => {
     new MockRequest({
       method: "GET",
       url: "/api/ig-posts",
-      headers: { origin: "http://localhost:5173", host: "localhost:3001" },
+      headers: userHeaders,
     }),
     sharedEnv,
   );
@@ -122,7 +128,7 @@ test("POST /api/captions returns 503 when AI configuration is missing", async ()
     new MockRequest({
       method: "POST",
       url: "/api/captions",
-      headers: { origin: "http://localhost:5173", host: "localhost:3001" },
+      headers: userHeaders,
       body: {
         platform: "ig_post",
         prompt: "A motion design case study launch",
@@ -136,4 +142,18 @@ test("POST /api/captions returns 503 when AI configuration is missing", async ()
 
   assert.equal(res.status, 503);
   assert.ok(Array.isArray(res.body.missing));
+});
+
+test("GET /api/ig-oauth requires user context", async () => {
+  const res = await runRequest(
+    new MockRequest({
+      method: "GET",
+      url: "/api/ig-oauth?redirectUri=http%3A%2F%2Flocalhost%3A5173",
+      headers: { origin: "http://localhost:5173", host: "localhost:3001" },
+    }),
+    sharedEnv,
+  );
+
+  assert.equal(res.status, 401);
+  assert.ok(res.body.error.includes("user context"));
 });

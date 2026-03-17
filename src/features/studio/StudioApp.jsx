@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useAuth, useUser } from "@clerk/react";
 
 import { SaveStatusBadge } from "../../components/SaveStatusBadge.jsx";
 import {
@@ -6,6 +7,7 @@ import {
   fetchInstagramFeed,
   generateCaption,
   generateStoryTips,
+  setApiUserId,
 } from "../../lib/api-client.js";
 import {
   appendAuditEntries,
@@ -2252,10 +2254,19 @@ function UndoDeleteToast({ count, onUndo, onDone }) {
 
 // ─── APP ─────────────────────────────────────────────────────────
 export default function App() {
+  const { userId } = useAuth();
+  const { user } = useUser();
+  const storageScope = userId || "anonymous";
+  const actorName =
+    user?.fullName ||
+    user?.username ||
+    user?.primaryEmailAddress?.emailAddress ||
+    userId ||
+    "anonymous";
   const now = new Date();
   const [month, setMonth]         = useState(now.getMonth());
   const [year]                    = useState(now.getFullYear());
-  const [studioDoc, setStudioDoc] = useState(loadStudioDocument);
+  const [studioDoc, setStudioDoc] = useState(() => loadStudioDocument(storageScope));
   const [sel, setSel]             = useState(new Set());
   const [view, setView]           = useState("list");
   const [query, setQuery]         = useState("");
@@ -2286,7 +2297,7 @@ export default function App() {
   const [dragOverId, setDragOverId] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
   const monthRefs = useRef({});
-  const currentUser = "stephen";
+  const currentUser = actorName;
 
   const rows = studioDoc.rows.filter((row) => !row.deletedAt);
   const filteredRows = rows.filter((row) => {
@@ -2308,6 +2319,18 @@ export default function App() {
   const igConfig = studioDoc.instagram?.account || null;
   const igMedia = studioDoc.instagram?.media || null;
 
+  useEffect(() => {
+    const scopedDocument = loadStudioDocument(storageScope);
+    setApiUserId(userId || "");
+    setStudioDoc(scopedDocument);
+    setSaveState((current) => ({
+      ...current,
+      status: "idle",
+      lastSavedAt: scopedDocument.lastSavedAt || null,
+      error: null,
+    }));
+  }, [storageScope, userId]);
+
   const updateDocument = useCallback((mutator, auditEntryFactory) => {
     setStudioDoc((current) => {
       const next = mutator(current);
@@ -2325,7 +2348,7 @@ export default function App() {
       const saved = persistStudioDocument({
         ...studioDoc,
         lastSavedAt: savedAt,
-      });
+      }, storageScope);
 
       if (!saved) {
         setSaveState((current) => ({
@@ -2344,7 +2367,7 @@ export default function App() {
     }, 180);
 
     return () => window.clearTimeout(timeoutId);
-  }, [studioDoc]);
+  }, [storageScope, studioDoc]);
 
   useEffect(() => {
     if (saveState.status === "error" && saveState.error) {
@@ -2384,7 +2407,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [igConfig, updateDocument]);
+  }, [currentUser, igConfig, updateDocument]);
 
   // Keep sidebar connection dot in sync with real IG config
   useEffect(() => {
@@ -2410,7 +2433,7 @@ export default function App() {
     } catch {
       showToast('Token refresh failed — please reconnect Instagram', T.red);
     }
-  }, [igConfig, showToast, updateDocument]);
+  }, [currentUser, igConfig, showToast, updateDocument]);
 
   const allSorted = [...filteredRows].sort((a,b) => {
     const da = a.scheduledAt ? new Date(a.scheduledAt) : new Date(0);

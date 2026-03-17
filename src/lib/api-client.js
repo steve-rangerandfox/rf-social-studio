@@ -1,8 +1,15 @@
+let currentApiUserId = "";
+
+export function setApiUserId(userId) {
+  currentApiUserId = String(userId || "");
+}
+
 async function requestJson(url, options = {}) {
   const response = await fetch(url, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(currentApiUserId ? { "X-RF-User-Id": currentApiUserId } : {}),
       ...(options.headers || {}),
     },
     ...options,

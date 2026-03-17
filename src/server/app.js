@@ -11,6 +11,7 @@ import {
   encryptCookiePayload,
   IG_OAUTH_STATE_COOKIE,
   IG_SESSION_COOKIE,
+  getRequestUserId,
   parseCookies,
   serializeCookie,
 } from "./cookies.js";
@@ -133,9 +134,13 @@ async function handleInstagramStart(req, res, env) {
   const query = getRequestUrl(req).searchParams;
   const redirectUri = query.get("redirectUri") || "";
   const requestOrigin = getRequestOrigin(req);
+  const requestUserId = getRequestUserId(req);
 
   if (!validateRedirectUri(redirectUri, env.allowedOrigins, requestOrigin)) {
     return json(res, 400, { error: "redirectUri is not allowed", redirectUri, requestOrigin });
+  }
+  if (!requestUserId) {
+    return json(res, 401, { error: "user context is required" });
   }
 
   const envCheck = ensureEnv(env, ["igAppId", "sessionSecret"]);
@@ -152,6 +157,7 @@ async function handleInstagramStart(req, res, env) {
         {
           state,
           redirectUri,
+          ownerUserId: requestUserId,
           expiresAt: Date.now() + 10 * 60 * 1000,
         },
         env.sessionSecret,
@@ -187,6 +193,7 @@ async function handleInstagramExchange(req, res, env, reqId) {
 
   const { code, redirectUri, state } = body;
   const requestOrigin = getRequestOrigin(req);
+  const requestUserId = getRequestUserId(req);
   if (!code || typeof code !== "string") {
     return json(res, 400, { error: "code is required" });
   }
@@ -196,6 +203,9 @@ async function handleInstagramExchange(req, res, env, reqId) {
   if (!state || typeof state !== "string") {
     return json(res, 400, { error: "state is required" });
   }
+  if (!requestUserId) {
+    return json(res, 401, { error: "user context is required" });
+  }
 
   const cookies = parseCookies(req);
   const oauthState = decryptCookiePayload(cookies[IG_OAUTH_STATE_COOKIE], env.sessionSecret);
@@ -203,6 +213,7 @@ async function handleInstagramExchange(req, res, env, reqId) {
     !oauthState ||
     oauthState.state !== state ||
     oauthState.redirectUri !== redirectUri ||
+    oauthState.ownerUserId !== requestUserId ||
     oauthState.expiresAt < Date.now()
   ) {
     return json(res, 400, { error: "OAuth state validation failed" });
@@ -220,6 +231,7 @@ async function handleInstagramExchange(req, res, env, reqId) {
     setInstagramSession(res, req, env, {
       accessToken: token.accessToken,
       userId: token.userId,
+      ownerUserId: requestUserId,
       username: profile.username,
       mediaCount: profile.mediaCount,
       expiresAt: Date.now() + token.expiresIn * 1000,
@@ -242,6 +254,11 @@ async function handleInstagramExchange(req, res, env, reqId) {
 }
 
 async function handleInstagramPosts(req, res, env, reqId) {
+  const requestUserId = getRequestUserId(req);
+  if (!requestUserId) {
+    return json(res, 401, { error: "user context is required" });
+  }
+
   const envCheck = ensureEnv(env, ["sessionSecret"]);
   if (!envCheck.ok) {
     return json(res, 500, { error: "Instagram session handling is not configured" });
@@ -250,6 +267,10 @@ async function handleInstagramPosts(req, res, env, reqId) {
   const session = getSession(req, env);
   if (!session?.accessToken) {
     return json(res, 401, { error: "Instagram is not connected" });
+  }
+  if (session.ownerUserId && session.ownerUserId !== requestUserId) {
+    clearCookie(res, IG_SESSION_COOKIE, env, req);
+    return json(res, 403, { error: "Instagram connection belongs to a different signed-in user" });
   }
 
   let activeSession = session;
@@ -399,6 +420,11 @@ export async function handleApiRequest(req, res, overrides = {}) {
     }
 
     if (req.method === "DELETE") {
+      const session = getSession(req, env);
+      const requestUserId = getRequestUserId(req);
+      if (session?.ownerUserId && requestUserId && session.ownerUserId !== requestUserId) {
+        return json(res, 403, { error: "Instagram connection belongs to a different signed-in user" });
+      }
       clearCookie(res, IG_SESSION_COOKIE, env, req);
       clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
       return noContent(res);
