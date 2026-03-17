@@ -915,11 +915,11 @@ function DateTimePicker({ isoValue, onChange, onClose, anchorRef }) {
         {WD_SHORT.map((w,i)=><div key={i} className="cal-wd-cell">{w}</div>)}
       </div>
       <div className="cal-days">
-        {cells.map((d,i)=>(
+        {cells.map((cell,i)=>(
           <button key={i}
-            className={`cal-day-btn ${!d?"empty":""} ${isSel(d)?"sel":""} ${isToday(d)&&!isSel(d)?"today":""}`}
-            onClick={()=>d&&pickDay(d)}>
-            {d||""}
+            className={`cal-day-btn ${!cell?.d?"empty":""} ${cell?.type !== "curr" ? "empty" : ""} ${isSel(cell?.d)?"sel":""} ${isToday(cell?.d)&&!isSel(cell?.d)?"today":""}`}
+            onClick={()=>cell?.type === "curr" && pickDay(cell.d)}>
+            {cell?.type === "curr" ? cell.d : ""}
           </button>
         ))}
       </div>
