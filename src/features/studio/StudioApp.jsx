@@ -2256,7 +2256,7 @@ function UndoDeleteToast({ count, onUndo, onDone }) {
 
 // ─── APP ─────────────────────────────────────────────────────────
 export default function App() {
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
   const { user } = useUser();
   const storageScope = userId || "anonymous";
   const actorName =
@@ -2323,7 +2323,7 @@ export default function App() {
 
   useEffect(() => {
     const scopedDocument = loadStudioDocument(storageScope);
-    setApiUserId(userId || "");
+    setApiUserId(userId || "", userId ? () => getToken() : null);
     setStudioDoc(scopedDocument);
     setSaveState((current) => ({
       ...current,
@@ -2331,7 +2331,7 @@ export default function App() {
       lastSavedAt: scopedDocument.lastSavedAt || null,
       error: null,
     }));
-  }, [storageScope, userId]);
+  }, [getToken, storageScope, userId]);
 
   useEffect(() => {
     let cancelled = false;

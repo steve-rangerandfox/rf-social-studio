@@ -11,7 +11,6 @@ import {
   encryptCookiePayload,
   IG_OAUTH_STATE_COOKIE,
   IG_SESSION_COOKIE,
-  getRequestUserId,
   parseCookies,
   serializeCookie,
 } from "./cookies.js";
@@ -37,6 +36,7 @@ import {
 } from "./instagram.js";
 import { createLogger, sanitizeLogValue } from "./log.js";
 import { hasStudioPersistence, loadStudioDocumentRecord, saveStudioDocumentRecord } from "./persistence.js";
+import { resolveRequestAuth } from "./auth.js";
 
 const logger = createLogger("rf-social-studio-api");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -50,6 +50,16 @@ function getRequestOrigin(req) {
   }
 
   return `${proto}://${host}`.toLowerCase();
+}
+
+function requireRequestAuth(req, res, env) {
+  const auth = resolveRequestAuth(req, env);
+  if (!auth.ok) {
+    json(res, auth.status, { error: auth.error });
+    return null;
+  }
+
+  return auth;
 }
 
 function clearCookie(res, name, env, req) {
@@ -135,13 +145,13 @@ async function handleInstagramStart(req, res, env) {
   const query = getRequestUrl(req).searchParams;
   const redirectUri = query.get("redirectUri") || "";
   const requestOrigin = getRequestOrigin(req);
-  const requestUserId = getRequestUserId(req);
+  const auth = requireRequestAuth(req, res, env);
+  if (!auth) {
+    return;
+  }
 
   if (!validateRedirectUri(redirectUri, env.allowedOrigins, requestOrigin)) {
     return json(res, 400, { error: "redirectUri is not allowed", redirectUri, requestOrigin });
-  }
-  if (!requestUserId) {
-    return json(res, 401, { error: "user context is required" });
   }
 
   const envCheck = ensureEnv(env, ["igAppId", "sessionSecret"]);
@@ -158,7 +168,7 @@ async function handleInstagramStart(req, res, env) {
         {
           state,
           redirectUri,
-          ownerUserId: requestUserId,
+          ownerUserId: auth.userId,
           expiresAt: Date.now() + 10 * 60 * 1000,
         },
         env.sessionSecret,
@@ -194,7 +204,10 @@ async function handleInstagramExchange(req, res, env, reqId) {
 
   const { code, redirectUri, state } = body;
   const requestOrigin = getRequestOrigin(req);
-  const requestUserId = getRequestUserId(req);
+  const auth = requireRequestAuth(req, res, env);
+  if (!auth) {
+    return;
+  }
   if (!code || typeof code !== "string") {
     return json(res, 400, { error: "code is required" });
   }
@@ -204,9 +217,6 @@ async function handleInstagramExchange(req, res, env, reqId) {
   if (!state || typeof state !== "string") {
     return json(res, 400, { error: "state is required" });
   }
-  if (!requestUserId) {
-    return json(res, 401, { error: "user context is required" });
-  }
 
   const cookies = parseCookies(req);
   const oauthState = decryptCookiePayload(cookies[IG_OAUTH_STATE_COOKIE], env.sessionSecret);
@@ -214,7 +224,7 @@ async function handleInstagramExchange(req, res, env, reqId) {
     !oauthState ||
     oauthState.state !== state ||
     oauthState.redirectUri !== redirectUri ||
-    oauthState.ownerUserId !== requestUserId ||
+    oauthState.ownerUserId !== auth.userId ||
     oauthState.expiresAt < Date.now()
   ) {
     return json(res, 400, { error: "OAuth state validation failed" });
@@ -232,7 +242,7 @@ async function handleInstagramExchange(req, res, env, reqId) {
     setInstagramSession(res, req, env, {
       accessToken: token.accessToken,
       userId: token.userId,
-      ownerUserId: requestUserId,
+      ownerUserId: auth.userId,
       username: profile.username,
       mediaCount: profile.mediaCount,
       expiresAt: Date.now() + token.expiresIn * 1000,
@@ -255,9 +265,9 @@ async function handleInstagramExchange(req, res, env, reqId) {
 }
 
 async function handleInstagramPosts(req, res, env, reqId) {
-  const requestUserId = getRequestUserId(req);
-  if (!requestUserId) {
-    return json(res, 401, { error: "user context is required" });
+  const auth = requireRequestAuth(req, res, env);
+  if (!auth) {
+    return;
   }
 
   const envCheck = ensureEnv(env, ["sessionSecret"]);
@@ -269,7 +279,7 @@ async function handleInstagramPosts(req, res, env, reqId) {
   if (!session?.accessToken) {
     return json(res, 401, { error: "Instagram is not connected" });
   }
-  if (session.ownerUserId && session.ownerUserId !== requestUserId) {
+  if (session.ownerUserId && session.ownerUserId !== auth.userId) {
     clearCookie(res, IG_SESSION_COOKIE, env, req);
     return json(res, 403, { error: "Instagram connection belongs to a different signed-in user" });
   }
@@ -325,16 +335,16 @@ async function handleInstagramPosts(req, res, env, reqId) {
 }
 
 async function handleStudioDocumentGet(req, res, env, reqId) {
-  const requestUserId = getRequestUserId(req);
-  if (!requestUserId) {
-    return json(res, 401, { error: "user context is required" });
+  const auth = requireRequestAuth(req, res, env);
+  if (!auth) {
+    return;
   }
   if (!hasStudioPersistence(env)) {
     return json(res, 503, { error: "Studio persistence is not configured" });
   }
 
   try {
-    const record = await loadStudioDocumentRecord(env, requestUserId);
+    const record = await loadStudioDocumentRecord(env, auth.userId);
     return json(res, 200, {
       document: record?.document || null,
       updatedAt: record?.updated_at || null,
@@ -342,16 +352,16 @@ async function handleStudioDocumentGet(req, res, env, reqId) {
   } catch (error) {
     logger("error", reqId, "studio_document_load_failed", {
       error: sanitizeLogValue(error.message),
-      requestUserId,
+      requestUserId: auth.userId,
     });
     return json(res, 502, { error: "Studio document load failed" });
   }
 }
 
 async function handleStudioDocumentPut(req, res, env, reqId) {
-  const requestUserId = getRequestUserId(req);
-  if (!requestUserId) {
-    return json(res, 401, { error: "user context is required" });
+  const auth = requireRequestAuth(req, res, env);
+  if (!auth) {
+    return;
   }
   if (!hasStudioPersistence(env)) {
     return json(res, 503, { error: "Studio persistence is not configured" });
@@ -369,12 +379,12 @@ async function handleStudioDocumentPut(req, res, env, reqId) {
   }
 
   try {
-    const saved = await saveStudioDocumentRecord(env, requestUserId, body.document);
+    const saved = await saveStudioDocumentRecord(env, auth.userId, body.document);
     return json(res, 200, { ok: true, updatedAt: saved?.updated_at || null });
   } catch (error) {
     logger("error", reqId, "studio_document_save_failed", {
       error: sanitizeLogValue(error.message),
-      requestUserId,
+      requestUserId: auth.userId,
     });
     return json(res, 502, { error: "Studio document save failed" });
   }
@@ -451,6 +461,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
     return json(res, 200, {
       ok: true,
       allowedOrigins: Array.from(env.allowedOrigins),
+      hasClerkAuthConfig: Boolean(env.clerkJwtKey),
       hasInstagramConfig: Boolean(env.igAppId && env.igAppSecret && env.sessionSecret),
       hasAiConfig: Boolean(env.anthropicApiKey),
     });
@@ -477,9 +488,12 @@ export async function handleApiRequest(req, res, overrides = {}) {
     }
 
     if (req.method === "DELETE") {
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) {
+        return;
+      }
       const session = getSession(req, env);
-      const requestUserId = getRequestUserId(req);
-      if (session?.ownerUserId && requestUserId && session.ownerUserId !== requestUserId) {
+      if (session?.ownerUserId && session.ownerUserId !== auth.userId) {
         return json(res, 403, { error: "Instagram connection belongs to a different signed-in user" });
       }
       clearCookie(res, IG_SESSION_COOKIE, env, req);

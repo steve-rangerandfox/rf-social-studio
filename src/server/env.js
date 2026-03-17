@@ -21,6 +21,8 @@ export function loadServerEnv(source = process.env) {
   return {
     nodeEnv: source.NODE_ENV || "development",
     allowedOrigins,
+    clerkJwtKey: source.CLERK_JWT_KEY || "",
+    clerkIssuer: source.CLERK_ISSUER || "",
     sessionSecret: source.SESSION_SECRET || "",
     igAppId: source.IG_APP_ID || "",
     igAppSecret: source.IG_APP_SECRET || "",

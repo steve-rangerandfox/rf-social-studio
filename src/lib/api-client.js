@@ -1,15 +1,19 @@
 let currentApiUserId = "";
+let currentApiTokenProvider = null;
 
-export function setApiUserId(userId) {
+export function setApiUserId(userId, tokenProvider) {
   currentApiUserId = String(userId || "");
+  currentApiTokenProvider = typeof tokenProvider === "function" ? tokenProvider : null;
 }
 
 async function requestJson(url, options = {}) {
+  const token = currentApiTokenProvider ? await currentApiTokenProvider().catch(() => "") : "";
   const response = await fetch(url, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(currentApiUserId ? { "X-RF-User-Id": currentApiUserId } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
     ...options,
