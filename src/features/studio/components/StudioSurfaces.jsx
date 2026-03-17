@@ -20,6 +20,8 @@ import {
   uid,
 } from "../shared.js";
 
+const IG_OAUTH_CALLBACK_PATH = "/instagram/oauth/callback";
+
 function isScheduledInFuture(row) {
   if (!row.scheduledAt) {
     return false;
@@ -559,13 +561,13 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
   const [error,      setError]      = useState("");
 
   const isConnected = !!igConfig?.username;
-  const redirectUri = window.location.origin;
+  const redirectUri = new URL(IG_OAUTH_CALLBACK_PATH, window.location.origin).toString();
 
   const startOAuth = async () => {
     setError(""); setConnecting(true);
     let safeRedirectUri;
     try {
-      safeRedirectUri = new URL(redirectUri).origin;
+      safeRedirectUri = new URL(redirectUri).toString();
     } catch {
       setError("Invalid page origin — cannot start OAuth flow."); setConnecting(false); return;
     }
@@ -575,7 +577,12 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
       const data = await getInstagramAuthorizeUrl(safeRedirectUri);
       authorizeUrl = data.authorizeUrl;
     } catch (e) {
-      setError(e.message || "Instagram OAuth could not start.");
+      const baseError = e.message || "Instagram OAuth could not start.";
+      setError(
+        baseError === "redirectUri is not allowed"
+          ? `Redirect URI is not allowed. Add ${safeRedirectUri} to your server ALLOWED_ORIGINS and Meta app redirect URIs.`
+          : baseError,
+      );
       setConnecting(false);
       return;
     }
@@ -606,7 +613,7 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
       const feed = await fetchInstagramFeed();
       onMediaSync(feed);
     } catch(e) {
-      setError(e.message || "Connection failed. Is the API server running? (npm run dev:api)");
+      setError(e.message || "Connection failed. Check the Instagram callback URL and production env settings.");
     }
     setConnecting(false);
   };
@@ -695,6 +702,9 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
       </button>
       <p className="cp-setup-note" style={{marginTop:10}}>
         A popup will open on Instagram's website — sign in and approve access. You'll be redirected back automatically.
+      </p>
+      <p className="cp-setup-note" style={{marginTop:0}}>
+        Callback URL: <code>{redirectUri}</code>
       </p>
     </>
   );
