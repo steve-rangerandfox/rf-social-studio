@@ -112,7 +112,7 @@ button.stat{font:inherit;text-align:left}
 
 /* TABLE */
 .t-area{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding:12px 18px 22px}
-.t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;height:48px;background:rgba(243,238,229,0.86);position:sticky;top:0;z-index:10;align-items:center;backdrop-filter:blur(12px)}
+.t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;height:48px;background:linear-gradient(180deg, rgba(245,240,232,0.98), rgba(243,238,229,0.98));position:sticky;top:0;z-index:10;align-items:center;backdrop-filter:blur(16px);border-bottom:1px solid rgba(24,23,20,0.08);box-shadow:0 10px 24px rgba(24,23,20,0.04)}
 .th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;color:${T.textDim};text-transform:uppercase}
 .th.r{text-align:right}
 .t-row{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;min-height:78px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s,transform 0.12s;position:relative;background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(252,250,245,0.96));border:1px solid rgba(24,23,20,0.1);border-radius:18px;margin-bottom:10px;cursor:pointer}
