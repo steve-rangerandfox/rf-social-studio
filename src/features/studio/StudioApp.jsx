@@ -336,6 +336,14 @@ button.stat{font:inherit;text-align:left}
 .char-row{display:flex;justify-content:flex-end;margin-top:3px}
 .char{font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim}}
 .char.warn{color:${T.amber}}.char.over{color:${T.red}}
+.add-post-modal{width:460px;max-width:94vw}
+.add-post-intro{padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,0.92),rgba(245,238,226,0.86));border:1px solid rgba(24,23,20,0.08);display:flex;flex-direction:column;gap:6px}
+.add-post-kicker{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:${T.textDim}}
+.add-post-row{display:grid;grid-template-columns:1fr 160px;gap:12px}
+.add-post-help{font-size:12px;line-height:1.55;color:${T.textDim}}
+.add-post-preview{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:rgba(24,23,20,0.03);border:1px solid rgba(24,23,20,0.06)}
+.add-post-preview-title{font-size:13px;font-weight:600;color:${T.text}}
+.add-post-preview-meta{font-size:10.5px;color:${T.textDim};font-family:'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
 
 /* AI WRITER */
 .ai-panel{background:${T.surface};border:1px solid ${T.border};border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;animation:fIn 0.15s}
@@ -823,6 +831,7 @@ button.stat{font:inherit;text-align:left}
   .ops-trigger{width:100%;min-width:0}
   .settings-tabs{overflow:auto}
   .cp-modal,.settings-modal{width:min(94vw,430px)}
+  .add-post-row{grid-template-columns:1fr}
 }
 
 `;
@@ -1066,6 +1075,97 @@ function CaptionEditor({ value, onChange, platform, note }) {
         <textarea ref={ref} className="txa" value={value} onChange={onCh} placeholder="Write your caption… use @ to tag"/>
         <div className="char-row"><span className={`char ${over?"over":warn?"warn":""}`}>{value.length}/{max}</span></div>
         {mq!==null&&res.length>0&&<div className="md">{res.map(m=><div key={m.id} className="mi" onClick={()=>pick(m)}><div className="ma">{m.name[0]}</div><div><div className="mn">{m.name}</div><div className="mh">@{m.handle}</div></div></div>)}</div>}
+      </div>
+    </div>
+  );
+}
+
+function AddPostModal({ initialDate, onClose, onCreate }) {
+  const titleRef = useRef(null);
+  const safeDate = initialDate || nowPT();
+  const [title, setTitle] = useState("");
+  const [dateValue, setDateValue] = useState(() => {
+    const y = safeDate.getFullYear();
+    const m = String(safeDate.getMonth() + 1).padStart(2, "0");
+    const d = String(safeDate.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
+  const [timeValue, setTimeValue] = useState("09:00");
+
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
+
+  const canCreate = title.trim() && dateValue && timeValue;
+  const previewDate = dateValue && timeValue ? new Date(`${dateValue}T${timeValue}:00`) : null;
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!canCreate) return;
+    onCreate({
+      title: title.trim(),
+      dateValue,
+      timeValue,
+    });
+  };
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal add-post-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="m-head">
+          <div>
+            <div className="m-title">Add post</div>
+            <div className="m-sub">Give the draft a title, then choose when it should land on the calendar.</div>
+          </div>
+          <button className="m-x" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="m-body">
+            <div className="add-post-intro">
+              <div className="add-post-kicker">New draft</div>
+              <div style={{fontSize:14,fontWeight:600,color:T.text}}>Starts as an Instagram post idea</div>
+              <div className="add-post-help">You can still change the channel, status, and caption once the row opens.</div>
+            </div>
+            <div className="field">
+              <div className="lbl">Title</div>
+              <input
+                ref={titleRef}
+                className="inp"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Monthly metrics + studio recap"
+              />
+            </div>
+            <div className="add-post-row">
+              <div className="field">
+                <div className="lbl">Date</div>
+                <input className="inp" type="date" value={dateValue} onChange={(event) => setDateValue(event.target.value)} />
+              </div>
+              <div className="field">
+                <div className="lbl">Time PT</div>
+                <input className="inp" type="time" value={timeValue} onChange={(event) => setTimeValue(event.target.value)} />
+              </div>
+            </div>
+            <div className="add-post-preview">
+              <div>
+                <div className="add-post-preview-title">{title.trim() || "Untitled post"}</div>
+                <div className="add-post-preview-meta">
+                  {previewDate
+                    ? `${previewDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${timeValue} PT`
+                    : "Choose a date and time"}
+                </div>
+              </div>
+              <div className="plat-pill" style={{background:"rgba(24,23,20,0.05)",color:T.text}}>
+                <span className="pill-dot" style={{background:T.orangeBright}} />
+                Instagram Post
+              </div>
+            </div>
+          </div>
+          <div className="m-foot">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={!canCreate}>Create post</button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -2277,6 +2377,7 @@ export default function App() {
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [timeScale, setTimeScale] = useState("month"); // "month" | "year"
   const [composer, setComposer]   = useState(null);
+  const [addPostDraft, setAddPostDraft] = useState(null);
   const [story, setStory]         = useState(null);
   const [showAssets, setAssets]   = useState(false);
   const [showConn, setShowConn]   = useState(null); // 'instagram' | 'linkedin' | null
@@ -2519,15 +2620,26 @@ export default function App() {
     }),
   }));
 
-  const add = (targetMonth=month, day=1, targetYear=year) => {
-    const iso = ptPickerToISO(targetYear, targetMonth, day, 9, 0);
+  const createPostDraft = ({ title, dateValue, timeValue }) => {
+    const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
+    const [hour, minute] = timeValue.split(":").map(Number);
+    const iso = ptPickerToISO(targetYear, targetMonth - 1, day, hour, minute);
     updateDocument(
       (current) => ({
         ...current,
-        rows: [...current.rows, createNewRow({ scheduledAt: iso }, currentUser, current.rows.length)],
+        rows: [...current.rows, createNewRow({ scheduledAt: iso, note: title }, currentUser, current.rows.length)],
       }),
-      () => createAuditEntry("post.created", currentUser, "Created a new post draft", { scheduledAt: iso }),
+      () => createAuditEntry("post.created", currentUser, "Created a new post draft", { scheduledAt: iso, title }),
     );
+    setAddPostDraft(null);
+  };
+  const add = (targetMonth=month, day=1, targetYear=year) => {
+    const now = nowPT();
+    const fallbackDay =
+      targetYear === now.getFullYear() && targetMonth === now.getMonth()
+        ? Math.max(day, now.getDate())
+        : day;
+    setAddPostDraft(new Date(targetYear, targetMonth, fallbackDay, 9, 0));
   };
   const update = (id, patch) =>
     updateDocument(
@@ -2883,7 +2995,7 @@ export default function App() {
         {view==="calendar"&&<CalendarView rows={filteredRows} month={month} year={year}
           onCompose={r=>setComposer({row:r,postNow:false})} onStory={r=>setStory(r)}
           onEdit={r=>update(r.id,{note:r.note,caption:r.caption,platform:r.platform,status:r.status})}
-          onAddDay={(d, targetMonth = month, targetYear = year)=>{add(targetMonth,d,targetYear);showToast(`Added post for ${MONTHS_FULL[targetMonth]} ${d}`,T.mint);}}/>}
+          onAddDay={(d, targetMonth = month, targetYear = year)=>{add(targetMonth,d,targetYear);}}/>}
 
         {view==="grid"&&<IGGridView rows={filteredRows} igMedia={igMedia} igAccount={igConfig}
           onOpen={r=>r.platform==="ig_story"?setStory(r):setComposer({row:r,postNow:false})}/>}
@@ -2908,6 +3020,14 @@ export default function App() {
 
       {composer&&<Composer row={composer.row} postNow={composer.postNow} onClose={()=>setComposer(null)}
         onPosted={()=>{update(composer.row.id,{status:"posted"});showToast(`Posted to ${PLATFORMS[composer.row.platform==="ig_story"?"ig_post":composer.row.platform].label}`,T.mint);}}/>}
+      {addPostDraft&&<AddPostModal
+        initialDate={addPostDraft}
+        onClose={()=>setAddPostDraft(null)}
+        onCreate={(draft)=>{
+          createPostDraft(draft);
+          showToast(`Added "${draft.title}"`, T.mint);
+        }}
+      />}
       {story&&<StoryDesigner row={story} onClose={()=>setStory(null)} onSave={els=>update(story.id,{storyElements:els})}/>}
       {showConn&&<ConnectionPanel
         platform={showConn}
