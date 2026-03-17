@@ -40,6 +40,16 @@ const logger = createLogger("rf-social-studio-api");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_STATIC_DIR = path.resolve(__dirname, "../../dist");
 
+function getRequestOrigin(req) {
+  const proto = String(req.headers["x-forwarded-proto"] || "http").split(",")[0].trim();
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim();
+  if (!host) {
+    return "";
+  }
+
+  return `${proto}://${host}`.toLowerCase();
+}
+
 function clearCookie(res, name, env, req) {
   appendResponseCookie(
     res,
@@ -122,9 +132,10 @@ async function handleCaptionRequest(req, res, env, reqId) {
 async function handleInstagramStart(req, res, env) {
   const query = getRequestUrl(req).searchParams;
   const redirectUri = query.get("redirectUri") || "";
+  const requestOrigin = getRequestOrigin(req);
 
-  if (!validateRedirectUri(redirectUri, env.allowedOrigins)) {
-    return json(res, 400, { error: "redirectUri is not allowed" });
+  if (!validateRedirectUri(redirectUri, env.allowedOrigins, requestOrigin)) {
+    return json(res, 400, { error: "redirectUri is not allowed", redirectUri, requestOrigin });
   }
 
   const envCheck = ensureEnv(env, ["igAppId", "sessionSecret"]);
@@ -175,11 +186,12 @@ async function handleInstagramExchange(req, res, env, reqId) {
   }
 
   const { code, redirectUri, state } = body;
+  const requestOrigin = getRequestOrigin(req);
   if (!code || typeof code !== "string") {
     return json(res, 400, { error: "code is required" });
   }
-  if (!redirectUri || typeof redirectUri !== "string" || !validateRedirectUri(redirectUri, env.allowedOrigins)) {
-    return json(res, 400, { error: "redirectUri is not allowed" });
+  if (!redirectUri || typeof redirectUri !== "string" || !validateRedirectUri(redirectUri, env.allowedOrigins, requestOrigin)) {
+    return json(res, 400, { error: "redirectUri is not allowed", redirectUri, requestOrigin });
   }
   if (!state || typeof state !== "string") {
     return json(res, 400, { error: "state is required" });

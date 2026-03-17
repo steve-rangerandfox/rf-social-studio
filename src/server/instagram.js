@@ -3,7 +3,7 @@ import { fetchWithTimeout } from "./http.js";
 const PROFILE_FIELDS = "id,username,media_count";
 const MEDIA_FIELDS = "id,media_type,media_url,thumbnail_url,timestamp,caption,permalink";
 
-export function validateRedirectUri(redirectUri, allowedOrigins) {
+export function validateRedirectUri(redirectUri, allowedOrigins, currentOrigin = "") {
   let parsed;
   try {
     parsed = new URL(redirectUri);
@@ -14,7 +14,14 @@ export function validateRedirectUri(redirectUri, allowedOrigins) {
   const isLocalhost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
   const protocolOk = parsed.protocol === "https:" || (parsed.protocol === "http:" && isLocalhost);
 
-  return protocolOk && allowedOrigins.has(parsed.origin.toLowerCase());
+  if (!protocolOk) {
+    return false;
+  }
+
+  const redirectOrigin = parsed.origin.toLowerCase();
+  const normalizedCurrentOrigin = String(currentOrigin || "").toLowerCase();
+
+  return allowedOrigins.has(redirectOrigin) || (normalizedCurrentOrigin && redirectOrigin === normalizedCurrentOrigin);
 }
 
 export function buildInstagramAuthorizeUrl({ appId, redirectUri, state }) {
