@@ -111,7 +111,7 @@ ${T.bg}}
 button.stat{font:inherit;text-align:left}
 
 /* TABLE */
-.t-area{flex:1;overflow-y:auto;padding:12px 18px 22px}
+.t-area{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding:12px 18px 22px}
 .t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;height:48px;background:rgba(243,238,229,0.86);position:sticky;top:0;z-index:10;align-items:center;backdrop-filter:blur(12px)}
 .th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;color:${T.textDim};text-transform:uppercase}
 .th.r{text-align:right}
