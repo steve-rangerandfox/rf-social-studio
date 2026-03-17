@@ -18,7 +18,13 @@ export const T = {
   blue: "#3F5963",
   pink: "#6D5C55",
   orange: "#E56A0B",
+  orangeBright: "#FF7A00",
+  gold: "#F0B24D",
+  lilac: "#D99BFF",
+  cyan: "#82C7FF",
   purple: "#5E554E",
+  posterGrad: "linear-gradient(135deg, #FF7A00 0%, #F0B24D 24%, #D99BFF 58%, #82C7FF 100%)",
+  posterGradSoft: "linear-gradient(135deg, rgba(255,122,0,0.18) 0%, rgba(240,178,77,0.14) 24%, rgba(217,155,255,0.12) 58%, rgba(130,199,255,0.16) 100%)",
 };
 
 export const PLATFORMS = {
