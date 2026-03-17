@@ -24,6 +24,8 @@ export function loadServerEnv(source = process.env) {
     sessionSecret: source.SESSION_SECRET || "",
     igAppId: source.IG_APP_ID || "",
     igAppSecret: source.IG_APP_SECRET || "",
+    supabaseUrl: source.SUPABASE_URL || source.VITE_SUPABASE_URL || "",
+    supabaseServiceRoleKey: source.SUPABASE_SERVICE_ROLE_KEY || "",
     anthropicApiKey: source.ANTHROPIC_API_KEY || "",
     anthropicModel: source.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
     port: Number.parseInt(source.PORT || "3001", 10),

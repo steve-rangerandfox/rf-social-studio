@@ -68,3 +68,16 @@ export function fetchInstagramFeed() {
     method: "GET",
   });
 }
+
+export function fetchStudioDocument() {
+  return requestJson("/api/studio-document", {
+    method: "GET",
+  });
+}
+
+export function saveStudioDocument(document) {
+  return requestJson("/api/studio-document", {
+    method: "PUT",
+    body: JSON.stringify({ document }),
+  });
+}

@@ -157,3 +157,17 @@ test("GET /api/ig-oauth requires user context", async () => {
   assert.equal(res.status, 401);
   assert.ok(res.body.error.includes("user context"));
 });
+
+test("GET /api/studio-document returns 503 when persistence is not configured", async () => {
+  const res = await runRequest(
+    new MockRequest({
+      method: "GET",
+      url: "/api/studio-document",
+      headers: userHeaders,
+    }),
+    sharedEnv,
+  );
+
+  assert.equal(res.status, 503);
+  assert.ok(res.body.error.includes("persistence"));
+});

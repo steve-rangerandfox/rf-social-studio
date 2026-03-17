@@ -5,7 +5,9 @@ import { SaveStatusBadge } from "../../components/SaveStatusBadge.jsx";
 import {
   disconnectInstagram,
   fetchInstagramFeed,
+  fetchStudioDocument,
   generateCaption,
+  saveStudioDocument,
   generateStoryTips,
   setApiUserId,
 } from "../../lib/api-client.js";
@@ -2331,6 +2333,41 @@ export default function App() {
     }));
   }, [storageScope, userId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    fetchStudioDocument()
+      .then((payload) => {
+        if (cancelled || !payload?.document) {
+          return;
+        }
+
+        setStudioDoc(payload.document);
+        persistStudioDocument(
+          {
+            ...payload.document,
+            lastSavedAt: payload.updatedAt || payload.document.lastSavedAt || null,
+          },
+          storageScope,
+        );
+        setSaveState({
+          status: "saved",
+          lastSavedAt: payload.updatedAt || payload.document.lastSavedAt || null,
+          error: null,
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storageScope, userId]);
+
   const updateDocument = useCallback((mutator, auditEntryFactory) => {
     setStudioDoc((current) => {
       const next = mutator(current);
@@ -2345,10 +2382,11 @@ export default function App() {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       const savedAt = new Date().toISOString();
-      const saved = persistStudioDocument({
+      const nextDocument = {
         ...studioDoc,
         lastSavedAt: savedAt,
-      }, storageScope);
+      };
+      const saved = persistStudioDocument(nextDocument, storageScope);
 
       if (!saved) {
         setSaveState((current) => ({
@@ -2359,11 +2397,30 @@ export default function App() {
         return;
       }
 
-      setSaveState({
-        status: "saved",
-        lastSavedAt: savedAt,
-        error: null,
-      });
+      saveStudioDocument(nextDocument)
+        .then((payload) => {
+          setSaveState({
+            status: "saved",
+            lastSavedAt: payload?.updatedAt || savedAt,
+            error: null,
+          });
+        })
+        .catch((error) => {
+          if (error?.message === "Studio persistence is not configured" || error?.message === "user context is required") {
+            setSaveState({
+              status: "saved",
+              lastSavedAt: savedAt,
+              error: null,
+            });
+            return;
+          }
+
+          setSaveState({
+            status: "error",
+            lastSavedAt: savedAt,
+            error: "Server persistence failed. Local browser copy is still available.",
+          });
+        });
     }, 180);
 
     return () => window.clearTimeout(timeoutId);

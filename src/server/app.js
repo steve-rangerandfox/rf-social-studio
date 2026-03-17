@@ -36,6 +36,7 @@ import {
   validateRedirectUri,
 } from "./instagram.js";
 import { createLogger, sanitizeLogValue } from "./log.js";
+import { hasStudioPersistence, loadStudioDocumentRecord, saveStudioDocumentRecord } from "./persistence.js";
 
 const logger = createLogger("rf-social-studio-api");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -323,6 +324,62 @@ async function handleInstagramPosts(req, res, env, reqId) {
   }
 }
 
+async function handleStudioDocumentGet(req, res, env, reqId) {
+  const requestUserId = getRequestUserId(req);
+  if (!requestUserId) {
+    return json(res, 401, { error: "user context is required" });
+  }
+  if (!hasStudioPersistence(env)) {
+    return json(res, 503, { error: "Studio persistence is not configured" });
+  }
+
+  try {
+    const record = await loadStudioDocumentRecord(env, requestUserId);
+    return json(res, 200, {
+      document: record?.document || null,
+      updatedAt: record?.updated_at || null,
+    });
+  } catch (error) {
+    logger("error", reqId, "studio_document_load_failed", {
+      error: sanitizeLogValue(error.message),
+      requestUserId,
+    });
+    return json(res, 502, { error: "Studio document load failed" });
+  }
+}
+
+async function handleStudioDocumentPut(req, res, env, reqId) {
+  const requestUserId = getRequestUserId(req);
+  if (!requestUserId) {
+    return json(res, 401, { error: "user context is required" });
+  }
+  if (!hasStudioPersistence(env)) {
+    return json(res, 503, { error: "Studio persistence is not configured" });
+  }
+
+  let body;
+  try {
+    body = await readJsonBody(req, 1024 * 1024);
+  } catch (error) {
+    return json(res, error.code || 400, { error: error.message });
+  }
+
+  if (!body?.document || typeof body.document !== "object") {
+    return json(res, 400, { error: "document is required" });
+  }
+
+  try {
+    const saved = await saveStudioDocumentRecord(env, requestUserId, body.document);
+    return json(res, 200, { ok: true, updatedAt: saved?.updated_at || null });
+  } catch (error) {
+    logger("error", reqId, "studio_document_save_failed", {
+      error: sanitizeLogValue(error.message),
+      requestUserId,
+    });
+    return json(res, 502, { error: "Studio document save failed" });
+  }
+}
+
 function serveStaticFile(req, res, staticDir) {
   if (req.method !== "GET") {
     return false;
@@ -445,6 +502,21 @@ export async function handleApiRequest(req, res, overrides = {}) {
     }
 
     return handleInstagramPosts(req, res, env, reqId);
+  }
+
+  if (url.pathname === "/api/studio-document") {
+    if (req.method === "GET") {
+      return handleStudioDocumentGet(req, res, env, reqId);
+    }
+
+    if (req.method === "PUT") {
+      return handleStudioDocumentPut(req, res, env, reqId);
+    }
+
+    res.statusCode = 405;
+    res.setHeader("Allow", "GET, PUT, OPTIONS");
+    res.end();
+    return;
   }
 
   return false;
