@@ -449,7 +449,8 @@ button.stat{font:inherit;text-align:left}
 .stage-summary-meta span{padding:4px 8px;border-radius:999px;background:rgba(255,255,255,0.62);border:1px solid rgba(24,23,20,0.08);backdrop-filter:blur(8px)}
 .stage-summary-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .stage-section{padding:18px;background:linear-gradient(180deg,rgba(255,255,255,0.76),rgba(255,255,255,0.56));border:1px solid rgba(24,23,20,0.1);border-radius:18px;display:flex;flex-direction:column;gap:14px;min-width:0;min-height:100%;box-shadow:inset 0 1px 0 rgba(255,255,255,0.64)}
-.stage-grid,.stage-dual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
+.stage-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
+.stage-dual{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,0.85fr);gap:14px;align-items:stretch}
 .stage-single{display:block}
 .stage-col{padding:0;border-right:none;display:flex;flex-direction:column;gap:12px}
 .stage-col-media,.stage-col-write,.stage-col-gov{width:auto;min-width:0}
@@ -802,12 +803,13 @@ button.stat{font:inherit;text-align:left}
 @media (max-width: 1200px){
   .cal-shell{grid-template-columns:1fr}
   .cal-panel{position:static;max-height:none}
-  .stage-grid,.stage-dual{grid-template-columns:1fr}
+  .stage-grid{grid-template-columns:1fr}
   .ig-profile-header{flex-direction:column}
   .ig-profile-rail{width:100%;min-width:0}
 }
 
 @media (max-width: 900px){
+  .stage-dual{grid-template-columns:1fr}
   .sidebar{display:none}
   .topbar{padding:0 16px;height:auto;min-height:72px;flex-wrap:wrap;align-content:center;padding-top:12px;padding-bottom:12px}
   .stats,.ops-toolbar,.t-area,.analytics-area,.ig-grid-area,.cal-area{padding-left:14px;padding-right:14px}
