@@ -617,8 +617,8 @@ button.stat{font:inherit;text-align:left}
 
 /* ─── SETTINGS MODAL ─── */
 .settings-modal{width:520px}
-.settings-tabs{display:flex;border-bottom:1px solid ${T.border};margin:-18px -20px 16px;padding:0 20px}
-.settings-tab{padding:10px 14px;font-size:12.5px;font-weight:500;color:${T.textDim};cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .12s;background:none;border-left:none;border-right:none;border-top:none}
+.settings-tabs{display:flex;align-items:flex-end;border-bottom:1px solid ${T.border};margin:-6px -20px 16px;padding:0 20px;overflow-x:auto;overflow-y:visible}
+.settings-tab{padding:12px 14px 11px;font-size:12.5px;line-height:1.2;font-weight:500;color:${T.textDim};cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .12s;background:none;border-left:none;border-right:none;border-top:none;white-space:nowrap}
 .settings-tab:hover{color:${T.text}}
 .settings-tab.on{color:${T.text};font-weight:600;border-bottom-color:${T.ink}}
 .settings-field-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid ${T.border}}
