@@ -11,8 +11,9 @@ const AUTH_STYLES = `
   display:grid;
   grid-template-columns:minmax(280px, 0.95fr) minmax(420px, 0.9fr);
   background:
-    radial-gradient(circle at 18% 16%, rgba(210,200,186,0.52), transparent 26%),
-    radial-gradient(circle at 78% 22%, rgba(118,104,97,0.12), transparent 20%),
+    radial-gradient(circle at 14% 12%, rgba(255,137,51,0.18), transparent 24%),
+    radial-gradient(circle at 78% 16%, rgba(132,199,255,0.18), transparent 20%),
+    radial-gradient(circle at 62% 72%, rgba(219,155,255,0.12), transparent 22%),
     linear-gradient(180deg, #f8f4ed 0%, #f1ece2 100%);
   color:#181714;
 }
@@ -47,13 +48,14 @@ const AUTH_STYLES = `
   width:38px;
   height:38px;
   border-radius:50%;
-  background:#181714;
-  color:#fbfaf6;
+  background:linear-gradient(135deg, #111111 0%, #ff7a00 30%, #f0b24d 52%, #d99bff 76%, #82c7ff 100%);
+  color:#181714;
   display:flex;
   align-items:center;
   justify-content:center;
-  font:600 11px/1 "JetBrains Mono", monospace;
+  font:700 11px/1 "JetBrains Mono", monospace;
   letter-spacing:0.12em;
+  box-shadow:0 10px 30px rgba(24,23,20,0.14);
 }
 
 .auth-mark-copy strong{
@@ -84,9 +86,9 @@ const AUTH_STYLES = `
   padding:8px 12px;
   border:1px solid rgba(24,23,20,0.08);
   border-radius:999px;
-  background:rgba(251,250,246,0.62);
-  color:#5e584f;
-  font:500 11px/1 "JetBrains Mono", monospace;
+  background:rgba(251,250,246,0.78);
+  color:#4d463d;
+  font:600 11px/1 "JetBrains Mono", monospace;
   letter-spacing:0.1em;
   text-transform:uppercase;
 }
@@ -95,13 +97,15 @@ const AUTH_STYLES = `
   width:6px;
   height:6px;
   border-radius:50%;
-  background:#5e6659;
+  background:linear-gradient(135deg, #ff7a00, #82c7ff);
 }
 
 .auth-title{
   margin-top:22px;
-  font:600 clamp(42px, 6vw, 72px)/0.95 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.05em;
+  max-width:10ch;
+  font:800 clamp(48px, 6vw, 78px)/0.92 "Bricolage Grotesque", sans-serif;
+  letter-spacing:-0.065em;
+  color:#111111;
 }
 
 .auth-body{
@@ -121,16 +125,31 @@ const AUTH_STYLES = `
 .auth-metric{
   min-width:132px;
   padding:14px 16px;
-  border:1px solid rgba(24,23,20,0.08);
+  border:1px solid rgba(24,23,20,0.1);
   border-radius:18px;
-  background:rgba(251,250,246,0.7);
+  background:linear-gradient(180deg, rgba(255,255,255,0.84), rgba(251,250,246,0.76));
   backdrop-filter:blur(12px);
+  box-shadow:0 10px 24px rgba(24,23,20,0.05);
+  position:relative;
+  overflow:hidden;
+}
+
+.auth-metric::before{
+  content:"";
+  position:absolute;
+  left:14px;
+  right:14px;
+  top:0;
+  height:3px;
+  border-radius:999px;
+  background:linear-gradient(90deg, rgba(255,122,0,0.82), rgba(240,178,77,0.7), rgba(217,155,255,0.62), rgba(130,199,255,0.7));
 }
 
 .auth-metric strong{
   display:block;
-  font:600 22px/1 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.04em;
+  font:800 25px/0.96 "Bricolage Grotesque", sans-serif;
+  letter-spacing:-0.05em;
+  color:#111111;
 }
 
 .auth-metric span{
@@ -164,7 +183,9 @@ const AUTH_STYLES = `
   inset:28px;
   border-radius:30px;
   background:
-    linear-gradient(135deg, rgba(251,250,246,0.7), rgba(240,234,225,0.68)),
+    linear-gradient(135deg, rgba(255,255,255,0.7), rgba(240,234,225,0.72)),
+    radial-gradient(circle at 16% 12%, rgba(255,122,0,0.14), transparent 24%),
+    radial-gradient(circle at 88% 14%, rgba(130,199,255,0.18), transparent 22%),
     repeating-linear-gradient(-45deg, rgba(24,23,20,0.02) 0, rgba(24,23,20,0.02) 10px, transparent 10px, transparent 20px);
   border:1px solid rgba(24,23,20,0.06);
   box-shadow:0 24px 80px rgba(24,23,20,0.08);
@@ -174,6 +195,17 @@ const AUTH_STYLES = `
   position:relative;
   z-index:1;
   width:min(100%, 460px);
+}
+
+.auth-card-wrap::before{
+  content:"";
+  position:absolute;
+  inset:-16px;
+  border-radius:32px;
+  background:linear-gradient(135deg, rgba(255,122,0,0.12), rgba(240,178,77,0.08), rgba(217,155,255,0.08), rgba(130,199,255,0.12));
+  filter:blur(18px);
+  z-index:-1;
+  pointer-events:none;
 }
 
 @media (max-width: 980px){
@@ -219,7 +251,7 @@ const AUTH_STYLES = `
 
 const signInAppearance = {
   variables: {
-    colorPrimary: "#181714",
+    colorPrimary: "#FF7A00",
     colorText: "#181714",
     colorTextSecondary: "#5E584F",
     colorBackground: "#FBFAF6",
@@ -234,18 +266,19 @@ const signInAppearance = {
     },
     cardBox: {
       width: "100%",
-      boxShadow: "0 22px 70px rgba(24,23,20,0.10)",
-      border: "1px solid rgba(24,23,20,0.08)",
+      boxShadow: "0 22px 70px rgba(24,23,20,0.12)",
+      border: "1px solid rgba(24,23,20,0.10)",
       background: "rgba(251,250,246,0.96)",
       backdropFilter: "blur(16px)",
       borderRadius: "26px",
     },
     headerTitle: {
       fontFamily: '"Bricolage Grotesque", sans-serif',
-      fontSize: "36px",
-      lineHeight: "1",
-      letterSpacing: "-0.05em",
-      fontWeight: "600",
+      fontSize: "40px",
+      lineHeight: "0.94",
+      letterSpacing: "-0.065em",
+      fontWeight: "800",
+      color: "#111111",
     },
     headerSubtitle: {
       fontSize: "14px",
@@ -255,11 +288,11 @@ const signInAppearance = {
     socialButtonsBlockButton: {
       minHeight: "52px",
       borderRadius: "999px",
-      border: "1px solid rgba(24,23,20,0.08)",
-      boxShadow: "none",
-      background: "#FBFAF6",
+      border: "1px solid rgba(24,23,20,0.12)",
+      boxShadow: "0 8px 20px rgba(24,23,20,0.05)",
+      background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,241,232,0.96))",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "700",
       transition: "background 120ms ease, border-color 120ms ease, transform 120ms ease",
     },
     socialButtonsBlockButtonText: {
@@ -301,10 +334,11 @@ const signInAppearance = {
     formButtonPrimary: {
       minHeight: "52px",
       borderRadius: "999px",
-      background: "#181714",
-      boxShadow: "none",
+      background: "linear-gradient(135deg, #FF7A00 0%, #F0B24D 28%, #D99BFF 68%, #82C7FF 100%)",
+      boxShadow: "0 14px 28px rgba(229,106,11,0.2)",
       fontSize: "14px",
-      fontWeight: "600",
+      fontWeight: "800",
+      color: "#111111",
       transition: "transform 120ms ease, opacity 120ms ease",
     },
     footer: {
