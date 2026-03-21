@@ -1389,7 +1389,7 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
         </div>
       ) : (
         <img src={data.url} alt="" draggable="false"
-          style={{display:'block',width:'100%',height:'100%',objectFit:'cover',borderRadius:4,pointerEvents:'none'}}
+          style={{display:'block',width:'100%',height:'100%',objectFit:'contain',borderRadius:4,pointerEvents:'none'}}
           onLoad={(e)=>{
             if (!data.width || !data.height) {
               const fitted = fitMediaBox(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight);
@@ -1521,23 +1521,32 @@ function StoryDesigner({ row, onClose, onSave }) {
     const isGif  = file.type === "image/gif";
     const isVid  = !isGif && file.type.startsWith("video/");
     const mType  = isGif ? 'gif' : isVid ? 'video' : 'image';
-    const el     = {
-      id:uid(),
-      type:"image",
-      url,
-      x:56,
-      y:140,
-      scale:1,
-      width: 160,
-      height: isVid ? 90 : 120,
-      locked:false,
-      mediaType: mType,
-      loop:true,
-      muted:true,
-      autoPlay:true,
-      trimLabel: file.name.split('.').pop().toUpperCase(),
+    const makeEl = (w, h) => {
+      const el = {
+        id:uid(),
+        type:"image",
+        url,
+        x:56,
+        y:140,
+        scale:1,
+        width: w,
+        height: h,
+        locked:false,
+        mediaType: mType,
+        loop:true,
+        muted:true,
+        autoPlay:true,
+        trimLabel: file.name.split('.').pop().toUpperCase(),
+      };
+      setElements(els => [...els, el]); setSelectedId(el.id);
     };
-    setElements(els => [...els, el]); setSelectedId(el.id);
+    if (!isVid) {
+      const img = new Image();
+      img.onload = () => { const fitted = fitMediaBox(img.naturalWidth, img.naturalHeight); makeEl(fitted.width, fitted.height); };
+      img.src = url;
+    } else {
+      makeEl(160, 90);
+    }
   };
 
   const setBg = (file) => {
