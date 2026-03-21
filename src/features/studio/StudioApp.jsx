@@ -1269,7 +1269,7 @@ function Composer({ row, onClose, onPosted, postNow }) {
 const BRAND_COLORS = ["#111318","#7C3AED","#F59E0B","#0A66C2","#BE185D","#FFFFFF","#F7F8FA","#10B981","#E5E7EB"];
 const FONTS = ["Bricolage Grotesque","JetBrains Mono"];
 
-function fitMediaBox(width, height, maxWidth = 180, maxHeight = 220) {
+function fitMediaBox(width, height, maxWidth = 260, maxHeight = 460) {
   if (!width || !height) {
     return { width: 140, height: 140 };
   }
@@ -1377,10 +1377,8 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
             autoPlay={data.autoPlay!==false} loop={data.loop!==false}
             muted={data.muted!==false} playsInline draggable={false}
             onLoadedMetadata={(e)=>{
-              if (!data.width || !data.height) {
-                const fitted = fitMediaBox(e.currentTarget.videoWidth, e.currentTarget.videoHeight);
-                onUpdate(fitted);
-              }
+              const fitted = fitMediaBox(e.currentTarget.videoWidth, e.currentTarget.videoHeight);
+              if (fitted.width !== data.width || fitted.height !== data.height) onUpdate(fitted);
             }}/>
           <div className="video-badge">{data.trimLabel||'VID'}</div>
           <button className="mute-toggle" onClick={e=>{e.stopPropagation();onUpdate({muted:!data.muted});}}>
@@ -1389,12 +1387,10 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
         </div>
       ) : (
         <img src={data.url} alt="" draggable="false"
-          style={{display:'block',width:'100%',height:'100%',objectFit:'contain',borderRadius:4,pointerEvents:'none'}}
+          style={{display:'block',width:'100%',height:'100%',borderRadius:4,pointerEvents:'none'}}
           onLoad={(e)=>{
-            if (!data.width || !data.height) {
-              const fitted = fitMediaBox(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight);
-              onUpdate(fitted);
-            }
+            const fitted = fitMediaBox(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight);
+            if (fitted.width !== data.width || fitted.height !== data.height) onUpdate(fitted);
           }}/>
       )}
       {isSelected && (
