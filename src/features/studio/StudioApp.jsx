@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useAuth, useUser } from "@clerk/react";
 
 import { SaveStatusBadge } from "../../components/SaveStatusBadge.jsx";
@@ -904,7 +905,7 @@ function DateTimePicker({ isoValue, onChange, onClose, anchorRef }) {
   const isSel = (d) => d && d===selDay && viewMonth===selMonth && viewYear===selYear;
   const isToday = (d) => d && todayPT.getDate()===d && todayPT.getMonth()===viewMonth && todayPT.getFullYear()===viewYear;
 
-  return (
+  return createPortal(
     <div ref={popRef} className="dt-popup" style={{ position:"fixed", top:pos.top, left:pos.left }}>
       <div className="cal-nav">
         <button className="cal-nav-btn" onClick={prevMonth}>‹</button>
@@ -930,7 +931,8 @@ function DateTimePicker({ isoValue, onChange, onClose, anchorRef }) {
         <span className="tz-badge">PT</span>
       </div>
       <button className="dt-apply" onClick={apply}>Apply</button>
-    </div>
+    </div>,
+    document.body
   );
 }
 
