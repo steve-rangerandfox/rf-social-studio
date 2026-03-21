@@ -487,6 +487,46 @@ button.stat{font:inherit;text-align:left}
 .stage-char{font-family:'JetBrains Mono',monospace;font-size:10px;color:#7E776C}
 .stage-char.warn{color:#D97706}.stage-char.over{color:#D93025}
 
+/* Multi-image grid */
+.media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.media-grid-item{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#E8E1D7}
+.media-grid-item img{width:100%;height:100%;object-fit:cover}
+.media-grid-item .media-rm{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.55);border:none;color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.12s;line-height:1}
+.media-grid-item:hover .media-rm{opacity:1}
+.media-add-btn{aspect-ratio:1;border-radius:10px;border:1.5px dashed rgba(24,23,20,0.18);background:rgba(245,240,232,0.72);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:all 0.12s;font-size:18px;color:${T.textDim}}
+.media-add-btn:hover{border-color:${T.ink};background:rgba(24,23,20,0.045)}
+
+/* LinkedIn Preview */
+.li-card{background:#FFFFFF;font-family:-apple-system,system-ui,sans-serif}
+.li-header{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
+.li-avatar{width:44px;height:44px;border-radius:50%;background:#111318;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;letter-spacing:1px;flex-shrink:0;font-family:'JetBrains Mono',monospace}
+.li-header-info{display:flex;flex-direction:column;gap:0}
+.li-name{font-size:14px;font-weight:600;color:#000}
+.li-meta{font-size:12px;color:#666}
+.li-caption{padding:10px 16px;font-size:14px;color:#191919;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.li-more{background:none;border:none;color:#666;font-size:14px;cursor:pointer;padding:0;margin-left:4px;font-weight:600}
+.li-more:hover{color:#0A66C2;text-decoration:underline}
+.li-images{display:grid;gap:2px;max-height:400px;overflow:hidden}
+.li-images-1{grid-template-columns:1fr}
+.li-images-1 .li-img-cell{max-height:400px}
+.li-images-2{grid-template-columns:1fr 1fr}
+.li-images-3{grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr}
+.li-images-3 .li-img-0{grid-row:1/3}
+.li-images-4{grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr 1fr}
+.li-images-4 .li-img-0{grid-row:1/4}
+.li-images-5{grid-template-columns:1fr 1fr;grid-template-rows:2fr 1fr 1fr}
+.li-images-5 .li-img-0{grid-column:1/3;grid-row:1/2}
+.li-img-cell{position:relative;overflow:hidden;min-height:0}
+.li-img-cell img{width:100%;height:100%;object-fit:cover;display:block}
+.li-img-more{position:absolute;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px;font-weight:700}
+.li-engagement{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid #E8E8E8}
+.li-reactions{display:flex;align-items:center;gap:2px}
+.li-react-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;border:1.5px solid #fff}
+.li-react-count{font-size:12px;color:#666;margin-left:4px}
+.li-stats{font-size:12px;color:#666}
+.li-actions{display:flex;justify-content:space-around;padding:4px 8px}
+.li-action-btn{background:none;border:none;padding:10px 8px;font-size:13px;font-weight:600;color:#666;cursor:default;border-radius:4px;transition:background 0.1s}
+
 /* AI panel in stage */
 .stage-ai{background:rgba(24,23,20,0.04);border:1px solid rgba(24,23,20,0.08);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .stage-ai-header{display:flex;align-items:center;justify-content:space-between}
@@ -1052,6 +1092,78 @@ function AIWriter({ platform, note, onAccept }) {
   );
 }
 
+// ─── LINKEDIN PREVIEW ─────────────────────────────────────────────
+function LinkedInPreview({ caption, mediaUrls, onClose }) {
+  const truncLen = 150;
+  const [expanded, setExpanded] = useState(false);
+  const needsTrunc = caption && caption.length > truncLen;
+  const displayCaption = expanded || !needsTrunc ? caption : caption.slice(0, truncLen) + "…";
+  const imgCount = mediaUrls.length;
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" style={{width:520,maxWidth:"94vw"}} onClick={e=>e.stopPropagation()}>
+        <div className="m-head">
+          <div className="m-title">LinkedIn Preview</div>
+          <button className="m-x" onClick={onClose}>×</button>
+        </div>
+        <div className="m-body" style={{padding:0}}>
+          <div className="li-card">
+            {/* Header */}
+            <div className="li-header">
+              <div className="li-avatar">RF</div>
+              <div className="li-header-info">
+                <div className="li-name">Ranger & Fox</div>
+                <div className="li-meta">4,218 followers · 1h</div>
+              </div>
+            </div>
+            {/* Caption */}
+            {caption && (
+              <div className="li-caption">
+                {displayCaption.split("\n").map((line,i) => <span key={i}>{i>0&&<br/>}{line}</span>)}
+                {needsTrunc && !expanded && (
+                  <button className="li-more" onClick={e=>{e.stopPropagation();setExpanded(true);}}>see more</button>
+                )}
+              </div>
+            )}
+            {/* Images */}
+            {imgCount > 0 && (
+              <div className={`li-images li-images-${Math.min(imgCount, 5)}`}>
+                {mediaUrls.slice(0, 5).map((url, i) => (
+                  <div key={i} className={`li-img-cell li-img-${i}`}>
+                    <img src={url} alt="" />
+                    {i === 4 && imgCount > 5 && (
+                      <div className="li-img-more">+{imgCount - 5}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Engagement bar */}
+            <div className="li-engagement">
+              <div className="li-reactions">
+                <span className="li-react-icon" style={{background:"#0A66C2"}}>👍</span>
+                <span className="li-react-icon" style={{background:"#DF704D",marginLeft:-4}}>❤️</span>
+                <span className="li-react-count">24</span>
+              </div>
+              <span className="li-stats">3 comments · 2 reposts</span>
+            </div>
+            <div className="li-actions">
+              <button className="li-action-btn">👍 Like</button>
+              <button className="li-action-btn">💬 Comment</button>
+              <button className="li-action-btn">↻ Repost</button>
+              <button className="li-action-btn">✉ Send</button>
+            </div>
+          </div>
+        </div>
+        <div className="m-foot">
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── CAPTION EDITOR (modal) ───────────────────────────────────────
 function CaptionEditor({ value, onChange, platform, note }) {
   const [mq, setMq] = useState(null); const [res, setRes] = useState([]);
@@ -1178,17 +1290,39 @@ function Composer({ row, onClose, onPosted, postNow }) {
   const publishApiUrl = import.meta.env.VITE_PUBLISH_API_URL || "";
   const [plat,    setPlat]    = useState(row?.platform==="ig_story"?"ig_post":row?.platform||"ig_post");
   const [caption, setCaption] = useState(row?.caption||"");
-  const [file,    setFile]    = useState(null);
-  const [fileUrl, setFileUrl] = useState(null);
+  const [files,   setFiles]   = useState([]);
+  const [fileUrls,setFileUrls]= useState([]);
   const [drag,    setDrag]    = useState(false);
   const [st,      setSt]      = useState(postNow?"posting":"idle");
   const [errMsg,  setErrMsg]  = useState("");
+  const [showPreview, setShowPreview] = useState(false);
   const fRef = useRef(null);
   const p = PLATFORMS[plat];
+  const isLI = plat === "linkedin";
+  const maxFiles = isLI ? 9 : 1;
 
   const schedDisp = row?.scheduledAt ? toPTDisplay(row.scheduledAt) : null;
 
-  const handleFile = (f) => { if(!f)return; setFile(f); if(f.type.startsWith("image/"))setFileUrl(URL.createObjectURL(f)); };
+  const addFiles = (newFiles) => {
+    if (!newFiles || newFiles.length === 0) return;
+    const incoming = Array.from(newFiles);
+    if (!isLI) {
+      // Single file for IG
+      const f = incoming[0];
+      setFiles([f]);
+      setFileUrls(f.type.startsWith("image/") ? [URL.createObjectURL(f)] : []);
+      return;
+    }
+    const remaining = maxFiles - files.length;
+    const toAdd = incoming.slice(0, remaining);
+    setFiles(prev => [...prev, ...toAdd]);
+    setFileUrls(prev => [...prev, ...toAdd.filter(f => f.type.startsWith("image/")).map(f => URL.createObjectURL(f))]);
+  };
+
+  const removeFile = (idx) => {
+    setFiles(prev => prev.filter((_, i) => i !== idx));
+    setFileUrls(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const doPost = useCallback(async () => {
     setSt("posting"); setErrMsg("");
@@ -1196,12 +1330,12 @@ function Composer({ row, onClose, onPosted, postNow }) {
       if (!publishApiUrl) {
         throw new Error("Publishing is not configured yet. Add VITE_PUBLISH_API_URL when the server-side publish endpoint is ready.");
       }
-      const res = await fetch(publishApiUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({platform:plat,caption,mediaUrl:fileUrl})});
+      const res = await fetch(publishApiUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({platform:plat,caption,mediaUrls:fileUrls})});
       const data = await res.json();
       if(!data.success) throw new Error(data.error||"Unknown error");
       setSt("done"); onPosted?.();
     } catch(err){ setSt("error"); setErrMsg(err.message); }
-  }, [caption, fileUrl, onPosted, plat, publishApiUrl]);
+  }, [caption, fileUrls, onPosted, plat, publishApiUrl]);
 
   // If postNow, fire immediately on mount
   useEffect(() => { if(postNow) doPost(); }, [doPost, postNow]);
@@ -1227,15 +1361,37 @@ function Composer({ row, onClose, onPosted, postNow }) {
               </div>
             </div>
             <div className="field">
-              <div className="lbl">Media</div>
-              {file ? (
-                <div><div className="fp"><span style={{fontSize:17}}>{file.type.startsWith("image")?"img":"vid"}</span><span className="fn">{file.name}</span><button className="frm" onClick={()=>{setFile(null);setFileUrl(null);}}>✕</button></div>{fileUrl&&<img src={fileUrl} className="ip" alt=""/>}</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div className="lbl">Media{isLI && files.length > 0 ? ` (${files.length}/${maxFiles})` : ""}</div>
+                {isLI && fileUrls.length > 0 && (
+                  <button className="btn btn-ghost" style={{padding:"3px 10px",fontSize:11}} onClick={()=>setShowPreview(true)}>Preview</button>
+                )}
+              </div>
+              {files.length > 0 ? (
+                isLI ? (
+                  <div className="media-grid">
+                    {fileUrls.map((url, i) => (
+                      <div key={i} className="media-grid-item">
+                        <img src={url} alt="" />
+                        <button className="media-rm" onClick={() => removeFile(i)}>✕</button>
+                      </div>
+                    ))}
+                    {files.length < maxFiles && (
+                      <div className="media-add-btn" onClick={() => fRef.current?.click()}>
+                        <span>+</span>
+                        <span style={{fontSize:9,fontFamily:"'JetBrains Mono',monospace"}}>Add</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div><div className="fp"><span style={{fontSize:17}}>{files[0].type.startsWith("image")?"img":"vid"}</span><span className="fn">{files[0].name}</span><button className="frm" onClick={()=>{setFiles([]);setFileUrls([]);}}>✕</button></div>{fileUrls[0]&&<img src={fileUrls[0]} className="ip" alt=""/>}</div>
+                )
               ) : (
-                <div className={`upload ${drag?"drag":""}`} onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0])}} onClick={()=>fRef.current?.click()}>
-                  <input ref={fRef} type="file" accept="image/*,video/*,image/gif" onChange={e=>handleFile(e.target.files?.[0])}/>
+                <div className={`upload ${drag?"drag":""}`} onDragOver={e=>{e.preventDefault();setDrag(true)}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);addFiles(e.dataTransfer.files)}} onClick={()=>fRef.current?.click()}>
+                  <input ref={fRef} type="file" accept="image/*,video/*,image/gif" multiple={isLI} onChange={e=>{addFiles(e.target.files);e.target.value="";}}/>
                   <div style={{fontSize:22,opacity:0.35,marginBottom:7}}>↑</div>
-                  <div style={{fontSize:13,color:T.textSub}}>Drop file or click to browse</div>
-                  <div style={{fontSize:11,color:T.textDim,marginTop:3,fontFamily:"'JetBrains Mono',monospace"}}>JPG · PNG · GIF · MP4 · MOV</div>
+                  <div style={{fontSize:13,color:T.textSub}}>Drop {isLI ? "files" : "file"} or click to browse</div>
+                  <div style={{fontSize:11,color:T.textDim,marginTop:3,fontFamily:"'JetBrains Mono',monospace"}}>{isLI ? "Up to 9 images · JPG · PNG" : "JPG · PNG · GIF · MP4 · MOV"}</div>
                 </div>
               )}
             </div>
@@ -1260,6 +1416,7 @@ function Composer({ row, onClose, onPosted, postNow }) {
           {st==="error"&&<button className="btn btn-primary" onClick={doPost}>Retry</button>}
         </div>
       </div>
+      {showPreview && <LinkedInPreview caption={caption} mediaUrls={fileUrls} onClose={()=>setShowPreview(false)} />}
     </div>
   );
 }
@@ -2001,10 +2158,12 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [showAI, setShowAI] = useState(false);
-  const [, setMediaFile]  = useState(null);
-  const [mediaUrl,   setMediaUrl]   = useState(null);
+  const [mediaUrls,  setMediaUrls]  = useState([]);
+  const [showLIPreview, setShowLIPreview] = useState(false);
   const storyElements = row.storyElements || makeDefaultElements(row.note);
   const mediaRef = useRef(null);
+  const isLI = row.platform === "linkedin";
+  const maxFiles = isLI ? 9 : 1;
   const titleInputRef = useRef(null);
   const menuRef = useRef(null);
   const approvalRef = useRef(null);
@@ -2013,7 +2172,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   const max    = row.platform==="linkedin"?3000:2200;
   const capLen = (row.caption||"").length;
   const over   = capLen>max, warn = capLen>max*0.88;
-  const checks = getReadinessChecks(row, !!mediaUrl);
+  const checks = getReadinessChecks(row, mediaUrls.length > 0);
   const readyCount = checks.filter((check) => check.pass).length;
   const updatedLabel = formatRelativeStamp(row.updatedAt);
   useEffect(() => {
@@ -2045,6 +2204,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
   }, [isApprovalOpen]);
 
   return (
+    <>
     <div className={"row-container " + (isExpanded?"is-open":"")}>
       <div className={`t-row ${sel?"sel":""} ${dragHandlers.isDragging?"dragging":""} ${dragHandlers.isDragOver?"drag-over":""}`}
         onMouseEnter={dragHandlers.onMouseEnter}
@@ -2155,23 +2315,56 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
                   <StoryThumbnail elements={storyElements} onClick={onStory}/>
                 ) : (
                   <div>
-                    {mediaUrl ? (
-                      <div className="stage-thumb">
-                        <img src={mediaUrl} alt="" />
-                        <div className="stage-thumb-overlay">
-                          <button className="stage-thumb-btn" onClick={() => { setMediaFile(null); setMediaUrl(null); }}>Remove</button>
+                    <input ref={mediaRef} type="file" accept="image/*,video/*,image/gif" multiple={isLI} style={{display:"none"}}
+                      onChange={e=>{
+                        const picked = Array.from(e.target.files || []);
+                        if (!picked.length) return;
+                        if (isLI) {
+                          const remaining = maxFiles - mediaUrls.length;
+                          const urls = picked.slice(0, remaining).filter(f => f.type.startsWith("image/")).map(f => URL.createObjectURL(f));
+                          setMediaUrls(prev => [...prev, ...urls]);
+                        } else {
+                          const f = picked[0];
+                          if (f.type.startsWith("image/") || f.type.startsWith("video/")) setMediaUrls([URL.createObjectURL(f)]);
+                        }
+                        e.target.value = "";
+                      }}/>
+                    {mediaUrls.length > 0 ? (
+                      isLI ? (
+                        <div>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                            <span style={{fontSize:11,fontFamily:"'JetBrains Mono',monospace",color:T.textDim}}>{mediaUrls.length}/{maxFiles} images</span>
+                            <button className="btn btn-ghost" style={{padding:"3px 10px",fontSize:11}} onClick={()=>setShowLIPreview(true)}>Preview</button>
+                          </div>
+                          <div className="media-grid">
+                            {mediaUrls.map((url, i) => (
+                              <div key={i} className="media-grid-item">
+                                <img src={url} alt="" />
+                                <button className="media-rm" onClick={() => setMediaUrls(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                              </div>
+                            ))}
+                            {mediaUrls.length < maxFiles && (
+                              <div className="media-add-btn" onClick={() => mediaRef.current?.click()}>
+                                <span>+</span>
+                                <span style={{fontSize:9,fontFamily:"'JetBrains Mono',monospace"}}>Add</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="stage-thumb">
+                          <img src={mediaUrls[0]} alt="" />
+                          <div className="stage-thumb-overlay">
+                            <button className="stage-thumb-btn" onClick={() => setMediaUrls([])}>Remove</button>
+                          </div>
+                        </div>
+                      )
                     ) : (
-                      <>
-                        <input ref={mediaRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}}
-                          onChange={e=>{const f=e.target.files?.[0]; if(f){setMediaFile(f);const isImg=f.type.startsWith("image/");const isVid=f.type.startsWith("video/");if(isImg||isVid)setMediaUrl(URL.createObjectURL(f));} e.target.value="";}}/>
-                        <div className="stage-post-placeholder" onClick={()=>mediaRef.current?.click()}>
-                          <span style={{fontSize:22,opacity:0.22}}>↑</span>
-                          <span style={{fontSize:11.5,color:T.textSub,fontWeight:500}}>Attach media</span>
-                          <span style={{fontSize:10,color:T.textDim,fontFamily:"'JetBrains Mono',monospace"}}>JPG · PNG · GIF · MP4</span>
-                        </div>
-                      </>
+                      <div className="stage-post-placeholder" onClick={()=>mediaRef.current?.click()}>
+                        <span style={{fontSize:22,opacity:0.22}}>↑</span>
+                        <span style={{fontSize:11.5,color:T.textSub,fontWeight:500}}>Attach media</span>
+                        <span style={{fontSize:10,color:T.textDim,fontFamily:"'JetBrains Mono',monospace"}}>{isLI ? "Up to 9 images · JPG · PNG" : "JPG · PNG · GIF · MP4"}</span>
+                      </div>
                     )}
                   </div>
                 )}
@@ -2291,6 +2484,8 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
         </div>
       )}
     </div>
+    {showLIPreview && <LinkedInPreview caption={row.caption} mediaUrls={mediaUrls} onClose={()=>setShowLIPreview(false)} />}
+    </>
   );
 }
 // ─── TOAST ───────────────────────────────────────────────────────
