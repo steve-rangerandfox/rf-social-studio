@@ -3137,9 +3137,9 @@ export default function App() {
         {view==="list"&&(
           <div className="t-area">
             {timeScale==="month" && (
-              <div style={{margin:"0 0 14px",padding:"28px 28px 24px",borderRadius:20,background:"linear-gradient(135deg,rgba(245,238,226,0.9),rgba(238,228,212,0.8))",border:"1px solid rgba(24,23,20,0.06)"}}>
-                <div style={{fontSize:36,fontWeight:700,color:T.text,letterSpacing:"-0.03em",lineHeight:1}}>{MONTHS_FULL[month]}</div>
-                <div style={{fontSize:14,fontWeight:500,color:T.textSub,marginTop:6,letterSpacing:"0.02em"}}>{year}</div>
+              <div style={{margin:"0 0 14px",padding:"28px 28px 24px",borderRadius:20,background:"linear-gradient(135deg,#e8834a 0%,#7b68ee 50%,#4a90d9 100%)",border:"none",boxShadow:"0 8px 32px rgba(124,92,200,0.18)"}}>
+                <div style={{fontSize:36,fontWeight:700,color:"#fff",letterSpacing:"-0.03em",lineHeight:1}}>{MONTHS_FULL[month]}</div>
+                <div style={{fontSize:14,fontWeight:500,color:"rgba(255,255,255,0.75)",marginTop:6,letterSpacing:"0.02em"}}>{year}</div>
               </div>
             )}
             <div className="t-head">
