@@ -625,13 +625,13 @@ button.stat{font:inherit;text-align:left}
 .year-kpi-bar-fill{height:100%;border-radius:99px;transition:width .4s cubic-bezier(.4,0,.2,1)}
 
 .month-group{display:contents}
-.month-anchor-header{position:sticky;top:0;z-index:8;background:rgba(244,245,247,0.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(0,0,0,0.05);padding:10px 18px 9px;display:flex;align-items:baseline;gap:10px;will-change:backdrop-filter}
-.month-anchor-label{font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:700;letter-spacing:-.2px;color:${T.text}}
-.month-anchor-count{font-family:'Inter',sans-serif;font-size:11.5px;color:${T.textDim};font-weight:400}
+.month-anchor-header{position:sticky;top:0;z-index:8;background:linear-gradient(135deg,#e8834a 0%,#7b68ee 50%,#4a90d9 100%);border-bottom:none;padding:14px 18px 12px;display:flex;align-items:baseline;gap:10px;border-radius:14px;margin-bottom:8px;box-shadow:0 6px 24px rgba(124,92,200,0.14)}
+.month-anchor-label{font-family:'Bricolage Grotesque',sans-serif;font-size:15px;font-weight:700;letter-spacing:-.2px;color:#fff}
+.month-anchor-count{font-family:'Inter',sans-serif;font-size:11.5px;color:rgba(255,255,255,0.75);font-weight:500}
 .month-sparkline{display:flex;gap:2px;align-items:flex-end;height:16px;margin-left:auto}
-.month-spark-bar{width:5px;border-radius:1px;min-height:2px;background:#D1D5DB;transition:background .1s}
-.month-spark-bar.ig{background:#BE185D33}
-.month-spark-bar.li{background:#0A66C233}
+.month-spark-bar{width:5px;border-radius:1px;min-height:2px;background:rgba(255,255,255,0.35);transition:background .1s}
+.month-spark-bar.ig{background:rgba(255,255,255,0.7)}
+.month-spark-bar.li{background:rgba(255,255,255,0.5)}
 .month-spark-bar.fill{opacity:1}
 .month-empty{padding:24px 22px 20px;display:flex;align-items:center;gap:12px}
 .month-empty-text{font-size:12.5px;color:#9AA0AE;font-style:italic}
