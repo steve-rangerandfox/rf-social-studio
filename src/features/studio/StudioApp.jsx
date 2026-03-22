@@ -117,10 +117,10 @@ button.stat{font:inherit;text-align:left}
 
 /* TABLE */
 .t-area{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding:12px 18px 22px}
-.t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;height:48px;background:linear-gradient(180deg, rgba(245,240,232,0.98), rgba(243,238,229,0.98));position:sticky;top:0;z-index:10;align-items:center;backdrop-filter:blur(16px);border-bottom:1px solid rgba(24,23,20,0.08);box-shadow:0 10px 24px rgba(24,23,20,0.04)}
+.t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 44px;padding:0 18px;height:48px;background:linear-gradient(180deg, rgba(245,240,232,0.98), rgba(243,238,229,0.98));position:sticky;top:0;z-index:10;align-items:center;backdrop-filter:blur(16px);border-bottom:1px solid rgba(24,23,20,0.08);box-shadow:0 10px 24px rgba(24,23,20,0.04)}
 .th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;color:${T.textDim};text-transform:uppercase}
 .th.r{text-align:right}
-.t-row{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 114px 44px;padding:0 18px;min-height:78px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s,transform 0.12s;position:relative;background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(252,250,245,0.96));border:1px solid rgba(24,23,20,0.1);border-radius:18px;margin-bottom:10px;cursor:pointer}
+.t-row{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 44px;padding:0 18px;min-height:78px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s,transform 0.12s;position:relative;background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(252,250,245,0.96));border:1px solid rgba(24,23,20,0.1);border-radius:18px;margin-bottom:10px;cursor:pointer}
 .t-row:hover{background:${T.surface};border-color:rgba(24,23,20,0.18);box-shadow:0 16px 34px rgba(24,23,20,0.06);transform:translateY(-1px)}.t-row.sel{background:${T.surface};border-color:rgba(24,23,20,0.2)}
 .t-row.dragging{opacity:0.3}.t-row.drag-over::before{content:'';position:absolute;top:-5px;left:18px;right:18px;height:1px;background:${T.ink};border-radius:99px}
 .t-row .ra{display:flex;gap:6px;justify-content:flex-end;align-items:center}
@@ -2258,12 +2258,6 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
         <div onClick={(e)=>e.stopPropagation()}><button className="plat-pill" style={{background:p.bg,color:p.color}} onClick={nextP}><span className="pill-dot" style={{background:p.color}}/>{p.short}</button></div>
         <div onClick={(e)=>e.stopPropagation()}><button className="status-pill" onClick={nextS} title={`Next: ${STATUSES[s.next]?.label}`}><span className="s-dot" style={{background:s.dot}}/>{s.label}</button></div>
 
-        <div onClick={(e)=>e.stopPropagation()}>
-          <button className="assignee-pill" onClick={nextAssignee} style={{color:T.textDim,fontStyle:"italic"}}>
-            {assignee ? <><div className="av" style={{width:18,height:18,background:assignee.color+"22",color:assignee.color,fontSize:8,borderRadius:4}}>{assignee.initials}</div><span style={{fontSize:11}}>{assignee.name.split(" ")[0]}</span></> : <span style={{fontSize:11,color:T.textDim}}>Assign</span>}
-          </button>
-        </div>
-
         <div className="ra" onClick={(e)=>e.stopPropagation()}>
           {row.comments?.length > 0 && (
             <span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",padding:"2px 6px",background:T.s3,borderRadius:10,border:"1px solid "+T.border,color:T.textDim}}>{row.comments.length}</span>
@@ -2447,9 +2441,11 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
                   </div>
 
                   <div className="stage-mini-stack">
-                    <div className="stage-mini-row">
+                    <div className="stage-mini-row" onClick={nextAssignee} style={{cursor:"pointer"}}>
                       <span className="stage-mini-key">Owner</span>
-                      <span className="stage-mini-val">{assignee?.name || "Unassigned"}</span>
+                      <span className="stage-mini-val" style={{display:"inline-flex",alignItems:"center",gap:6}}>
+                        {assignee ? <><div className="av" style={{width:16,height:16,background:assignee.color+"22",color:assignee.color,fontSize:7,borderRadius:4,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{assignee.initials}</div>{assignee.name}</> : "Unassigned"}
+                      </span>
                     </div>
                     <div className="stage-mini-row">
                       <span className="stage-mini-key">Updated</span>
@@ -3140,6 +3136,12 @@ export default function App() {
         {/* LIST VIEW */}
         {view==="list"&&(
           <div className="t-area">
+            {timeScale==="month" && (
+              <div style={{margin:"0 0 14px",padding:"28px 28px 24px",borderRadius:20,background:"linear-gradient(135deg,rgba(245,238,226,0.9),rgba(238,228,212,0.8))",border:"1px solid rgba(24,23,20,0.06)"}}>
+                <div style={{fontSize:36,fontWeight:700,color:T.text,letterSpacing:"-0.03em",lineHeight:1}}>{MONTHS_FULL[month]}</div>
+                <div style={{fontSize:14,fontWeight:500,color:T.textSub,marginTop:6,letterSpacing:"0.02em"}}>{year}</div>
+              </div>
+            )}
             <div className="t-head">
               <div className="th"><input type="checkbox" className="cb" checked={sel.size===sorted.length&&sorted.length>0} onChange={e=>toggleAll(e.target.checked)}/></div>
               <div className="th"/>
@@ -3148,7 +3150,6 @@ export default function App() {
               <div className="th"/>
               <div className="th">Platform</div>
               <div className="th">Status</div>
-              <div className="th">Assignee</div>
               <div className="th"/>
             </div>
 
