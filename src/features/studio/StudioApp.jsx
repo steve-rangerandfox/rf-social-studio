@@ -424,6 +424,10 @@ button.stat{font:inherit;text-align:left}
 .handle-ne{top:-4px;right:-4px;cursor:nesw-resize}
 .handle-sw{bottom:-4px;left:-4px;cursor:nesw-resize}
 .handle-se{bottom:-4px;right:-4px;cursor:nwse-resize}
+.handle-n{top:-4px;left:50%;transform:translateX(-50%);cursor:ns-resize}
+.handle-s{bottom:-4px;left:50%;transform:translateX(-50%);cursor:ns-resize}
+.handle-e{right:-4px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+.handle-w{left:-4px;top:50%;transform:translateY(-50%);cursor:ew-resize}
 .s-slider{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:${T.s3};outline:none;cursor:pointer;margin:4px 0 10px}
 .s-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:${T.ink};cursor:pointer;border:2px solid ${T.surface};box-shadow:0 1px 4px rgba(24,23,20,0.25)}
 .layers-stack{display:flex;flex-direction:column;gap:2px;max-height:130px;overflow-y:auto}
@@ -1491,6 +1495,25 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
     document.addEventListener('mouseup', onUp);
   };
 
+  const handleResizeBox = (side) => (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const startX = e.clientX;
+    const startW = data.boxWidth || 190;
+    const startElX = data.x;
+    const onMove = (mv) => {
+      const dx = mv.clientX - startX;
+      if (side === 'e') {
+        onUpdate({ boxWidth: Math.max(40, startW + dx) });
+      } else {
+        const newW = Math.max(40, startW - dx);
+        onUpdate({ boxWidth: newW, x: startElX + (startW - newW) });
+      }
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   // BG layer (locked image or video)
   if (data.locked) {
     const isVid = data.mediaType === 'video';
@@ -1526,7 +1549,8 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
           fontFamily: `'${data.fontFamily}', sans-serif`,
           letterSpacing: data.letterSpacing || 0,
           fontWeight: data.fontWeight || 600,
-          lineHeight: 1.25, whiteSpace: 'pre-wrap', maxWidth: 190,
+          lineHeight: 1.25, whiteSpace: 'pre-wrap',
+          width: data.boxWidth || 190,
           textShadow: data.shadow ? '0 2px 12px rgba(0,0,0,0.8)' : undefined,
           textRendering: 'optimizeLegibility', pointerEvents: 'none',
         }}>
@@ -1561,6 +1585,10 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
           <div className="handle handle-ne" onMouseDown={handleResize}/>
           <div className="handle handle-sw" onMouseDown={handleResize}/>
           <div className="handle handle-se" onMouseDown={handleResize}/>
+          {data.type === 'text' && <>
+            <div className="handle handle-e" onMouseDown={handleResizeBox('e')}/>
+            <div className="handle handle-w" onMouseDown={handleResizeBox('w')}/>
+          </>}
         </>
       )}
     </div>
@@ -1593,7 +1621,7 @@ function StoryThumbnail({ elements, onClick }) {
             fontWeight: el.fontWeight || 600,
             letterSpacing: (el.letterSpacing || 0) * SCALE,
             textShadow: el.shadow ? '0 1px 4px rgba(0,0,0,.8)' : undefined,
-            maxWidth: 190 * SCALE,
+            width: (el.boxWidth || 190) * SCALE,
           }}>{el.content}</div>
         ))}
         {!bgEl?.url && <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
