@@ -6,6 +6,42 @@ import { ErrorBoundary } from "./ErrorBoundary.jsx";
 const AUTH_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&display=swap');
 
+@font-face {
+  font-family: 'Oakes Grotesk';
+  src: url('/fonts/OakesGrotesk-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Oakes Grotesk';
+  src: url('/fonts/OakesGrotesk-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Oakes Grotesk';
+  src: url('/fonts/OakesGrotesk-Semi-Bold.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Oakes Grotesk';
+  src: url('/fonts/OakesGrotesk-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Plaak Ney';
+  src: url('/fonts/Plaak - 56-Ney-Heavy-205TF.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 .auth-shell{
   min-height:100vh;
   display:grid;
