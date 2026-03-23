@@ -121,7 +121,7 @@ button.stat{font:inherit;text-align:left}
 .th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;color:${T.textDim};text-transform:uppercase}
 .th.r{text-align:right}
 .t-row{display:grid;grid-template-columns:32px 20px 140px minmax(240px,1fr) 56px 44px 136px 44px;padding:0 18px;min-height:78px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s,transform 0.12s;position:relative;background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(252,250,245,0.96));border:1px solid rgba(24,23,20,0.1);border-radius:18px;margin-bottom:10px;cursor:pointer}
-.t-row:hover{background:${T.surface};border-color:rgba(24,23,20,0.18);box-shadow:0 16px 34px rgba(24,23,20,0.06);transform:translateY(-1px)}.t-row.sel{background:${T.surface};border-color:rgba(24,23,20,0.2)}
+.t-row:hover{background:${T.surface};border-color:rgba(24,23,20,0.14)}.t-row.sel{background:${T.surface};border-color:rgba(24,23,20,0.2)}
 .t-row.dragging{opacity:0.3}.t-row.drag-over::before{content:'';position:absolute;top:-5px;left:18px;right:18px;height:1px;background:${T.ink};border-radius:99px}
 .t-row .ra{display:flex;gap:6px;justify-content:flex-end;align-items:center}
 .drag-handle{color:rgba(94,88,79,0.38);cursor:grab;font-size:14px;display:flex;align-items:center;padding:0 2px;user-select:none}
@@ -129,7 +129,7 @@ button.stat{font:inherit;text-align:left}
 
 /* DATETIME CELL */
 .dt-cell{display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 8px;border-radius:14px;transition:background 0.12s,border-color 0.12s,transform 0.12s;border:1px solid transparent;min-width:0}
-.dt-cell:hover{background:rgba(24,23,20,0.06);border-color:rgba(24,23,20,0.12);transform:translateY(-1px)}
+.dt-cell:hover{background:rgba(24,23,20,0.04);border-color:rgba(24,23,20,0.10)}
 .dt-badge{width:48px;min-width:48px;height:52px;border-radius:16px;background:linear-gradient(180deg,rgba(24,23,20,0.06),rgba(24,23,20,0.02));border:1px solid rgba(24,23,20,0.12);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,0.45)}
 .dt-badge-month{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;color:${T.textDim};line-height:1;letter-spacing:.12em;text-transform:uppercase}
 .dt-badge-day{margin-top:6px;font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:600;color:${T.text};line-height:.9;letter-spacing:-.05em}
