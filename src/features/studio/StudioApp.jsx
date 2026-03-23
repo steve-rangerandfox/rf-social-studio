@@ -117,10 +117,10 @@ button.stat{font:inherit;text-align:left}
 
 /* TABLE */
 .t-area{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding:12px 18px 22px}
-.t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 44px;padding:0 18px;height:48px;background:linear-gradient(180deg, rgba(245,240,232,0.98), rgba(243,238,229,0.98));position:sticky;top:0;z-index:10;align-items:center;backdrop-filter:blur(16px);border-bottom:1px solid rgba(24,23,20,0.08);box-shadow:0 10px 24px rgba(24,23,20,0.04)}
+.t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 44px 136px 44px;padding:0 18px;height:48px;background:linear-gradient(180deg, rgba(245,240,232,0.98), rgba(243,238,229,0.98));position:sticky;top:0;z-index:10;align-items:center;backdrop-filter:blur(16px);border-bottom:1px solid rgba(24,23,20,0.08);box-shadow:0 10px 24px rgba(24,23,20,0.04)}
 .th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;color:${T.textDim};text-transform:uppercase}
 .th.r{text-align:right}
-.t-row{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 116px 136px 44px;padding:0 18px;min-height:78px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s,transform 0.12s;position:relative;background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(252,250,245,0.96));border:1px solid rgba(24,23,20,0.1);border-radius:18px;margin-bottom:10px;cursor:pointer}
+.t-row{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 44px 136px 44px;padding:0 18px;min-height:78px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s,transform 0.12s;position:relative;background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(252,250,245,0.96));border:1px solid rgba(24,23,20,0.1);border-radius:18px;margin-bottom:10px;cursor:pointer}
 .t-row:hover{background:${T.surface};border-color:rgba(24,23,20,0.18);box-shadow:0 16px 34px rgba(24,23,20,0.06);transform:translateY(-1px)}.t-row.sel{background:${T.surface};border-color:rgba(24,23,20,0.2)}
 .t-row.dragging{opacity:0.3}.t-row.drag-over::before{content:'';position:absolute;top:-5px;left:18px;right:18px;height:1px;background:${T.ink};border-radius:99px}
 .t-row .ra{display:flex;gap:6px;justify-content:flex-end;align-items:center}
@@ -206,7 +206,7 @@ button.stat{font:inherit;text-align:left}
 .note-display:hover{color:${T.ink}}
 
 /* PILLS */
-.plat-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer;border:none;outline:none;letter-spacing:.08em;text-transform:uppercase;transition:background .12s,color .12s}
+.plat-pill{display:inline-flex;align-items:center;justify-content:center;padding:6px;border-radius:999px;cursor:pointer;border:none;outline:none;transition:background .12s,color .12s}
 .plat-pill:hover{background:rgba(24,23,20,0.06)}
 .pill-dot{width:4px;height:4px;border-radius:50%;flex-shrink:0;opacity:.75}
 .status-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 0;border-radius:0;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:${T.textSub};transition:color .1s;white-space:nowrap;letter-spacing:0}
@@ -866,7 +866,7 @@ button.stat{font:inherit;text-align:left}
   .sidebar{display:none}
   .topbar{padding:0 16px;height:auto;min-height:72px;flex-wrap:wrap;align-content:center;padding-top:12px;padding-bottom:12px}
   .stats,.ops-toolbar,.t-area,.analytics-area,.ig-grid-area,.cal-area{padding-left:14px;padding-right:14px}
-  .t-head,.t-row{grid-template-columns:28px 16px 120px minmax(168px,1fr) 80px 100px 120px 96px 36px;padding:0 12px}
+  .t-head,.t-row{grid-template-columns:28px 16px 120px minmax(168px,1fr) 80px 40px 120px 96px 36px;padding:0 12px}
   .ops-group{width:100%}
   .ops-menu{flex:1}
   .ops-trigger{width:100%;min-width:0}
@@ -2073,6 +2073,25 @@ function YearlyKPISummary({ rows, year }) {
   );
 }
 
+// ─── PLATFORM ICON ────────────────────────────────────────────────
+function PlatformIcon({ platform, size = 14, color = "currentColor" }) {
+  if (platform === "linkedin") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={{display:"block"}}>
+        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+      </svg>
+    );
+  }
+  // Instagram (ig_post, ig_story)
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:"block"}}>
+      <rect x="2" y="2" width="20" height="20" rx="5"/>
+      <circle cx="12" cy="12" r="5"/>
+      <circle cx="17.5" cy="6.5" r="1.5" fill={color} stroke="none"/>
+    </svg>
+  );
+}
+
 // ─── MONTH MINI-MAP ───────────────────────────────────────────────
 const MONTH_INITIALS = ['J','F','M','A','M','J','J','A','S','O','N','D'];
 
@@ -2255,7 +2274,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
           )}
         </div>
 
-        <div onClick={(e)=>e.stopPropagation()}><button className="plat-pill" style={{background:p.bg,color:p.color}} onClick={nextP}><span className="pill-dot" style={{background:p.color}}/>{p.short}</button></div>
+        <div onClick={(e)=>e.stopPropagation()}><button className="plat-pill" style={{background:p.bg,color:p.color}} onClick={nextP} title={p.label}><PlatformIcon platform={row.platform} size={14} color={p.color}/></button></div>
         <div onClick={(e)=>e.stopPropagation()}><button className="status-pill" onClick={nextS} title={`Next: ${STATUSES[s.next]?.label}`}><span className="s-dot" style={{background:s.dot}}/>{s.label}</button></div>
 
         <div className="ra" onClick={(e)=>e.stopPropagation()}>
@@ -2893,7 +2912,13 @@ export default function App() {
   const jumpToMonth = (mi) => {
     if (timeScale === "year") {
       const el = monthRefs.current[mi];
-      if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+      if (el) {
+        const container = el.closest('.t-area');
+        if (container) {
+          const offset = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+          container.scrollTo({ top: offset, behavior: 'smooth' });
+        }
+      }
     } else {
       setMonth(mi);
     }
