@@ -53,6 +53,11 @@ import {
 // ─── STYLES ───────────────────────────────────────────────────────
 const G = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&display=swap');
+@font-face{font-family:'Oakes Grotesk';src:url('/fonts/OakesGrotesk-Light.otf') format('opentype');font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:'Oakes Grotesk';src:url('/fonts/OakesGrotesk-Regular.otf') format('opentype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Oakes Grotesk';src:url('/fonts/OakesGrotesk-Semi-Bold.otf') format('opentype');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Oakes Grotesk';src:url('/fonts/OakesGrotesk-Bold.otf') format('opentype');font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Plaak Ney';src:url('/fonts/Plaak - 56-Ney-Heavy-205TF.otf') format('opentype');font-weight:900;font-style:normal;font-display:swap}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:${T.bg};color:${T.text};font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-feature-settings:'cv02','cv03','cv04','cv11';line-height:1.5}
 body{letter-spacing:-0.01em;background:
@@ -1607,6 +1612,8 @@ function StoryThumbnail({ elements, onClick }) {
 const BRAND_FONTS = [
   { name:"Bricolage Grotesque", label:"Bricolage",  group:"brand" },
   { name:"JetBrains Mono",      label:"Mono",       group:"brand" },
+  { name:"Oakes Grotesk",       label:"Oakes",      group:"brand" },
+  { name:"Plaak Ney",           label:"Plaak",      group:"brand" },
 ];
 const SYS_FONTS   = [
   { name:"Georgia",      label:"Georgia",      group:"system" },
