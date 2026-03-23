@@ -2074,20 +2074,32 @@ function YearlyKPISummary({ rows, year }) {
 }
 
 // ─── PLATFORM ICON ────────────────────────────────────────────────
-function PlatformIcon({ platform, size = 14, color = "currentColor" }) {
+function PlatformIcon({ platform, size = 16 }) {
   if (platform === "linkedin") {
     return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={{display:"block"}}>
-        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+      <svg width={size} height={size} viewBox="0 0 24 24" style={{display:"block"}}>
+        <rect width="24" height="24" rx="4" fill="#0A66C2"/>
+        <path d="M7.5 10v7h-2v-7h2zm-1-3.2a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4zM9.5 10h1.9v1h.03c.27-.5 1-1.1 2.07-1.1 2.2 0 2.6 1.45 2.6 3.34V17h-2v-3.4c0-.8-.01-1.85-1.13-1.85-1.13 0-1.3.88-1.3 1.8V17h-2v-7z" fill="#fff"/>
       </svg>
     );
   }
   // Instagram (ig_post, ig_story)
+  const id = "ig-grad-" + size;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:"block"}}>
-      <rect x="2" y="2" width="20" height="20" rx="5"/>
-      <circle cx="12" cy="12" r="5"/>
-      <circle cx="17.5" cy="6.5" r="1.5" fill={color} stroke="none"/>
+    <svg width={size} height={size} viewBox="0 0 24 24" style={{display:"block"}}>
+      <defs>
+        <radialGradient id={id} cx="30%" cy="107%" r="150%">
+          <stop offset="0%" stopColor="#fdf497"/>
+          <stop offset="5%" stopColor="#fdf497"/>
+          <stop offset="45%" stopColor="#fd5949"/>
+          <stop offset="60%" stopColor="#d6249f"/>
+          <stop offset="90%" stopColor="#285AEB"/>
+        </radialGradient>
+      </defs>
+      <rect width="24" height="24" rx="6" fill={`url(#${id})`}/>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" stroke="#fff" strokeWidth="1.5" fill="none"/>
+      <circle cx="12" cy="12" r="3.8" stroke="#fff" strokeWidth="1.5" fill="none"/>
+      <circle cx="17" cy="7" r="1.1" fill="#fff"/>
     </svg>
   );
 }
@@ -2275,7 +2287,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
           )}
         </div>
 
-        <div onClick={(e)=>e.stopPropagation()}><button className="plat-pill" style={{background:p.bg,color:p.color}} onClick={nextP} title={p.label}><PlatformIcon platform={row.platform} size={14} color={p.color}/></button></div>
+        <div onClick={(e)=>e.stopPropagation()}><button className="plat-pill" onClick={nextP} title={p.label}><PlatformIcon platform={row.platform} size={18}/></button></div>
         <div onClick={(e)=>e.stopPropagation()}><button className="status-pill" onClick={nextS} title={`Next: ${STATUSES[s.next]?.label}`}><span className="s-dot" style={{background:s.dot}}/>{s.label}</button></div>
 
         <div className="ra" onClick={(e)=>e.stopPropagation()}>
@@ -3174,7 +3186,7 @@ export default function App() {
               <div className="th">Date / Time PT</div>
               <div className="th">Title</div>
               <div className="th"/>
-              <div className="th">Platform</div>
+              <div className="th"/>
               <div className="th">Status</div>
               <div className="th"/>
             </div>
