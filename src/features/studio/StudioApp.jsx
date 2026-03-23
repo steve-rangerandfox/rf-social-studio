@@ -410,6 +410,7 @@ button.stat{font:inherit;text-align:left}
 .canvas-zoom-bar{display:flex;align-items:center;gap:8px;align-self:flex-start;background:rgba(251,250,246,0.85);border:1px solid ${T.border};border-radius:999px;padding:4px 10px}
 .zoom-btn{background:transparent;border:none;color:${T.textSub};font-size:14px;cursor:pointer;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background 0.1s;line-height:1;font-weight:400}
 .zoom-btn:hover{background:${T.s3};color:${T.text}}
+.zoom-btn.snap-active{background:rgba(0,165,114,0.15);color:${T.mint}}
 .zoom-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:${T.textDim};letter-spacing:.5px;min-width:32px;text-align:center}
 .canvas-wrap{position:relative;border-radius:18px;box-shadow:0 24px 80px rgba(24,23,20,0.2),0 0 0 1px rgba(24,23,20,0.08);flex-shrink:0;transition:transform 0.2s cubic-bezier(0.4,0,0.2,1)}
 .canvas{width:290px;height:515px;border-radius:18px;position:relative;overflow:hidden;background:#080A0E;flex-shrink:0;cursor:crosshair}
@@ -1431,6 +1432,44 @@ function Composer({ row, onClose, onPosted, postNow }) {
 }
 
 // ─── STORY DESIGNER ───────────────────────────────────────────────
+// ─── SNAP ALIGNMENT ENGINE ───────────────────────────────────────
+const CANVAS_W = 290, CANVAS_H = 515, SNAP_THRESH = 4;
+
+function computeSnap(el, siblings) {
+  const w = el.type === 'text' ? (el.boxWidth || 190) : ((el.width || 140) * (el.scale || 1));
+  const h = el.type === 'text' ? 40 : ((el.height || 140) * (el.scale || 1)); // approximate text height
+  const cx = el.x + w / 2, cy = el.y + h / 2;
+  const r = el.x + w, b = el.y + h;
+  let guides = [], snapX = null, snapY = null;
+
+  // Snap to canvas center
+  const canvasCx = CANVAS_W / 2, canvasCy = CANVAS_H / 2;
+  if (Math.abs(cx - canvasCx) < SNAP_THRESH) { snapX = canvasCx - w / 2; guides.push({ axis:'x', pos: canvasCx }); }
+  if (Math.abs(cy - canvasCy) < SNAP_THRESH) { snapY = canvasCy - h / 2; guides.push({ axis:'y', pos: canvasCy }); }
+
+  // Snap to sibling edges and centers
+  for (const sib of siblings) {
+    if (sib.id === el.id || sib.locked) continue;
+    const sw = sib.type === 'text' ? (sib.boxWidth || 190) : ((sib.width || 140) * (sib.scale || 1));
+    const sh = sib.type === 'text' ? 40 : ((sib.height || 140) * (sib.scale || 1));
+    const scx = sib.x + sw / 2, scy = sib.y + sh / 2;
+    const sr = sib.x + sw, sb = sib.y + sh;
+    // Horizontal center align
+    if (snapX === null && Math.abs(cx - scx) < SNAP_THRESH) { snapX = scx - w / 2; guides.push({ axis:'x', pos: scx }); }
+    // Left edge align
+    if (snapX === null && Math.abs(el.x - sib.x) < SNAP_THRESH) { snapX = sib.x; guides.push({ axis:'x', pos: sib.x }); }
+    // Right edge align
+    if (snapX === null && Math.abs(r - sr) < SNAP_THRESH) { snapX = sr - w; guides.push({ axis:'x', pos: sr }); }
+    // Vertical center align
+    if (snapY === null && Math.abs(cy - scy) < SNAP_THRESH) { snapY = scy - h / 2; guides.push({ axis:'y', pos: scy }); }
+    // Top edge align
+    if (snapY === null && Math.abs(el.y - sib.y) < SNAP_THRESH) { snapY = sib.y; guides.push({ axis:'y', pos: sib.y }); }
+    // Bottom edge align
+    if (snapY === null && Math.abs(b - sb) < SNAP_THRESH) { snapY = sb - h; guides.push({ axis:'y', pos: sb }); }
+  }
+  return { x: snapX, y: snapY, guides };
+}
+
 // ─── CANVAS ELEMENT ──────────────────────────────────────────────
 const BRAND_COLORS = ["#111318","#7C3AED","#F59E0B","#0A66C2","#BE185D","#FFFFFF","#F7F8FA","#10B981","#E5E7EB"];
 const FONTS = ["Bricolage Grotesque","JetBrains Mono"];
@@ -1447,7 +1486,7 @@ function fitMediaBox(width, height, maxWidth = 260, maxHeight = 460) {
   };
 }
 
-function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
+function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, siblings, onGuides }) {
   const videoRef = useRef(null);
   const [muted, setMuted] = useState(true);
   const isVideo = data.mediaType === 'video';
@@ -1472,8 +1511,21 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
     e.preventDefault(); e.stopPropagation();
     onSelect();
     const sx = e.clientX - data.x, sy = e.clientY - data.y;
-    const onMove = (mv) => onUpdate({ x: mv.clientX - sx, y: mv.clientY - sy });
-    const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    const onMove = (mv) => {
+      let nx = mv.clientX - sx, ny = mv.clientY - sy;
+      if (snapEnabled && siblings) {
+        const snap = computeSnap({ ...data, x: nx, y: ny }, siblings);
+        if (snap.x !== null) nx = snap.x;
+        if (snap.y !== null) ny = snap.y;
+        if (onGuides) onGuides(snap.guides);
+      }
+      onUpdate({ x: nx, y: ny });
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      if (onGuides) onGuides([]);
+    };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   };
@@ -1596,33 +1648,61 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate }) {
 }
 
 // ─── STORY THUMBNAIL ─────────────────────────────────────────────
-const SCALE = 232 / 1080; // canvas preview scale factor
+// Canvas design space: 290×515. Thumbnail uses percentage positioning so it
+// scales correctly regardless of the thumbnail's rendered size.
+const CW = 290, CH = 515;
 
 function StoryThumbnail({ elements, onClick }) {
   const bgEl  = elements.find(e => e.locked);
   const isVid = bgEl?.mediaType === 'video';
   const videoRef = useRef(null);
+  const thumbRef = useRef(null);
+  const [tw, setTw] = useState(100); // thumbnail rendered width for font scaling
+
+  useEffect(() => {
+    if (!thumbRef.current) return;
+    const ro = new ResizeObserver(([entry]) => setTw(entry.contentRect.width));
+    ro.observe(thumbRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const s = tw / CW; // scale factor: thumb px per canvas px
 
   const handleEnter = () => { if (videoRef.current) videoRef.current.play().catch(()=>{}); };
   const handleLeave = () => { if (videoRef.current) { videoRef.current.pause(); videoRef.current.currentTime = 0; } };
 
   return (
     <div className="story-thumb-container" onClick={onClick} onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
-      <div className="story-thumb-preview">
+      <div className="story-thumb-preview" ref={thumbRef}>
         {bgEl?.url && bgEl.mediaType !== 'video' && <img src={bgEl.url} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} alt=""/>}
         {bgEl?.url && isVid  && <video ref={videoRef} src={bgEl.url} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} loop muted playsInline/>}
         {bgEl?.url && <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,.28) 100%)',pointerEvents:'none'}}/>}
         {elements.filter(e => !e.locked && e.type === 'text').map(el => (
           <div key={el.id} className="thumb-el" style={{
-            left: el.x * SCALE, top: el.y * SCALE,
-            fontSize: (el.fontSize || 14) * SCALE,
+            left: `${(el.x / CW) * 100}%`,
+            top: `${(el.y / CH) * 100}%`,
+            fontSize: (el.fontSize || 14) * s,
             color: el.color || '#fff',
             fontFamily: `'${el.fontFamily || 'Bricolage Grotesque'}', sans-serif`,
             fontWeight: el.fontWeight || 600,
-            letterSpacing: (el.letterSpacing || 0) * SCALE,
+            letterSpacing: (el.letterSpacing || 0) * s,
             textShadow: el.shadow ? '0 1px 4px rgba(0,0,0,.8)' : undefined,
-            width: (el.boxWidth || 190) * SCALE,
+            width: `${((el.boxWidth || 190) / CW) * 100}%`,
           }}>{el.content}</div>
+        ))}
+        {elements.filter(e => !e.locked && e.type === 'image' && e.url).map(el => (
+          <div key={el.id} style={{
+            position:'absolute',
+            left: `${(el.x / CW) * 100}%`,
+            top: `${(el.y / CH) * 100}%`,
+            width: ((el.width || 140) * (el.scale || 1) / CW * 100) + '%',
+            height: ((el.height || 140) * (el.scale || 1) / CH * 100) + '%',
+            pointerEvents:'none',
+          }}>
+            {el.mediaType === 'video'
+              ? <video src={el.url} style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:2}} muted playsInline loop/>
+              : <img src={el.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:2}}/>}
+          </div>
         ))}
         {!bgEl?.url && <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
           <span style={{fontSize:18,opacity:.2,color:'#fff'}}></span>
@@ -1690,6 +1770,8 @@ function StoryDesigner({ row, onClose, onSave }) {
   const [defaultId,   setDefaultId]   = useState(_defaultTmplId);
   const [tmplName,    setTmplName]    = useState("");
   const [showTmplSave,setShowTmplSave]= useState(false);
+  const [snapOn,      setSnapOn]      = useState(true);
+  const [guides,      setGuides]      = useState([]);
   const bgFileRef  = useRef(null);
   const imgFileRef = useRef(null);
   const vidFileRef = useRef(null);
@@ -1697,6 +1779,23 @@ function StoryDesigner({ row, onClose, onSave }) {
   const selected  = elements.find(el => el.id === selectedId);
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
   const deleteEl  = (id) => { setElements(els => els.filter(e => e.id !== id)); setSelectedId(null); };
+
+  // Arrow-key nudge (1px, or 10px with Shift)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!selectedId) return;
+      const sel = elements.find(el => el.id === selectedId);
+      if (!sel || sel.locked) return;
+      const arrows = { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0] };
+      const dir = arrows[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      updateEl(selectedId, { x: sel.x + dir[0] * step, y: sel.y + dir[1] * step });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedId, elements]);
 
   const addText = () => {
     const el = { id:uid(), type:"text", content:"New text", x:40, y:180, fontSize:18, fontFamily:"Bricolage Grotesque", color:"#FFFFFF", letterSpacing:0, fontWeight:600, shadow:false };
@@ -2046,6 +2145,7 @@ function StoryDesigner({ row, onClose, onSave }) {
                 1080 × 1920 · 9:16
               </div>
               <div className="canvas-zoom-bar">
+                <button className={"zoom-btn"+(snapOn?" snap-active":"")} onClick={()=>setSnapOn(s=>!s)} title="Toggle snap alignment" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}>⊞ Snap</button>
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.max(0.4,parseFloat((z-0.1).toFixed(1))))} title="Zoom out">−</button>
                 <span className="zoom-label">{Math.round(zoom*100)}%</span>
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.min(2.0,parseFloat((z+0.1).toFixed(1))))} title="Zoom in">+</button>
@@ -2061,8 +2161,13 @@ function StoryDesigner({ row, onClose, onSave }) {
                 <div className="canvas-ov" style={{background:"linear-gradient(to top,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,0.28) 100%)"}}/>
                 {elements.filter(e=>!e.locked).map(el=>(
                   <CanvasElement key={el.id} data={el} isSelected={selectedId===el.id}
-                    onSelect={()=>setSelectedId(el.id)} onUpdate={p=>updateEl(el.id,p)}/>
+                    onSelect={()=>setSelectedId(el.id)} onUpdate={p=>updateEl(el.id,p)}
+                    snapEnabled={snapOn} siblings={elements} onGuides={setGuides}/>
                 ))}
+                {guides.map((g,i) => g.axis === 'x'
+                  ? <div key={i} style={{position:'absolute',left:g.pos,top:0,width:1,height:'100%',background:'rgba(0,165,114,0.6)',pointerEvents:'none',zIndex:40}}/>
+                  : <div key={i} style={{position:'absolute',top:g.pos,left:0,height:1,width:'100%',background:'rgba(0,165,114,0.6)',pointerEvents:'none',zIndex:40}}/>
+                )}
                 <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",pointerEvents:"none",zIndex:50}}>R&F</div>
               </div>
             </div>

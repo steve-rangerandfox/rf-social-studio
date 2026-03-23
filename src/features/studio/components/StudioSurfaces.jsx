@@ -981,7 +981,7 @@ function IGCell({ post, index, onOpen, isQueued }) {
                 letterSpacing:el.letterSpacing||0,
                 lineHeight:1.25,
                 whiteSpace:"pre-wrap",
-                maxWidth:200,
+                width:el.boxWidth||190,
                 textShadow:el.shadow?"0 2px 12px rgba(0,0,0,0.8)":undefined,
                 pointerEvents:"none",
               }}>{el.content}</div>
