@@ -117,10 +117,10 @@ button.stat{font:inherit;text-align:left}
 
 /* TABLE */
 .t-area{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding:12px 18px 22px}
-.t-head{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 44px 136px 44px;padding:0 18px;height:48px;background:linear-gradient(180deg, rgba(245,240,232,0.98), rgba(243,238,229,0.98));position:sticky;top:0;z-index:10;align-items:center;backdrop-filter:blur(16px);border-bottom:1px solid rgba(24,23,20,0.08);box-shadow:0 10px 24px rgba(24,23,20,0.04)}
+.t-head{display:grid;grid-template-columns:32px 20px 120px minmax(240px,1fr) 56px 44px 136px 44px;padding:0 18px;height:48px;background:linear-gradient(180deg, rgba(245,240,232,0.98), rgba(243,238,229,0.98));position:sticky;top:0;z-index:10;align-items:center;backdrop-filter:blur(16px);border-bottom:1px solid rgba(24,23,20,0.08);box-shadow:0 10px 24px rgba(24,23,20,0.04)}
 .th{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.12em;color:${T.textDim};text-transform:uppercase}
 .th.r{text-align:right}
-.t-row{display:grid;grid-template-columns:32px 20px 168px minmax(240px,1fr) 86px 44px 136px 44px;padding:0 18px;min-height:78px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s,transform 0.12s;position:relative;background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(252,250,245,0.96));border:1px solid rgba(24,23,20,0.1);border-radius:18px;margin-bottom:10px;cursor:pointer}
+.t-row{display:grid;grid-template-columns:32px 20px 120px minmax(240px,1fr) 56px 44px 136px 44px;padding:0 18px;min-height:78px;align-items:center;transition:background 0.12s,border-color 0.12s,box-shadow 0.12s,transform 0.12s;position:relative;background:linear-gradient(180deg,rgba(255,255,255,0.72),rgba(252,250,245,0.96));border:1px solid rgba(24,23,20,0.1);border-radius:18px;margin-bottom:10px;cursor:pointer}
 .t-row:hover{background:${T.surface};border-color:rgba(24,23,20,0.18);box-shadow:0 16px 34px rgba(24,23,20,0.06);transform:translateY(-1px)}.t-row.sel{background:${T.surface};border-color:rgba(24,23,20,0.2)}
 .t-row.dragging{opacity:0.3}.t-row.drag-over::before{content:'';position:absolute;top:-5px;left:18px;right:18px;height:1px;background:${T.ink};border-radius:99px}
 .t-row .ra{display:flex;gap:6px;justify-content:flex-end;align-items:center}
@@ -574,7 +574,7 @@ button.stat{font:inherit;text-align:left}
 .row-menu-trigger:hover{background:rgba(24,23,20,0.05);border-color:rgba(24,23,20,0.14);color:${T.text}}
 .row-menu-dots{display:flex;flex-direction:column;gap:3px}
 .row-menu-dots span{width:3px;height:3px;border-radius:50%;background:currentColor}
-.row-menu-popover{position:absolute;top:calc(100% + 8px);right:0;min-width:140px;padding:8px;background:rgba(251,250,246,0.98);border:1px solid rgba(24,23,20,0.08);border-radius:14px;box-shadow:0 18px 50px rgba(24,23,20,0.12);z-index:35}
+.row-menu-popover{position:absolute;top:calc(100% + 8px);right:0;min-width:140px;padding:8px;background:rgba(251,250,246,0.98);border:1px solid rgba(24,23,20,0.08);border-radius:14px;box-shadow:0 18px 50px rgba(24,23,20,0.12);z-index:100}
 .row-menu-option{width:100%;padding:9px 10px;border:none;background:transparent;border-radius:10px;color:${T.textSub};font-size:12px;font-weight:500;text-align:left;cursor:pointer}
 .row-menu-option:hover{background:rgba(24,23,20,0.04);color:${T.text}}
 
@@ -866,7 +866,7 @@ button.stat{font:inherit;text-align:left}
   .sidebar{display:none}
   .topbar{padding:0 16px;height:auto;min-height:72px;flex-wrap:wrap;align-content:center;padding-top:12px;padding-bottom:12px}
   .stats,.ops-toolbar,.t-area,.analytics-area,.ig-grid-area,.cal-area{padding-left:14px;padding-right:14px}
-  .t-head,.t-row{grid-template-columns:28px 16px 120px minmax(168px,1fr) 80px 40px 120px 96px 36px;padding:0 12px}
+  .t-head,.t-row{grid-template-columns:28px 16px 96px minmax(168px,1fr) 48px 40px 120px 96px 36px;padding:0 12px}
   .ops-group{width:100%}
   .ops-menu{flex:1}
   .ops-trigger{width:100%;min-width:0}
@@ -2226,6 +2226,7 @@ function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandler
     <>
     <div className={"row-container " + (isExpanded?"is-open":"")}>
       <div className={`t-row ${sel?"sel":""} ${dragHandlers.isDragging?"dragging":""} ${dragHandlers.isDragOver?"drag-over":""}`}
+        style={isMenuOpen ? {zIndex:20} : undefined}
         onMouseEnter={dragHandlers.onMouseEnter}
         onClick={() => { if (!isEditingTitle) setIsExpanded((current) => !current); }}>
         <div style={{display:"flex",alignItems:"center"}} onClick={(e)=>e.stopPropagation()}><input type="checkbox" className="cb" checked={sel} onChange={e=>onSel(e.target.checked)}/></div>
