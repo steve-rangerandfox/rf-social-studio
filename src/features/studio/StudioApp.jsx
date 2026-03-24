@@ -614,7 +614,7 @@ button.stat{font:inherit;text-align:left}
 
 /* ─── STORY THUMBNAIL (stage well) ─── */
 .story-thumb-container{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
-.story-thumb-preview{width:100%;max-height:178px;border-radius:10px;background:#080A0E;position:relative;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.06);aspect-ratio:9/16}
+.story-thumb-preview{width:auto;height:178px;border-radius:10px;background:#080A0E;position:relative;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.06);aspect-ratio:9/16}
 .story-thumb-preview video{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
 .story-thumb-overlay{position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .18s;backdrop-filter:saturate(1.2) blur(2px)}
 .story-thumb-container:hover .story-thumb-overlay{opacity:1}
