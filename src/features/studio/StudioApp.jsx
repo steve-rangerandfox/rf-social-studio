@@ -1250,16 +1250,23 @@ function AddPostModal({ initialDate, onClose, onCreate }) {
           <div className="m-body">
             <div className="field">
               <div className="lbl">Channel</div>
-              <div style={{display:"flex",gap:6}}>
+              <div style={{display:"flex",gap:8}}>
                 {Object.entries(PLATFORMS).map(([key, pl]) => (
                   <button
                     key={key}
                     type="button"
-                    className={"qs-btn " + (platform===key?"active":"")}
-                    style={platform===key?{color:pl.color,borderColor:pl.color,background:pl.bg}:{}}
                     onClick={()=>setPlatform(key)}
+                    title={pl.label}
+                    style={{
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      width:40,height:40,borderRadius:10,border:"2px solid",cursor:"pointer",
+                      borderColor: platform===key ? pl.color : "transparent",
+                      background: platform===key ? pl.bg : "rgba(0,0,0,0.03)",
+                      opacity: platform===key ? 1 : 0.45,
+                      transition:"all .15s",
+                    }}
                   >
-                    {pl.label}
+                    <PlatformIcon platform={key} size={22}/>
                   </button>
                 ))}
               </div>
