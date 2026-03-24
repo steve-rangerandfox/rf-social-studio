@@ -1208,6 +1208,7 @@ function AddPostModal({ initialDate, onClose, onCreate }) {
   const titleRef = useRef(null);
   const safeDate = initialDate || nowPT();
   const [title, setTitle] = useState("");
+  const [platform, setPlatform] = useState("ig_post");
   const [dateValue, setDateValue] = useState(() => {
     const y = safeDate.getFullYear();
     const m = String(safeDate.getMonth() + 1).padStart(2, "0");
@@ -1222,6 +1223,7 @@ function AddPostModal({ initialDate, onClose, onCreate }) {
 
   const canCreate = title.trim() && dateValue && timeValue;
   const previewDate = dateValue && timeValue ? new Date(`${dateValue}T${timeValue}:00`) : null;
+  const platMeta = PLATFORMS[platform];
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -1230,6 +1232,7 @@ function AddPostModal({ initialDate, onClose, onCreate }) {
       title: title.trim(),
       dateValue,
       timeValue,
+      platform,
     });
   };
 
@@ -1245,10 +1248,21 @@ function AddPostModal({ initialDate, onClose, onCreate }) {
         </div>
         <form onSubmit={handleSubmit}>
           <div className="m-body">
-            <div className="add-post-intro">
-              <div className="add-post-kicker">New draft</div>
-              <div style={{fontSize:14,fontWeight:600,color:T.text}}>Starts as an Instagram post idea</div>
-              <div className="add-post-help">You can still change the channel, status, and caption once the row opens.</div>
+            <div className="field">
+              <div className="lbl">Channel</div>
+              <div style={{display:"flex",gap:6}}>
+                {Object.entries(PLATFORMS).map(([key, pl]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={"qs-btn " + (platform===key?"active":"")}
+                    style={platform===key?{color:pl.color,borderColor:pl.color,background:pl.bg}:{}}
+                    onClick={()=>setPlatform(key)}
+                  >
+                    {pl.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="field">
               <div className="lbl">Title</div>
@@ -1279,9 +1293,9 @@ function AddPostModal({ initialDate, onClose, onCreate }) {
                     : "Choose a date and time"}
                 </div>
               </div>
-              <div className="plat-pill" style={{background:"rgba(24,23,20,0.05)",color:T.text}}>
-                <span className="pill-dot" style={{background:T.orangeBright}} />
-                Instagram Post
+              <div className="plat-pill" style={{background:platMeta.bg,color:platMeta.color}}>
+                <span className="pill-dot" style={{background:platMeta.color}} />
+                {platMeta.label}
               </div>
             </div>
           </div>
@@ -3024,16 +3038,16 @@ export default function App() {
     }),
   }));
 
-  const createPostDraft = ({ title, dateValue, timeValue }) => {
+  const createPostDraft = ({ title, dateValue, timeValue, platform }) => {
     const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
     const [hour, minute] = timeValue.split(":").map(Number);
     const iso = ptPickerToISO(targetYear, targetMonth - 1, day, hour, minute);
     updateDocument(
       (current) => ({
         ...current,
-        rows: [...current.rows, createNewRow({ scheduledAt: iso, note: title }, currentUser, current.rows.length)],
+        rows: [...current.rows, createNewRow({ scheduledAt: iso, note: title, platform: platform || "ig_post" }, currentUser, current.rows.length)],
       }),
-      () => createAuditEntry("post.created", currentUser, "Created a new post draft", { scheduledAt: iso, title }),
+      () => createAuditEntry("post.created", currentUser, "Created a new post draft", { scheduledAt: iso, title, platform }),
     );
     setAddPostDraft(null);
   };
