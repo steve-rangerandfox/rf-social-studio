@@ -1486,8 +1486,9 @@ function fitMediaBox(width, height, maxWidth = 260, maxHeight = 460) {
   };
 }
 
-function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, siblings, onGuides }) {
+function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit }) {
   const videoRef = useRef(null);
+  const editRef = useRef(null);
   const [muted, setMuted] = useState(true);
   const isVideo = data.mediaType === 'video';
   const mediaScale = data.scale || 1;
@@ -1506,8 +1507,19 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, sibl
       : null),
   };
 
+  // Focus contentEditable when entering edit mode
+  useEffect(() => {
+    if (isEditing && editRef.current) {
+      editRef.current.focus();
+      // Place cursor at end
+      const sel = window.getSelection();
+      sel.selectAllChildren(editRef.current);
+      sel.collapseToEnd();
+    }
+  }, [isEditing]);
+
   const handleDrag = (e) => {
-    if (data.locked) return;
+    if (data.locked || isEditing) return;
     e.preventDefault(); e.stopPropagation();
     onSelect();
     const sx = e.clientX - data.x, sy = e.clientY - data.y;
@@ -1596,16 +1608,35 @@ function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, sibl
     >
       <div className="el-outline"/>
       {data.type === 'text' ? (
-        <div style={{
-          fontSize: data.fontSize, color: data.color,
-          fontFamily: `'${data.fontFamily}', sans-serif`,
-          letterSpacing: data.letterSpacing || 0,
-          fontWeight: data.fontWeight || 600,
-          lineHeight: 1.25, whiteSpace: 'pre-wrap',
-          width: data.boxWidth || 190,
-          textShadow: data.shadow ? '0 2px 12px rgba(0,0,0,0.8)' : undefined,
-          textRendering: 'optimizeLegibility', pointerEvents: 'none',
-        }}>
+        <div
+          ref={editRef}
+          contentEditable={isEditing}
+          suppressContentEditableWarning
+          onDoubleClick={(e) => { e.stopPropagation(); if (!isEditing) onStartEdit(); }}
+          onBlur={() => {
+            if (isEditing && editRef.current) {
+              onUpdate({ content: editRef.current.innerText });
+              onStopEdit();
+            }
+          }}
+          onKeyDown={(e) => {
+            if (!isEditing) return;
+            e.stopPropagation();
+            if (e.key === 'Escape') { editRef.current.blur(); }
+          }}
+          style={{
+            fontSize: data.fontSize, color: data.color,
+            fontFamily: `'${data.fontFamily}', sans-serif`,
+            letterSpacing: data.letterSpacing || 0,
+            fontWeight: data.fontWeight || 600,
+            lineHeight: 1.25, whiteSpace: 'pre-wrap',
+            width: data.boxWidth || 190,
+            textShadow: data.shadow ? '0 2px 12px rgba(0,0,0,0.8)' : undefined,
+            textRendering: 'optimizeLegibility',
+            pointerEvents: isEditing ? 'auto' : 'none',
+            outline: 'none', cursor: isEditing ? 'text' : 'default',
+          }}
+        >
           {data.content}
         </div>
       ) : isVideo ? (
@@ -1761,6 +1792,7 @@ function StoryDesigner({ row, onClose, onSave }) {
   useEffect(() => { if (onSave) onSave(elements); }, [elements, onSave]);
 
   const [selectedId,  setSelectedId]  = useState(null);
+  const [editingId,   setEditingId]   = useState(null);
   const [zoom,        setZoom]        = useState(1.5);
   const [postState,   setPostState]   = useState("idle");
   const [showCopilot, setShowCopilot] = useState(false);
@@ -1780,9 +1812,10 @@ function StoryDesigner({ row, onClose, onSave }) {
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
   const deleteEl  = (id) => { setElements(els => els.filter(e => e.id !== id)); setSelectedId(null); };
 
-  // Arrow-key nudge (1px, or 10px with Shift)
+  // Arrow-key nudge (1px, or 10px with Shift) — skip while inline editing
   useEffect(() => {
     const onKey = (e) => {
+      if (editingId) return;
       if (!selectedId) return;
       const sel = elements.find(el => el.id === selectedId);
       if (!sel || sel.locked) return;
@@ -1795,7 +1828,7 @@ function StoryDesigner({ row, onClose, onSave }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, elements]);
+  }, [selectedId, elements, editingId]);
 
   const addText = () => {
     const el = { id:uid(), type:"text", content:"New text", x:40, y:180, fontSize:18, fontFamily:"Bricolage Grotesque", color:"#FFFFFF", letterSpacing:0, fontWeight:600, shadow:false };
@@ -1885,11 +1918,12 @@ function StoryDesigner({ row, onClose, onSave }) {
 
   useEffect(() => {
     const h = (e) => {
+      if (editingId) return;
       if ((e.key==='Backspace'||e.key==='Delete') && selectedId && selected && !selected.locked && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA') deleteEl(selectedId);
       if (e.key==='Escape') setSelectedId(null);
     };
     window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h);
-  }, [selectedId,selected]);
+  }, [selectedId,selected,editingId]);
 
   const layersRev = [...elements].reverse();
 
@@ -1945,10 +1979,6 @@ function StoryDesigner({ row, onClose, onSave }) {
 
                 {selected.type==='text' && (
                   <>
-                    <div className="lbl" style={{marginBottom:4}}>Content</div>
-                    <textarea className="s-inp" style={{width:"100%",resize:"none",minHeight:60,marginBottom:10,fontSize:12.5}}
-                      value={selected.content} onChange={e=>updateEl(selectedId,{content:e.target.value})}/>
-
                     <div className="lbl" style={{marginBottom:4}}>Font</div>
                     <div className="font-section-header"><span className="font-verified">✓</span> Brand Fonts</div>
                     <div className="font-row">
@@ -2153,7 +2183,7 @@ function StoryDesigner({ row, onClose, onSave }) {
               </div>
             </div>
             <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top center"}}>
-              <div className="canvas" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedId(null);}}>
+              <div className="canvas" onMouseDown={e=>{if(e.target===e.currentTarget){setSelectedId(null);setEditingId(null);}}}>
                 {elements.filter(e=>e.locked).map(el=>(
                   <CanvasElement key={el.id} data={el} isSelected={selectedId===el.id}
                     onSelect={()=>setSelectedId(el.id)} onUpdate={p=>updateEl(el.id,p)}/>
@@ -2161,8 +2191,12 @@ function StoryDesigner({ row, onClose, onSave }) {
                 <div className="canvas-ov" style={{background:"linear-gradient(to top,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,0.28) 100%)"}}/>
                 {elements.filter(e=>!e.locked).map(el=>(
                   <CanvasElement key={el.id} data={el} isSelected={selectedId===el.id}
-                    onSelect={()=>setSelectedId(el.id)} onUpdate={p=>updateEl(el.id,p)}
-                    snapEnabled={snapOn} siblings={elements} onGuides={setGuides}/>
+                    onSelect={()=>{setSelectedId(el.id);if(editingId&&editingId!==el.id)setEditingId(null);}}
+                    onUpdate={p=>updateEl(el.id,p)}
+                    snapEnabled={snapOn} siblings={elements} onGuides={setGuides}
+                    isEditing={editingId===el.id}
+                    onStartEdit={()=>{setSelectedId(el.id);setEditingId(el.id);}}
+                    onStopEdit={()=>setEditingId(null)}/>
                 ))}
                 {guides.map((g,i) => g.axis === 'x'
                   ? <div key={i} style={{position:'absolute',left:g.pos,top:0,width:1,height:'100%',background:'rgba(0,165,114,0.6)',pointerEvents:'none',zIndex:40}}/>
