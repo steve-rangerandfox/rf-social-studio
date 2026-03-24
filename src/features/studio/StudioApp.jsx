@@ -1300,10 +1300,6 @@ function AddPostModal({ initialDate, onClose, onCreate }) {
                     : "Choose a date and time"}
                 </div>
               </div>
-              <div className="plat-pill" style={{background:platMeta.bg,color:platMeta.color}}>
-                <span className="pill-dot" style={{background:platMeta.color}} />
-                {platMeta.label}
-              </div>
             </div>
           </div>
           <div className="m-foot">
