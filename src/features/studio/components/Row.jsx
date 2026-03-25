@@ -15,6 +15,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, getAvailableTransitions, STATUS_ORDER } from "./StatusMachine.js";
+import { CheckCircle2 } from "lucide-react";
 
 // Lucide-style inline SVG icons (avoids a package dependency for now)
 function XIcon({ size = 14, color = "currentColor" }) {
@@ -60,7 +61,11 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
   const approvalRef = useRef(null);
   const statusDropdownRef = useRef(null);
 
-  const submitComment = () => { if (!commentText.trim()) return; onAddComment({ id: uid(), author: currentUser, text: commentText, ts: "just now" }); setCommentText(""); };
+  const submitComment = () => { if (!commentText.trim()) return; onAddComment({ id: uid(), author: currentUser, text: commentText, ts: new Date().toISOString() }); setCommentText(""); };
+  const toggleResolved = (commentId) => {
+    const updated = (row.comments || []).map(c => c.id === commentId ? { ...c, resolved: !c.resolved } : c);
+    onChange({ comments: updated });
+  };
   const max = row.platform === "linkedin" ? 3000 : 2200;
   const capLen = (row.caption || "").length;
   const over = capLen > max, warn = capLen > max * 0.88;
@@ -436,9 +441,12 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                     <div key={c.id} style={{ display: "flex", gap: 9, alignItems: "flex-start", marginBottom: 2 }}>
                       <div style={{ width: 22, height: 22, borderRadius: 7, background: m.color + "22", color: m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8.5, fontWeight: 700, flexShrink: 0 }}>{m.initials}</div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: T.text, marginBottom: 2 }}>{m.name} <span style={{ color: T.textDim, fontWeight: 400, fontFamily: "'JetBrains Mono',monospace", fontSize: 9 }}>{c.ts}</span></div>
-                        <div style={{ fontSize: 12.5, color: T.textSub, lineHeight: 1.55 }}>{c.text}</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: T.text, marginBottom: 2 }}>{m.name} <span style={{ color: T.textDim, fontWeight: 400, fontFamily: "'JetBrains Mono',monospace", fontSize: 9 }}>{formatRelativeStamp(c.ts)}</span></div>
+                        <div style={{ fontSize: 12.5, color: T.textSub, lineHeight: 1.55, opacity: c.resolved ? 0.45 : 1, textDecoration: c.resolved ? "line-through" : "none" }}>{c.text}</div>
                       </div>
+                      <button onClick={() => toggleResolved(c.id)} title={c.resolved ? "Unresolve" : "Resolve"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0, color: c.resolved ? "#5E6659" : T.textDim, opacity: c.resolved ? 1 : 0.5 }}>
+                        <CheckCircle2 size={15} />
+                      </button>
                     </div>
                   );
                 })}
@@ -546,9 +554,12 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
         <div className="thread" style={{ gridColumn: "1/-1" }}>
           {(row.comments || []).length === 0 && <div style={{ fontSize: 12, color: T.textDim }}>No comments yet</div>}
           {(row.comments || []).map(c => { const m = TEAM.find(t => t.id === c.author) || { initials: "?", color: T.textDim, name: "Unknown" }; return (
-            <div key={c.id} className="comment">
+            <div key={c.id} className="comment" style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
               <div className="comment-av" style={{ background: m.color + "22", color: m.color }}>{m.initials}</div>
-              <div><div className="comment-meta"><span className="comment-name">{m.name}</span><span className="comment-ts">{c.ts}</span></div><div className="comment-text">{c.text}</div></div>
+              <div style={{ flex: 1 }}><div className="comment-meta"><span className="comment-name">{m.name}</span><span className="comment-ts">{formatRelativeStamp(c.ts)}</span></div><div className="comment-text" style={{ opacity: c.resolved ? 0.45 : 1, textDecoration: c.resolved ? "line-through" : "none" }}>{c.text}</div></div>
+              <button onClick={() => toggleResolved(c.id)} title={c.resolved ? "Unresolve" : "Resolve"} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0, color: c.resolved ? "#5E6659" : T.textDim, opacity: c.resolved ? 1 : 0.5 }}>
+                <CheckCircle2 size={15} />
+              </button>
             </div>
           ); })}
           <div className="comment-input-row">

@@ -457,6 +457,34 @@ export default function App() {
     );
   }, [currentUser, sorted, updateDocument]);
 
+  // ─── Keyboard shortcuts ─────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyboard = (e) => {
+      // Don't trigger when typing in inputs
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.contentEditable === 'true') return;
+
+      // N = new post
+      if (e.key === 'n' || e.key === 'N') { e.preventDefault(); add(month); }
+      // / = focus search
+      if (e.key === '/') { e.preventDefault(); document.querySelector('.ops-search')?.focus(); }
+      // 1-4 = switch views
+      if (e.key === '1') { e.preventDefault(); setView('list'); }
+      if (e.key === '2') { e.preventDefault(); setView('calendar'); }
+      if (e.key === '3') { e.preventDefault(); setView('grid'); }
+      if (e.key === '4') { e.preventDefault(); setView('analytics'); }
+      // Escape = close modals
+      if (e.key === 'Escape') {
+        if (composer) setComposer(null);
+        else if (story) setStory(null);
+        else if (addPostDraft) setAddPostDraft(null);
+        else if (publishConfirm) setPublishConfirm(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyboard);
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [month, composer, story, addPostDraft, publishConfirm]);
+
   const makeDrag = (row,idx) => ({
     isDragging: draggingId===row.id,
     isDragOver: dragOverId===row.id && draggingId!==row.id,
