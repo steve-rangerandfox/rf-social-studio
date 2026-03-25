@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, ChevronDown, Type, ALargeSmall, Droplets } from "lucide-react";
+import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, AArrowUp } from "lucide-react";
 import { CanvasElement, computeSnap, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
@@ -23,17 +23,28 @@ const ALL_FONTS_GROUPED = () => {
   return [...brand, ...sys];
 };
 
+const GRADIENT_PRESETS = [
+  { id: "sunset", label: "Sunset", css: "linear-gradient(135deg, #FF7A00, #F0B24D)" },
+  { id: "ocean", label: "Ocean", css: "linear-gradient(135deg, #0EA5E9, #7C3AED)" },
+  { id: "rose", label: "Rose", css: "linear-gradient(135deg, #FB7185, #BE185D)" },
+  { id: "mint", label: "Mint", css: "linear-gradient(135deg, #10B981, #0EA5E9)" },
+  { id: "brand", label: "Brand", css: T.posterGrad },
+  { id: "gold", label: "Gold", css: "linear-gradient(135deg, #F0B24D, #FF7A00)" },
+];
+
 function TextInspector({ selected, selectedId, updateEl, customFonts, removeCustomFont, fontFileRef, handleFontUpload, fontInstalling, fontError }) {
   const [fontOpen, setFontOpen] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
+  const [spacingOpen, setSpacingOpen] = useState(false);
   const fontRef = useRef(null);
   const colorRef = useRef(null);
+  const spacingRef = useRef(null);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const h = (e) => {
       if (fontRef.current && !fontRef.current.contains(e.target)) setFontOpen(false);
       if (colorRef.current && !colorRef.current.contains(e.target)) setColorOpen(false);
+      if (spacingRef.current && !spacingRef.current.contains(e.target)) setSpacingOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -43,28 +54,28 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
   const currentFont = [...allFonts, ...customFonts].find(f => f.name === selected.fontFamily);
   const currentLabel = currentFont?.label || selected.fontFamily || "Select font";
 
-  const stepSize = (delta) => {
-    const next = Math.max(6, Math.min(96, Math.round(selected.fontSize + delta)));
-    updateEl(selectedId, { fontSize: next });
-  };
+  const stepSize = (delta) => updateEl(selectedId, { fontSize: Math.max(6, Math.min(96, Math.round(selected.fontSize + delta))) });
+  const stepSpacing = (delta) => updateEl(selectedId, { letterSpacing: Math.max(-2, Math.min(10, parseFloat(((selected.letterSpacing || 0) + delta).toFixed(1)))) });
+  const stepLineHeight = (delta) => updateEl(selectedId, { lineHeight: Math.max(0.8, Math.min(3, parseFloat(((selected.lineHeight || 1.25) + delta).toFixed(2)))) });
 
-  const stepSpacing = (delta) => {
-    const next = Math.max(-2, Math.min(10, parseFloat(((selected.letterSpacing || 0) + delta).toFixed(1))));
-    updateEl(selectedId, { letterSpacing: next });
-  };
-
-  // Shared button style for toolbar icons
   const tb = (active) => ({
     width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",
     border:"none",borderRadius:6,cursor:"pointer",transition:"all 0.1s",flexShrink:0,
     background:active?T.ink:"transparent",color:active?T.surface:T.textSub,
   });
 
+  const numInput = {
+    width:"100%",textAlign:"center",border:"none",background:"transparent",
+    fontSize:11,fontWeight:700,color:T.text,padding:0,outline:"none",
+    fontFamily:"'JetBrains Mono',monospace",MozAppearance:"textfield",
+  };
+
+  const colorPreview = selected.gradient || selected.color;
+
   return (
     <div style={{display:"flex",flexDirection:"column",gap:6}}>
-      {/* ── Row 1: Font dropdown + Size stepper ── */}
+      {/* ── Row 1: [Font ▾] [- size +] ── */}
       <div style={{display:"flex",gap:4,alignItems:"stretch"}}>
-        {/* Font dropdown */}
         <div style={{position:"relative",flex:1,minWidth:0}} ref={fontRef}>
           <button onClick={() => setFontOpen(v => !v)}
             style={{
@@ -122,81 +133,130 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
           <input ref={fontFileRef} type="file" accept=".woff,.woff2,.ttf,.otf,.eot" style={{display:"none"}}
             onChange={e => { handleFontUpload(e.target.files?.[0]); e.target.value = ""; }}/>
         </div>
-
-        {/* Size stepper */}
         <div style={{display:"flex",alignItems:"center",border:`1px solid ${T.border}`,borderRadius:8,background:T.s2,flexShrink:0,width:80}}>
           <button onClick={() => stepSize(-1)} style={{padding:"0 4px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center",height:"100%"}}><Minus size={10}/></button>
           <input type="number" value={Math.round(selected.fontSize)} min={6} max={96}
             onChange={e => updateEl(selectedId, { fontSize: Math.max(6, Math.min(96, parseInt(e.target.value) || 6)) })}
-            style={{width:"100%",textAlign:"center",border:"none",background:"transparent",fontSize:12,fontWeight:700,color:T.text,padding:0,outline:"none",fontFamily:"'JetBrains Mono',monospace",MozAppearance:"textfield"}}/>
+            style={numInput}/>
           <button onClick={() => stepSize(1)} style={{padding:"0 4px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center",height:"100%"}}><Plus size={10}/></button>
         </div>
       </div>
       {fontError && <div style={{fontSize:10,color:T.red,lineHeight:1.4}}>{fontError}</div>}
 
-      {/* ── Row 2: Color + B/I/Shadow + Spacing ── */}
+      {/* ── Row 2: [Color] | [B] [I] [U] [S] | [spacing ▾] ── */}
       <div style={{display:"flex",alignItems:"center",gap:2,background:T.s2,borderRadius:8,padding:2,border:`1px solid ${T.border}`}}>
-        {/* Color picker */}
+        {/* Color */}
         <div style={{position:"relative"}} ref={colorRef}>
           <button title="Text color" onClick={() => setColorOpen(v => !v)}
-            style={{...tb(false),position:"relative",width:30,height:30}}>
+            style={{...tb(false),position:"relative"}}>
             <Type size={13} style={{color:T.textSub}}/>
-            <div style={{position:"absolute",bottom:3,left:5,right:5,height:3,borderRadius:1,background:selected.color}}/>
+            <div style={{position:"absolute",bottom:3,left:5,right:5,height:3,borderRadius:1,background:colorPreview}}/>
           </button>
           {colorOpen && (
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",left:0,zIndex:50,
               background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
-              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:8,width:148,
+              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:8,width:172,
             }}>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>
+              {/* Solid colors */}
+              <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:4}}>Solid</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3,marginBottom:8}}>
                 {BRAND_COLORS.map(c => (
-                  <button key={c} onClick={() => { updateEl(selectedId, { color: c }); setColorOpen(false); }}
-                    style={{width:24,height:24,borderRadius:5,border:selected.color===c?`2px solid ${T.ink}`:c==="#FFFFFF"||c==="#F7F8FA"?"1px solid #ddd":"1px solid transparent",background:c,cursor:"pointer",padding:0}}/>
+                  <button key={c} onClick={() => { updateEl(selectedId, { color: c, gradient: null }); setColorOpen(false); }}
+                    style={{width:24,height:24,borderRadius:5,border:!selected.gradient&&selected.color===c?`2px solid ${T.ink}`:c==="#FFFFFF"||c==="#F7F8FA"?"1px solid #ddd":"1px solid transparent",background:c,cursor:"pointer",padding:0}}/>
                 ))}
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:4,marginTop:6,borderTop:`1px solid ${T.border}`,paddingTop:6}}>
-                <div style={{width:18,height:18,borderRadius:4,background:selected.color,border:`1px solid ${T.border}`,flexShrink:0}}/>
-                <input type="text" value={selected.color} onChange={e => updateEl(selectedId, { color: e.target.value })}
+              {/* Gradients */}
+              <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:4}}>Gradient</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:3,marginBottom:8}}>
+                {GRADIENT_PRESETS.map(g => (
+                  <button key={g.id} title={g.label} onClick={() => { updateEl(selectedId, { gradient: g.css }); setColorOpen(false); }}
+                    style={{height:24,borderRadius:5,border:selected.gradient===g.css?`2px solid ${T.ink}`:"1px solid transparent",background:g.css,cursor:"pointer",padding:0}}/>
+                ))}
+              </div>
+              {/* Hex input */}
+              <div style={{display:"flex",alignItems:"center",gap:4,borderTop:`1px solid ${T.border}`,paddingTop:6}}>
+                <div style={{width:18,height:18,borderRadius:4,background:colorPreview,border:`1px solid ${T.border}`,flexShrink:0}}/>
+                <input type="text" value={selected.gradient || selected.color}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (v.startsWith("linear-gradient") || v.startsWith("radial-gradient")) updateEl(selectedId, { gradient: v });
+                    else updateEl(selectedId, { color: v, gradient: null });
+                  }}
                   style={{flex:1,fontSize:10,fontFamily:"'JetBrains Mono',monospace",padding:"3px 5px",border:`1px solid ${T.border}`,borderRadius:4,background:T.s2,color:T.text,outline:"none"}}/>
               </div>
+              {selected.gradient && (
+                <button onClick={() => { updateEl(selectedId, { gradient: null }); }}
+                  style={{marginTop:4,width:"100%",padding:"4px 0",border:"none",borderRadius:4,background:"transparent",cursor:"pointer",fontSize:10,fontWeight:600,color:T.textDim}}>
+                  Clear gradient
+                </button>
+              )}
             </div>
           )}
         </div>
 
         <div style={{width:1,height:18,background:T.border,flexShrink:0}}/>
 
-        {/* Weight: Regular / Bold / Black */}
-        <button title="Regular (400)" onClick={() => updateEl(selectedId, { fontWeight: 400 })}
-          style={tb(selected.fontWeight===400)}>
-          <span style={{fontSize:13,fontFamily:"'Inter',sans-serif",fontWeight:400}}>R</span>
+        {/* Bold */}
+        <button title="Bold" onClick={() => updateEl(selectedId, { fontWeight: selected.fontWeight >= 700 ? 400 : 700 })}
+          style={tb(selected.fontWeight >= 700)}>
+          <Bold size={14}/>
         </button>
-        <button title="Bold (700)" onClick={() => updateEl(selectedId, { fontWeight: 700 })}
-          style={tb(selected.fontWeight===700)}>
-          <Bold size={13}/>
+        {/* Italic */}
+        <button title="Italic" onClick={() => updateEl(selectedId, { italic: !selected.italic })}
+          style={tb(selected.italic)}>
+          <Italic size={14}/>
         </button>
-        <button title="Black (800)" onClick={() => updateEl(selectedId, { fontWeight: 800 })}
-          style={tb(selected.fontWeight===800)}>
-          <span style={{fontSize:13,fontFamily:"'Inter',sans-serif",fontWeight:900}}>H</span>
+        {/* Underline */}
+        <button title="Underline" onClick={() => updateEl(selectedId, { underline: !selected.underline })}
+          style={tb(selected.underline)}>
+          <Underline size={14}/>
+        </button>
+        {/* Strikethrough */}
+        <button title="Strikethrough" onClick={() => updateEl(selectedId, { strikethrough: !selected.strikethrough })}
+          style={tb(selected.strikethrough)}>
+          <Strikethrough size={14}/>
         </button>
 
         <div style={{width:1,height:18,background:T.border,flexShrink:0}}/>
 
-        {/* Shadow */}
-        <button title="Text shadow" onClick={() => updateEl(selectedId, { shadow: !selected.shadow })}
-          style={tb(selected.shadow)}>
-          <Droplets size={13}/>
-        </button>
-
-        <div style={{width:1,height:18,background:T.border,flexShrink:0}}/>
-
-        {/* Spacing stepper (compact) */}
-        <div style={{display:"flex",alignItems:"center",flex:1,minWidth:0}} title="Letter spacing">
-          <button onClick={() => stepSpacing(-0.5)} style={{padding:"0 3px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center"}}><Minus size={9}/></button>
-          <input type="number" value={selected.letterSpacing || 0} min={-2} max={10} step={0.5}
-            onChange={e => updateEl(selectedId, { letterSpacing: Math.max(-2, Math.min(10, parseFloat(e.target.value) || 0)) })}
-            style={{width:"100%",textAlign:"center",border:"none",background:"transparent",fontSize:10,fontWeight:600,color:T.text,padding:0,outline:"none",fontFamily:"'JetBrains Mono',monospace",MozAppearance:"textfield"}}/>
-          <button onClick={() => stepSpacing(0.5)} style={{padding:"0 3px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center"}}><Plus size={9}/></button>
+        {/* Spacing popover */}
+        <div style={{position:"relative"}} ref={spacingRef}>
+          <button title="Letter & line spacing" onClick={() => setSpacingOpen(v => !v)}
+            style={{...tb(spacingOpen),width:"auto",padding:"0 6px",gap:2}}>
+            <AArrowDown size={13}/>
+          </button>
+          {spacingOpen && (
+            <div style={{
+              position:"absolute",top:"calc(100% + 4px)",right:0,zIndex:50,
+              background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
+              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:10,width:170,
+              display:"flex",flexDirection:"column",gap:8,
+            }}>
+              {/* Letter spacing */}
+              <div>
+                <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:4}}>Letter spacing</div>
+                <div style={{display:"flex",alignItems:"center",border:`1px solid ${T.border}`,borderRadius:6,background:T.s2,overflow:"hidden"}}>
+                  <button onClick={() => stepSpacing(-0.5)} style={{padding:"4px 6px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center"}}><Minus size={10}/></button>
+                  <input type="number" value={selected.letterSpacing || 0} min={-2} max={10} step={0.5}
+                    onChange={e => updateEl(selectedId, { letterSpacing: Math.max(-2, Math.min(10, parseFloat(e.target.value) || 0)) })}
+                    style={numInput}/>
+                  <button onClick={() => stepSpacing(0.5)} style={{padding:"4px 6px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center"}}><Plus size={10}/></button>
+                </div>
+              </div>
+              {/* Line spacing */}
+              <div>
+                <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:4}}>Line height</div>
+                <div style={{display:"flex",alignItems:"center",border:`1px solid ${T.border}`,borderRadius:6,background:T.s2,overflow:"hidden"}}>
+                  <button onClick={() => stepLineHeight(-0.05)} style={{padding:"4px 6px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center"}}><Minus size={10}/></button>
+                  <input type="number" value={(selected.lineHeight || 1.25).toFixed(2)} min={0.8} max={3} step={0.05}
+                    onChange={e => updateEl(selectedId, { lineHeight: Math.max(0.8, Math.min(3, parseFloat(e.target.value) || 1.25)) })}
+                    style={numInput}/>
+                  <button onClick={() => stepLineHeight(0.05)} style={{padding:"4px 6px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center"}}><Plus size={10}/></button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

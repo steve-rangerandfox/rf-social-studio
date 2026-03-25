@@ -37,9 +37,16 @@ export function StoryThumbnail({ elements, onClick }) {
             color: el.color || '#fff',
             fontFamily: `'${el.fontFamily || 'Bricolage Grotesque'}', sans-serif`,
             fontWeight: el.fontWeight || 600,
+            fontStyle: el.italic ? 'italic' : 'normal',
+            textDecoration: [el.underline && 'underline', el.strikethrough && 'line-through'].filter(Boolean).join(' ') || 'none',
             letterSpacing: (el.letterSpacing || 0) * s,
+            lineHeight: el.lineHeight || 1.25,
             textShadow: el.shadow ? '0 1px 4px rgba(0,0,0,.8)' : undefined,
             width: `${((el.boxWidth || 190) / CW) * 100}%`,
+            color: el.gradient ? 'transparent' : (el.color || '#fff'),
+            background: el.gradient || undefined,
+            WebkitBackgroundClip: el.gradient ? 'text' : undefined,
+            WebkitTextFillColor: el.gradient ? 'transparent' : undefined,
           }}>{el.content}</div>
         ))}
         {elements.filter(e => !e.locked && e.type === 'image' && e.url).map(el => (

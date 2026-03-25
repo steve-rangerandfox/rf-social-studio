@@ -196,11 +196,18 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
             if (e.key === 'Escape') { editRef.current.blur(); }
           }}
           style={{
-            fontSize: data.fontSize, color: data.color,
+            fontSize: data.fontSize,
+            color: data.gradient ? 'transparent' : data.color,
+            background: data.gradient || undefined,
+            WebkitBackgroundClip: data.gradient ? 'text' : undefined,
+            WebkitTextFillColor: data.gradient ? 'transparent' : undefined,
             fontFamily: `'${data.fontFamily}', sans-serif`,
             letterSpacing: data.letterSpacing || 0,
             fontWeight: data.fontWeight || 600,
-            lineHeight: 1.25, whiteSpace: 'pre-wrap',
+            fontStyle: data.italic ? 'italic' : 'normal',
+            textDecoration: [data.underline && 'underline', data.strikethrough && 'line-through'].filter(Boolean).join(' ') || 'none',
+            lineHeight: data.lineHeight || 1.25,
+            whiteSpace: 'pre-wrap',
             width: data.boxWidth || 190,
             textShadow: data.shadow ? '0 2px 12px rgba(0,0,0,0.8)' : undefined,
             textRendering: 'optimizeLegibility',
