@@ -31,6 +31,24 @@ export function PlatformIcon({ platform, size = 16 }) {
       </svg>
     );
   }
+  if (platform === "tiktok") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" style={{display:"block"}}>
+        <rect width="24" height="24" rx="6" fill="#000"/>
+        <path d="M16.5 4.5h-2v9.5a2.5 2.5 0 11-2-2.45V9.5a4.5 4.5 0 104 4.5V9.2a5.5 5.5 0 003 .8V8a3 3 0 01-3-3.5z" fill="#fff"/>
+        <path d="M14.5 4.5v9.5a2.5 2.5 0 11-2-2.45V9.5a4.5 4.5 0 104 4.5V9.2" stroke="#25F4EE" strokeWidth="0.5" fill="none" opacity="0.7" transform="translate(-0.5,-0.3)"/>
+        <path d="M14.5 4.5v9.5a2.5 2.5 0 11-2-2.45V9.5a4.5 4.5 0 104 4.5V9.2" stroke="#FE2C55" strokeWidth="0.5" fill="none" opacity="0.7" transform="translate(0.5,0.3)"/>
+      </svg>
+    );
+  }
+  if (platform === "facebook") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" style={{display:"block"}}>
+        <rect width="24" height="24" rx="6" fill="#1877F2"/>
+        <path d="M16.5 12.5h-2.5v7h-3v-7H9v-2.5h2v-1.8c0-2 1.2-3.2 3.1-3.2.9 0 1.9.2 1.9.2v2h-1.1c-1 0-1.4.7-1.4 1.3V10h2.3l-.3 2.5z" fill="#fff"/>
+      </svg>
+    );
+  }
   // Instagram (ig_post, ig_story)
   const id = "ig-grad-" + size;
   return (

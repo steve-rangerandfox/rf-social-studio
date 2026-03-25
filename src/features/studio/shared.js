@@ -31,6 +31,8 @@ export const PLATFORMS = {
   ig_post: { label: "Instagram Post", short: "IG Post", color: "#49433B", bg: "rgba(73,67,59,0.07)" },
   ig_story: { label: "Instagram Story", short: "Story", color: "#6E655D", bg: "rgba(110,101,93,0.07)" },
   ig_reel: { label: "Instagram Reel", short: "Reel", color: "#49433B", bg: "rgba(73,67,59,0.07)" },
+  tiktok: { label: "TikTok", short: "TikTok", color: "#1A1A2E", bg: "rgba(26,26,46,0.07)" },
+  facebook: { label: "Facebook", short: "Facebook", color: "#1877F2", bg: "rgba(24,119,242,0.07)" },
   linkedin: { label: "LinkedIn", short: "LinkedIn", color: "#4B5F66", bg: "rgba(75,95,102,0.08)" },
 };
 

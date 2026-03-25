@@ -113,7 +113,7 @@ export default function App() {
   const [showAssets, setAssets]   = useState(false);
   const [showConn, setShowConn]   = useState(null); // 'instagram' | 'linkedin' | null
   const [showSettings, setSettings] = useState(false);
-  const [connections, setConns]   = useState({ instagram: false, linkedin: false });
+  const [connections, setConns]   = useState({ instagram: false, tiktok: false, facebook: false, linkedin: false });
   const [saveState, setSaveState] = useState(() => ({
     status: studioDoc.lastSavedAt ? "saved" : "idle",
     lastSavedAt: studioDoc.lastSavedAt,
@@ -147,7 +147,8 @@ export default function App() {
         : row.status === statusFilter);
     const matchesPlatform =
       platformFilter === "all" ||
-      (platformFilter === "instagram" ? row.platform.startsWith("ig") : row.platform === platformFilter);
+      (platformFilter === "instagram" ? row.platform.startsWith("ig")
+        : row.platform === platformFilter);
     const matchesAttention = !attentionOnly || isRowNeedingAttention(row);
 
     return matchesQuery && matchesStatus && matchesPlatform && matchesAttention;
@@ -600,6 +601,8 @@ export default function App() {
           <span className="s-lbl">Connections</span>
           {[
             {key:"instagram", label:"Instagram"},
+            {key:"tiktok",    label:"TikTok"},
+            {key:"facebook",  label:"Facebook"},
             {key:"linkedin",  label:"LinkedIn"},
           ].map(c => {
             const on = connections[c.key];
@@ -694,6 +697,8 @@ export default function App() {
               options={[
                 { value: "all", label: "All channels" },
                 { value: "instagram", label: "Instagram" },
+                { value: "tiktok", label: "TikTok" },
+                { value: "facebook", label: "Facebook" },
                 { value: "linkedin", label: "LinkedIn" },
               ]}
             />

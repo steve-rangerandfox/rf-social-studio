@@ -50,6 +50,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [mediaUrls, setMediaUrls] = useState([]);
+  const [mediaTypes, setMediaTypes] = useState([]); // "image" | "video" per URL
   const [showLIPreview, setShowLIPreview] = useState(false);
   const storyElements = row.storyElements || makeDefaultElements(row.note);
   const mediaRef = useRef(null);
@@ -369,8 +370,9 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                         if (!picked.length) return;
                         if (isLI) {
                           const remaining = maxFiles - mediaUrls.length;
-                          const urls = picked.slice(0, remaining).filter(f => f.type.startsWith("image/")).map(f => URL.createObjectURL(f));
-                          setMediaUrls(prev => [...prev, ...urls]);
+                          const urls = picked.slice(0, remaining).filter(f => f.type.startsWith("image/") || f.type.startsWith("video/")).map(f => ({ url: URL.createObjectURL(f), isVideo: f.type.startsWith("video/") }));
+                          setMediaUrls(prev => [...prev, ...urls.map(u => u.url)]);
+                          setMediaTypes(prev => [...prev, ...urls.map(u => u.isVideo ? "video" : "image")]);
                         } else {
                           const f = picked[0];
                           if (f.type.startsWith("image/") || f.type.startsWith("video/")) setMediaUrls([URL.createObjectURL(f)]);
@@ -381,14 +383,16 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                       isLI ? (
                         <div>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                            <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono',monospace", color: T.textDim }}>{mediaUrls.length}/{maxFiles} images</span>
+                            <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono',monospace", color: T.textDim }}>{mediaUrls.length}/{maxFiles} files</span>
                             <button className="btn btn-ghost" style={{ padding: "3px 10px", fontSize: 11 }} onClick={() => setShowLIPreview(true)}>Preview</button>
                           </div>
                           <div className="media-grid">
                             {mediaUrls.map((url, i) => (
                               <div key={i} className="media-grid-item">
-                                <img src={url} alt="" />
-                                <button className="media-rm" onClick={() => setMediaUrls(prev => prev.filter((_, j) => j !== i))}>
+                                {mediaTypes[i] === "video"
+                                  ? <video src={url} style={{width:"100%",height:"100%",objectFit:"cover"}} muted playsInline/>
+                                  : <img src={url} alt="" />}
+                                <button className="media-rm" onClick={() => { setMediaUrls(prev => prev.filter((_, j) => j !== i)); setMediaTypes(prev => prev.filter((_, j) => j !== i)); }}>
                                   <XIcon size={11} color="#fff" />
                                 </button>
                               </div>
@@ -413,7 +417,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                       <div className="stage-post-placeholder" onClick={() => mediaRef.current?.click()}>
                         <span style={{ fontSize: 22, opacity: 0.22 }}>&#8593;</span>
                         <span style={{ fontSize: 11.5, color: T.textSub, fontWeight: 500 }}>Attach media</span>
-                        <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{isLI ? "Up to 9 images \u00B7 JPG \u00B7 PNG" : "JPG \u00B7 PNG \u00B7 GIF \u00B7 MP4"}</span>
+                        <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{isLI ? "Up to 9 files \u00B7 JPG \u00B7 PNG \u00B7 MP4" : "JPG \u00B7 PNG \u00B7 GIF \u00B7 MP4"}</span>
                       </div>
                     )}
                   </div>
