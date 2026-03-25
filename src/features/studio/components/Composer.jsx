@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { X, Upload, Check } from "lucide-react";
 import { T, PLATFORMS, toPTDisplay } from "../shared.js";
-import { generateCaption } from "../../lib/api-client.js";
+import { generateCaption } from "../../../lib/api-client.js";
 import { CaptionEditor } from "./CaptionEditor.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 

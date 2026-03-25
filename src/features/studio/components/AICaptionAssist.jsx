@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { generateCaption } from "../../lib/api-client.js";
+import { generateCaption } from "../../../lib/api-client.js";
 import { T } from "../shared.js";
 
 export function AICaptionAssist({ platform, note, caption, onAccept, variant = "panel" }) {
