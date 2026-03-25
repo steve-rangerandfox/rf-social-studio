@@ -219,7 +219,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
     return () => window.removeEventListener('keydown', hUR);
   }, [historyIndex, history]);
 
-  // Push elements to history on mouseup (after drag / resize finishes)
+  // Push elements to history on pointerup (after drag / resize finishes)
   useEffect(() => {
     const onUp = () => {
       setHistory(prev => {
@@ -231,8 +231,8 @@ export function StoryDesigner({ row, onClose, onSave }) {
         return next;
       });
     };
-    window.addEventListener('mouseup', onUp);
-    return () => window.removeEventListener('mouseup', onUp);
+    window.addEventListener('pointerup', onUp);
+    return () => window.removeEventListener('pointerup', onUp);
   }, [elements, historyIndex]);
 
   useEffect(() => {

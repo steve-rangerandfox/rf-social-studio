@@ -488,7 +488,7 @@ export default function App() {
   const makeDrag = (row,idx) => ({
     isDragging: draggingId===row.id,
     isDragOver: dragOverId===row.id && draggingId!==row.id,
-    onMouseDown:(e)=>{
+    onPointerDown:(e)=>{
       e.preventDefault();
       e.stopPropagation();
       dragIdx.current = idx;
@@ -501,9 +501,9 @@ export default function App() {
         setDragOverId(null);
         dragIdx.current = null;
         dragOverIdx.current = null;
-        window.removeEventListener("mouseup", onUp);
+        window.removeEventListener("pointerup", onUp);
       };
-      window.addEventListener("mouseup", onUp);
+      window.addEventListener("pointerup", onUp);
     },
     onMouseEnter:()=>{
       if (dragIdx.current === null) return;

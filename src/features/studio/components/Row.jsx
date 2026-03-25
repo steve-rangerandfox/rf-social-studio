@@ -179,7 +179,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
         <div
           className="drag-handle"
           style={{ display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.35 }}
-          onMouseDown={dragHandlers.onMouseDown}
+          onPointerDown={dragHandlers.onPointerDown}
           onClick={(e) => e.stopPropagation()}
         >
           <GripVerticalIcon size={14} color={T.textDim} />

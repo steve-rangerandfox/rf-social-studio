@@ -102,12 +102,12 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
       onUpdate({ x: nx, y: ny });
     };
     const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
       if (onGuides) onGuides([]);
     };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
   };
 
   const handleResize = (e) => {
@@ -122,9 +122,9 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
         onUpdate({ scale: Math.max(0.1, Math.min(8, startVal + delta * 0.012)) });
       }
     };
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    const onUp = () => { document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
   };
 
   const handleResizeBox = (side) => (e) => {
@@ -141,9 +141,9 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
         onUpdate({ boxWidth: newW, x: startElX + (startW - newW) });
       }
     };
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    const onUp = () => { document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
   };
 
   // BG layer (locked image or video)
@@ -171,7 +171,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
     <div
       className={"element-wrap " + (isSelected ? "element-selected" : "")}
       style={wrapperStyle}
-      onMouseDown={handleDrag}
+      onPointerDown={handleDrag}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
     >
       <div className="el-outline"/>
@@ -232,13 +232,13 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
       )}
       {isSelected && (
         <>
-          <div className="handle handle-nw" onMouseDown={handleResize}/>
-          <div className="handle handle-ne" onMouseDown={handleResize}/>
-          <div className="handle handle-sw" onMouseDown={handleResize}/>
-          <div className="handle handle-se" onMouseDown={handleResize}/>
+          <div className="handle handle-nw" onPointerDown={handleResize}/>
+          <div className="handle handle-ne" onPointerDown={handleResize}/>
+          <div className="handle handle-sw" onPointerDown={handleResize}/>
+          <div className="handle handle-se" onPointerDown={handleResize}/>
           {data.type === 'text' && <>
-            <div className="handle handle-e" onMouseDown={handleResizeBox('e')}/>
-            <div className="handle handle-w" onMouseDown={handleResizeBox('w')}/>
+            <div className="handle handle-e" onPointerDown={handleResizeBox('e')}/>
+            <div className="handle handle-w" onPointerDown={handleResizeBox('w')}/>
           </>}
         </>
       )}
