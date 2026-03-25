@@ -286,7 +286,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
             <div className="stage-grid">
               <section className="stage-section">
                 <div className="stage-col-label">Media & Placement</div>
-                <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                <div style={{display:"flex",gap:12,alignItems:"stretch",flex:1}}>
                 {/* Platform selector — vertical list with icons */}
                 <div style={{display:"flex",flexDirection:"column",gap:2,flexShrink:0,width:90}}>
                   {Object.entries(PLATFORMS).map(([key, platform]) => (
@@ -307,11 +307,11 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                   ))}
                 </div>
                 {/* Media content area */}
-                <div style={{flex:1,minWidth:0}}>
+                <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column"}}>
                 {row.platform === "ig_story" ? (
                   <StoryThumbnail elements={storyElements} onClick={onStory} />
                 ) : row.platform === "ig_reel" ? (
-                  <div>
+                  <div style={{display:"flex",flexDirection:"column",flex:1}}>
                     <input ref={mediaRef} type="file" accept="video/*" style={{ display: "none" }}
                       onChange={e => {
                         const picked = Array.from(e.target.files || []);
@@ -362,7 +362,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                     </div>
                   </div>
                 ) : (
-                  <div>
+                  <div style={{display:"flex",flexDirection:"column",flex:1}}>
                     <input ref={mediaRef} type="file" accept="image/*,video/*,image/gif" multiple={isLI} style={{ display: "none" }}
                       onChange={e => {
                         const picked = Array.from(e.target.files || []);
