@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, Image, Film, Wallpaper } from "lucide-react";
+import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, Image, Film, Wallpaper, Layers, LayoutTemplate, Sparkles, PanelLeftClose, Sliders } from "lucide-react";
 import { CanvasElement, computeSnap, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
@@ -375,7 +375,6 @@ export function StoryDesigner({ row, onClose, onSave }) {
   const [editingId,   setEditingId]   = useState(null);
   const [zoom,        setZoom]        = useState(1.8);
   const [postState,   setPostState]   = useState("idle");
-  const [showCopilot, setShowCopilot] = useState(false);
   const [aiLoading,   setAiLoading]   = useState(false);
   const [aiTips,      setAiTips]      = useState([]);
   const [templates,   setTemplates]   = useState(_savedTemplates);
@@ -384,6 +383,8 @@ export function StoryDesigner({ row, onClose, onSave }) {
   const [showTmplSave,setShowTmplSave]= useState(false);
   const [snapOn,      setSnapOn]      = useState(true);
   const [guides,      setGuides]      = useState([]);
+  // Sidebar tab: null = collapsed, 'elements' | 'text' | 'uploads' | 'templates' | 'layers' | 'ai'
+  const [sideTab, setSideTab] = useState('elements');
   const bgFileRef  = useRef(null);
   const imgFileRef = useRef(null);
   const vidFileRef = useRef(null);
@@ -416,6 +417,12 @@ export function StoryDesigner({ row, onClose, onSave }) {
   };
 
   const selected  = elements.find(el => el.id === selectedId);
+
+  // Auto-open properties panel when selecting an unlocked element
+  useEffect(() => {
+    if (selected && !selected.locked) setSideTab("props");
+  }, [selectedId]);
+
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
   const deleteEl  = (id) => { pushElements(els => els.filter(e => e.id !== id)); setSelectedId(null); };
 
@@ -605,8 +612,8 @@ export function StoryDesigner({ row, onClose, onSave }) {
             {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Posting...</span></div>}
             {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">Story live</span></div>}
             <button className="btn btn-ai btn-sm"
-              onClick={()=>{setShowCopilot(v=>!v);if(!showCopilot&&aiTips.length===0)runAICopilot();}}>
-              {showCopilot?"Hide AI":"AI Refine"}
+              onClick={()=>{const opening=sideTab!=="ai";setSideTab(opening?"ai":null);if(opening&&aiTips.length===0)runAICopilot();}}>
+              {sideTab==="ai"?"Hide AI":"AI Refine"}
             </button>
             {postState!=="done"&&<button className="btn btn-ghost btn-sm" onClick={onClose}>Discard</button>}
             {postState==="done"
@@ -617,194 +624,301 @@ export function StoryDesigner({ row, onClose, onSave }) {
         </div>
 
         <div className="s-layout">
-          {/* ── PROPERTY INSPECTOR ── */}
-          <aside className="s-bar">
+          {/* Hidden file inputs */}
+          <input ref={imgFileRef} type="file" accept="image/*,image/gif" style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
+          <input ref={vidFileRef} type="file" accept="video/*,image/gif"  style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
+          <input ref={bgFileRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}} onChange={e=>setBg(e.target.files?.[0])}/>
 
-            {/* Canvas actions */}
-            <div className="inspector-group">
-              <div style={{display:"flex",gap:4}}>
-                {[
-                  { icon: <Type size={15}/>, title: "Add Text", action: addText },
-                  { icon: <Image size={15}/>, title: "Image / GIF", action: () => imgFileRef.current?.click() },
-                  { icon: <Film size={15}/>, title: "Video Layer", action: () => vidFileRef.current?.click() },
-                  { icon: <Wallpaper size={15}/>, title: elements.find(e=>e.id==="bg")?.url ? "Replace BG" : "Set BG", action: () => bgFileRef.current?.click() },
-                ].map((btn, i) => (
-                  <button key={i} title={btn.title} onClick={btn.action}
-                    style={{
-                      flex:1,height:36,display:"flex",alignItems:"center",justifyContent:"center",
-                      border:`1px solid ${T.border}`,borderRadius:8,background:T.s2,
-                      cursor:"pointer",color:T.textSub,transition:"all 0.1s",
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.border2; e.currentTarget.style.color = T.text; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textSub; }}>
-                    {btn.icon}
-                  </button>
-                ))}
-              </div>
-              <input ref={imgFileRef} type="file" accept="image/*,image/gif" style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
-              <input ref={vidFileRef} type="file" accept="video/*,image/gif"  style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
-              <input ref={bgFileRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}} onChange={e=>setBg(e.target.files?.[0])}/>
-            </div>
-
-            {/* Element properties */}
-            {selected && !selected.locked ? (
-              <div className="inspector-group">
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                  <div className="inspector-group-title" style={{margin:0}}>
-                    {selected.type==='text'?'Text':selected.mediaType==='video'?'Video':'Image'} Properties
-                  </div>
-                  <button className="del-btn" onClick={()=>deleteEl(selectedId)}><X size={10} style={{marginRight:3}}/> Delete</button>
-                </div>
-
-                {selected.type==='text' && (
-                  <TextInspector
-                    selected={selected}
-                    selectedId={selectedId}
-                    updateEl={updateEl}
-                    customFonts={customFonts}
-                    removeCustomFont={removeCustomFont}
-                    fontFileRef={fontFileRef}
-                    handleFontUpload={handleFontUpload}
-                    fontInstalling={fontInstalling}
-                    fontError={fontError}
-                  />
-                )}
-
-                {selected.type==='image' && selected.mediaType==='video' && (
-                  <>
-                    <div className="lbl" style={{marginBottom:2}}>Scale — {(selected.scale||1).toFixed(2)}x</div>
-                    <input type="range" className="s-slider" min={0.2} max={3} step={0.05} value={selected.scale||1}
-                      onChange={e=>updateEl(selectedId,{scale:parseFloat(e.target.value)})}/>
-
-                    <div className="inspector-group-title" style={{marginTop:8}}>Video Controls</div>
-
-                    <div className="s-toggle-row">
-                      <div className="lbl" style={{margin:0}}>Loop</div>
-                      <div className="s-toggle" style={{background:selected.loop!==false?T.ink:T.border2}}
-                        onClick={()=>updateEl(selectedId,{loop:!(selected.loop!==false)})}>
-                        <div className="s-toggle-knob" style={{left:selected.loop!==false?14:2}}/>
-                      </div>
-                    </div>
-
-                    <div className="s-toggle-row">
-                      <div className="lbl" style={{margin:0}}>Mute</div>
-                      <div className="s-toggle" style={{background:selected.muted!==false?T.ink:T.border2}}
-                        onClick={()=>updateEl(selectedId,{muted:!(selected.muted!==false)})}>
-                        <div className="s-toggle-knob" style={{left:selected.muted!==false?14:2}}/>
-                      </div>
-                    </div>
-
-                    <div className="lbl" style={{marginBottom:2,marginTop:4}}>Volume — {Math.round((selected.volume||0)*100)}%</div>
-                    <input type="range" className="s-slider" min={0} max={1} step={0.05} value={selected.volume||0}
-                      onChange={e=>updateEl(selectedId,{volume:parseFloat(e.target.value),muted:parseFloat(e.target.value)===0})}/>
-
-                    <div style={{marginTop:4}}>
-                      <div className="lbl" style={{marginBottom:4}}>Trim (placeholder)</div>
-                      <div style={{height:20,background:T.s3,borderRadius:6,position:"relative",overflow:"hidden",border:`1px solid ${T.border}`}}>
-                        <div style={{position:"absolute",left:"10%",right:"20%",top:0,bottom:0,background:"rgba(24,23,20,0.12)",borderLeft:`2px solid ${T.ink}`,borderRight:`2px solid ${T.ink}`,borderRadius:3}}/>
-                      </div>
-                      <div style={{display:"flex",justifyContent:"space-between",marginTop:3,fontSize:9,color:T.textDim,fontFamily:"'JetBrains Mono',monospace"}}>
-                        <span>0:00</span><span style={{color:T.text}}>Selected range</span><span>0:15</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {selected.type==='image' && selected.mediaType!=='video' && !selected.locked && (
-                  <>
-                    <div className="lbl" style={{marginBottom:2}}>Scale — {(selected.scale||1).toFixed(2)}x</div>
-                    <input type="range" className="s-slider" min={0.2} max={3} step={0.05} value={selected.scale||1}
-                      onChange={e=>updateEl(selectedId,{scale:parseFloat(e.target.value)})}/>
-                    <button className="btn btn-ghost btn-sm" style={{width:"100%",marginTop:4}}
-                      onClick={()=>imgFileRef.current?.click()}>Replace Image</button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="inspector-group">
-                <div className="inspector-group-title">Properties</div>
-                <div style={{fontSize:12,color:"#9AA0AE",padding:"8px 0"}}>
-                  {selectedId?"Background layer is locked.":"Click an element to edit it."}
-                </div>
-              </div>
+          {/* ── ICON RAIL ── */}
+          <div style={{
+            width:52,flexShrink:0,background:T.surface,borderRight:`1px solid ${T.border}`,
+            display:"flex",flexDirection:"column",alignItems:"center",padding:"8px 0",gap:2,
+          }}>
+            {[
+              { id:"elements", icon:<Image size={18}/>, label:"Elements" },
+              { id:"text", icon:<Type size={18}/>, label:"Text" },
+              { id:"uploads", icon:<Upload size={18}/>, label:"Uploads" },
+              { id:"templates", icon:<LayoutTemplate size={18}/>, label:"Templates" },
+              { id:"layers", icon:<Layers size={18}/>, label:"Layers" },
+              { id:"ai", icon:<Sparkles size={18}/>, label:"AI" },
+            ].map(tab => (
+              <button key={tab.id} title={tab.label}
+                onClick={() => setSideTab(prev => prev === tab.id ? null : tab.id)}
+                style={{
+                  width:40,height:40,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                  gap:1,border:"none",borderRadius:8,cursor:"pointer",transition:"all 0.1s",
+                  background:sideTab===tab.id ? T.s3 : "transparent",
+                  color:sideTab===tab.id ? T.ink : T.textDim,
+                }}>
+                {tab.icon}
+                <span style={{fontSize:8,fontWeight:600,letterSpacing:"0.02em",lineHeight:1}}>{tab.label}</span>
+              </button>
+            ))}
+            {/* Properties auto-tab (shows when element selected) */}
+            {selected && !selected.locked && (
+              <>
+                <div style={{width:24,height:1,background:T.border,margin:"4px 0"}}/>
+                <button title="Properties"
+                  onClick={() => setSideTab(prev => prev === "props" ? null : "props")}
+                  style={{
+                    width:40,height:40,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                    gap:1,border:"none",borderRadius:8,cursor:"pointer",transition:"all 0.1s",
+                    background:sideTab==="props" ? T.s3 : "transparent",
+                    color:sideTab==="props" ? T.ink : T.textDim,
+                  }}>
+                  <Sliders size={18}/>
+                  <span style={{fontSize:8,fontWeight:600,letterSpacing:"0.02em",lineHeight:1}}>Props</span>
+                </button>
+              </>
             )}
+          </div>
 
-            {/* AI Copilot */}
-            {showCopilot && (
-              <div className="inspector-group">
-                <div className="inspector-group-title">AI Design Copilot</div>
-                <div className="ai-copilot">
-                  <div className="ai-copilot-title">
-
-                    <span>{aiLoading?"Analyzing...":"Layout Suggestions"}</span>
-                    {!aiLoading&&<button style={{marginLeft:"auto",background:"transparent",border:"none",color:"#7C3AED",cursor:"pointer",fontSize:11,fontWeight:600,padding:0}} onClick={runAICopilot}><RotateCcw size={12}/></button>}
-                  </div>
-                  {aiLoading&&<div style={{height:4,background:"#EDE9FE",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:"60%",background:"#7C3AED",borderRadius:99}}/></div>}
-                  {aiTips.map((tip,i)=><div key={i} className="ai-suggestion"><b>{i+1}.</b> {tip}</div>)}
-                </div>
+          {/* ── PALETTE PANEL (collapsible) ── */}
+          {sideTab && (
+            <div style={{
+              width:240,flexShrink:0,borderRight:`1px solid ${T.border}`,
+              display:"flex",flexDirection:"column",background:T.surface,overflow:"hidden",
+              animation:"drawerIn 0.15s ease-out",
+            }}>
+              {/* Palette header */}
+              <div style={{
+                padding:"10px 12px",borderBottom:`1px solid ${T.border}`,display:"flex",
+                alignItems:"center",justifyContent:"space-between",flexShrink:0,
+              }}>
+                <span style={{fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:T.text,fontFamily:"'JetBrains Mono',monospace"}}>
+                  {{elements:"Elements",text:"Text",uploads:"Uploads",templates:"Templates",layers:"Layers",ai:"AI Copilot",props:"Properties"}[sideTab]}
+                </span>
+                <button onClick={() => setSideTab(null)} title="Collapse"
+                  style={{background:"transparent",border:"none",cursor:"pointer",color:T.textDim,padding:2,display:"flex"}}>
+                  <PanelLeftClose size={14}/>
+                </button>
               </div>
-            )}
 
-            {/* Template Gallery */}
-            <div className="inspector-group">
-              <div className="inspector-group-title">Templates</div>
-              {templates.length > 0 && (
-                <div className="tmpl-gallery">
-                  {templates.map(tmpl => (
-                    <div key={tmpl.id} className={"tmpl-card "+(defaultId===tmpl.id?"default-tmpl":"")}
-                      onClick={()=>loadTemplate(tmpl)} title={tmpl.name}>
-                      <div className="tmpl-card-preview">
-                        {tmpl.elements.filter(e=>!e.locked&&e.type==='text').slice(0,3).map((el,i)=>(
-                          <div key={i} className="tmpl-card-el" style={{
-                            left:el.x*.22, top:el.y*.22,
-                            fontSize:(el.fontSize||14)*.22,
-                            color:el.color||'#fff',
-                            fontFamily:`'${el.fontFamily||'Bricolage Grotesque'}',sans-serif`,
-                            fontWeight:el.fontWeight||600,
-                            letterSpacing:(el.letterSpacing||0)*.22,
-                          }}>{el.content}</div>
-                        ))}
-                      </div>
-                      <div className="tmpl-name">{tmpl.name}</div>
-                      <button className={"tmpl-heart "+(defaultId===tmpl.id?"is-default":"")}
-                        onClick={e=>{e.stopPropagation();setDefault(tmpl.id);}}
-                        title={defaultId===tmpl.id?"Remove default":"Set as default"}>
-                        {defaultId===tmpl.id?"Default":"Set default"}
+              {/* Palette content */}
+              <div style={{flex:1,overflowY:"auto",padding:"8px 10px",display:"flex",flexDirection:"column",gap:8}}>
+
+                {/* ── ELEMENTS tab ── */}
+                {sideTab === "elements" && (
+                  <>
+                    <button onClick={addText}
+                      style={{width:"100%",padding:"10px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:600,color:T.text,transition:"border-color 0.1s"}}
+                      onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
+                      onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+                      <Type size={16}/> Add text box
+                    </button>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+                      <button onClick={()=>imgFileRef.current?.click()}
+                        style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+                        <Image size={20}/> Image / GIF
+                      </button>
+                      <button onClick={()=>vidFileRef.current?.click()}
+                        style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+                        <Film size={20}/> Video
                       </button>
                     </div>
-                  ))}
-                </div>
-              )}
-              {showTmplSave ? (
-                <div style={{display:"flex",gap:6,marginTop:8}}>
-                  <input className="s-inp" style={{flex:1,fontSize:11.5}} value={tmplName} onChange={e=>setTmplName(e.target.value)}
-                    onKeyDown={e=>e.key==="Enter"&&saveTemplate()} placeholder="Template name..." autoFocus/>
-                  <button className="btn btn-primary btn-sm" onClick={saveTemplate}>Save</button>
-                  <button className="btn btn-ghost btn-sm" onClick={()=>setShowTmplSave(false)}><X size={10}/></button>
-                </div>
-              ) : (
-                <button className="save-tmpl-btn" onClick={()=>setShowTmplSave(true)}>
-                  <Plus size={12} style={{marginRight:4}}/> Save current as template
-                </button>
-              )}
-            </div>
+                    <button onClick={()=>bgFileRef.current?.click()}
+                      style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                      onMouseEnter={e=>e.currentTarget.style.borderColor=T.ink}
+                      onMouseLeave={e=>e.currentTarget.style.borderColor=T.border2}>
+                      <Wallpaper size={14}/> {elements.find(e=>e.id==="bg")?.url ? "Replace background" : "Set background"}
+                    </button>
+                  </>
+                )}
 
-            {/* Layers */}
-            <div className="inspector-group" style={{marginTop:"auto",borderTop:"1px solid #E5E7EB"}}>
-              <div className="inspector-group-title">Layers</div>
-              <div className="layers-stack">
-                {layersRev.map(el=>(
-                  <div key={el.id} className={"layer-item "+(selectedId===el.id?"active":"")} onClick={()=>setSelectedId(el.id)}>
-                    <span className="layer-icon" style={{color:selectedId===el.id?"#111318":"#9AA0AE"}}>
-                      {el.type==='text'?'T':el.locked?'\u229E':el.mediaType==='video'?'\u25B6':'img'}
-                    </span>
-                    <span className="layer-label">{el.type==='text'?el.content?.slice(0,22):el.locked?'Background':el.mediaType==='video'?'Video':'Image'}</span>
-                    {!el.locked&&<button className="layer-del" onClick={e=>{e.stopPropagation();deleteEl(el.id);}}><X size={10}/></button>}
+                {/* ── TEXT tab ── */}
+                {sideTab === "text" && (
+                  <>
+                    {[
+                      { label:"Heading", fontSize:28, fontWeight:700, fontFamily:"Bricolage Grotesque" },
+                      { label:"Subheading", fontSize:18, fontWeight:600, fontFamily:"Bricolage Grotesque" },
+                      { label:"Body", fontSize:13, fontWeight:400, fontFamily:"Inter" },
+                      { label:"Label", fontSize:10, fontWeight:600, fontFamily:"JetBrains Mono", letterSpacing:2 },
+                    ].map(preset => (
+                      <button key={preset.label}
+                        onClick={() => {
+                          const el = { id:uid(), type:"text", content:preset.label, x:20, y:160, fontSize:preset.fontSize, fontFamily:preset.fontFamily, color:"#FFFFFF", letterSpacing:preset.letterSpacing||0, fontWeight:preset.fontWeight, shadow:false };
+                          pushElements(els => [...els, el]); setSelectedId(el.id); setSideTab("props");
+                        }}
+                        style={{
+                          width:"100%",padding:"12px 14px",borderRadius:10,border:`1px solid ${T.border}`,
+                          background:T.s2,cursor:"pointer",textAlign:"left",transition:"border-color 0.1s",
+                          fontFamily:`'${preset.fontFamily}',sans-serif`,fontSize:Math.min(preset.fontSize, 18),
+                          fontWeight:preset.fontWeight,color:T.text,letterSpacing:preset.letterSpacing||0,
+                        }}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+                        {preset.label}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {/* ── UPLOADS tab ── */}
+                {sideTab === "uploads" && (
+                  <>
+                    <div
+                      onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = T.ink; }}
+                      onDragLeave={e => { e.currentTarget.style.borderColor = T.border2; }}
+                      onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = T.border2; const f = e.dataTransfer?.files?.[0]; if (f) addMedia(f); }}
+                      onClick={() => imgFileRef.current?.click()}
+                      style={{
+                        padding:"32px 16px",borderRadius:12,border:`2px dashed ${T.border2}`,
+                        background:"transparent",cursor:"pointer",textAlign:"center",transition:"border-color 0.15s",
+                      }}>
+                      <Upload size={24} style={{color:T.textDim,margin:"0 auto 8px"}}/>
+                      <div style={{fontSize:13,fontWeight:600,color:T.textSub}}>Drop files here</div>
+                      <div style={{fontSize:10,color:T.textDim,marginTop:4,fontFamily:"'JetBrains Mono',monospace"}}>JPG · PNG · GIF · MP4 · MOV</div>
+                    </div>
+                  </>
+                )}
+
+                {/* ── TEMPLATES tab ── */}
+                {sideTab === "templates" && (
+                  <>
+                    {templates.length > 0 && (
+                      <div className="tmpl-gallery">
+                        {templates.map(tmpl => (
+                          <div key={tmpl.id} className={"tmpl-card "+(defaultId===tmpl.id?"default-tmpl":"")}
+                            onClick={()=>loadTemplate(tmpl)} title={tmpl.name}>
+                            <div className="tmpl-card-preview">
+                              {tmpl.elements.filter(e=>!e.locked&&e.type==='text').slice(0,3).map((el,i)=>(
+                                <div key={i} className="tmpl-card-el" style={{
+                                  left:el.x*.22, top:el.y*.22,
+                                  fontSize:(el.fontSize||14)*.22,
+                                  color:el.color||'#fff',
+                                  fontFamily:`'${el.fontFamily||'Bricolage Grotesque'}',sans-serif`,
+                                  fontWeight:el.fontWeight||600,
+                                  letterSpacing:(el.letterSpacing||0)*.22,
+                                }}>{el.content}</div>
+                              ))}
+                            </div>
+                            <div className="tmpl-name">{tmpl.name}</div>
+                            <button className={"tmpl-heart "+(defaultId===tmpl.id?"is-default":"")}
+                              onClick={e=>{e.stopPropagation();setDefault(tmpl.id);}}
+                              title={defaultId===tmpl.id?"Remove default":"Set as default"}>
+                              {defaultId===tmpl.id?"Default":"Set default"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {showTmplSave ? (
+                      <div style={{display:"flex",gap:4}}>
+                        <input className="s-inp" style={{flex:1,fontSize:11}} value={tmplName} onChange={e=>setTmplName(e.target.value)}
+                          onKeyDown={e=>e.key==="Enter"&&saveTemplate()} placeholder="Name..." autoFocus/>
+                        <button className="btn btn-primary btn-sm" onClick={saveTemplate}>Save</button>
+                        <button onClick={()=>setShowTmplSave(false)} style={{background:"transparent",border:"none",cursor:"pointer",color:T.textDim}}><X size={12}/></button>
+                      </div>
+                    ) : (
+                      <button className="save-tmpl-btn" onClick={()=>setShowTmplSave(true)}>
+                        <Plus size={12} style={{marginRight:4}}/> Save current as template
+                      </button>
+                    )}
+                    {templates.length === 0 && !showTmplSave && (
+                      <div style={{fontSize:11,color:T.textDim,lineHeight:1.5,padding:"8px 0"}}>No templates yet. Design a story then save it as a template.</div>
+                    )}
+                  </>
+                )}
+
+                {/* ── LAYERS tab ── */}
+                {sideTab === "layers" && (
+                  <div className="layers-stack" style={{maxHeight:"none"}}>
+                    {layersRev.map(el=>(
+                      <div key={el.id} className={"layer-item "+(selectedId===el.id?"active":"")} onClick={()=>setSelectedId(el.id)}>
+                        <span className="layer-icon" style={{color:selectedId===el.id?T.ink:T.textDim}}>
+                          {el.type==='text'?<Type size={12}/>:el.locked?<Wallpaper size={12}/>:el.mediaType==='video'?<Film size={12}/>:<Image size={12}/>}
+                        </span>
+                        <span className="layer-label">{el.type==='text'?el.content?.slice(0,20):el.locked?'Background':el.mediaType==='video'?'Video':'Image'}</span>
+                        {!el.locked&&<button className="layer-del" onClick={e=>{e.stopPropagation();deleteEl(el.id);}}><X size={10}/></button>}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+
+                {/* ── AI tab ── */}
+                {sideTab === "ai" && (
+                  <div className="ai-copilot">
+                    <div className="ai-copilot-title">
+                      <span>{aiLoading?"Analyzing...":"Layout Suggestions"}</span>
+                      {!aiLoading&&<button style={{marginLeft:"auto",background:"transparent",border:"none",color:"#7C3AED",cursor:"pointer",fontSize:11,fontWeight:600,padding:0}} onClick={runAICopilot}><RotateCcw size={12}/></button>}
+                    </div>
+                    {aiLoading&&<div style={{height:4,background:"#EDE9FE",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:"60%",background:"#7C3AED",borderRadius:99}}/></div>}
+                    {aiTips.length > 0 ? aiTips.map((tip,i)=><div key={i} className="ai-suggestion"><b>{i+1}.</b> {tip}</div>)
+                      : !aiLoading && <button onClick={runAICopilot} style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",fontSize:11,fontWeight:600,color:T.textSub}}>
+                        <Sparkles size={12} style={{marginRight:4}}/> Analyze layout
+                      </button>
+                    }
+                  </div>
+                )}
+
+                {/* ── PROPERTIES tab (context-sensitive) ── */}
+                {sideTab === "props" && selected && !selected.locked && (
+                  <>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+                      <span style={{fontSize:11,fontWeight:600,color:T.textSub}}>
+                        {selected.type==='text'?'Text':selected.mediaType==='video'?'Video':'Image'}
+                      </span>
+                      <button className="del-btn" onClick={()=>deleteEl(selectedId)} style={{fontSize:10,padding:"2px 8px"}}><X size={9} style={{marginRight:2}}/> Delete</button>
+                    </div>
+
+                    {selected.type==='text' && (
+                      <TextInspector
+                        selected={selected} selectedId={selectedId} updateEl={updateEl}
+                        customFonts={customFonts} removeCustomFont={removeCustomFont}
+                        fontFileRef={fontFileRef} handleFontUpload={handleFontUpload}
+                        fontInstalling={fontInstalling} fontError={fontError}
+                      />
+                    )}
+
+                    {selected.type==='image' && selected.mediaType==='video' && (
+                      <>
+                        <div className="lbl" style={{marginBottom:2}}>Scale — {(selected.scale||1).toFixed(2)}x</div>
+                        <input type="range" className="s-slider" min={0.2} max={3} step={0.05} value={selected.scale||1}
+                          onChange={e=>updateEl(selectedId,{scale:parseFloat(e.target.value)})}/>
+                        <div className="lbl" style={{marginTop:8,marginBottom:4}}>Video Controls</div>
+                        <div className="s-toggle-row">
+                          <div className="lbl" style={{margin:0}}>Loop</div>
+                          <div className="s-toggle" style={{background:selected.loop!==false?T.ink:T.border2}}
+                            onClick={()=>updateEl(selectedId,{loop:!(selected.loop!==false)})}>
+                            <div className="s-toggle-knob" style={{left:selected.loop!==false?14:2}}/>
+                          </div>
+                        </div>
+                        <div className="s-toggle-row">
+                          <div className="lbl" style={{margin:0}}>Mute</div>
+                          <div className="s-toggle" style={{background:selected.muted!==false?T.ink:T.border2}}
+                            onClick={()=>updateEl(selectedId,{muted:!(selected.muted!==false)})}>
+                            <div className="s-toggle-knob" style={{left:selected.muted!==false?14:2}}/>
+                          </div>
+                        </div>
+                        <div className="lbl" style={{marginBottom:2,marginTop:4}}>Volume — {Math.round((selected.volume||0)*100)}%</div>
+                        <input type="range" className="s-slider" min={0} max={1} step={0.05} value={selected.volume||0}
+                          onChange={e=>updateEl(selectedId,{volume:parseFloat(e.target.value),muted:parseFloat(e.target.value)===0})}/>
+                      </>
+                    )}
+
+                    {selected.type==='image' && selected.mediaType!=='video' && !selected.locked && (
+                      <>
+                        <div className="lbl" style={{marginBottom:2}}>Scale — {(selected.scale||1).toFixed(2)}x</div>
+                        <input type="range" className="s-slider" min={0.2} max={3} step={0.05} value={selected.scale||1}
+                          onChange={e=>updateEl(selectedId,{scale:parseFloat(e.target.value)})}/>
+                        <button className="btn btn-ghost btn-sm" style={{width:"100%",marginTop:4}}
+                          onClick={()=>imgFileRef.current?.click()}>Replace Image</button>
+                      </>
+                    )}
+                  </>
+                )}
+                {sideTab === "props" && (!selected || selected.locked) && (
+                  <div style={{fontSize:11,color:T.textDim,padding:"8px 0",lineHeight:1.5}}>
+                    {selectedId ? "Background layer is locked." : "Select an element on the canvas to see its properties."}
+                  </div>
+                )}
               </div>
             </div>
-          </aside>
+          )}
 
           {/* ── CANVAS AREA ── */}
           <div className="s-canvas-area">
