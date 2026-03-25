@@ -54,10 +54,11 @@ export function fitMediaBox(width, height, maxWidth = 260, maxHeight = 460) {
   };
 }
 
-export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit }) {
+export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace }) {
   const videoRef = useRef(null);
   const editRef = useRef(null);
   const [muted, setMuted] = useState(true);
+  const [dropHover, setDropHover] = useState(false);
   const isVideo = data.mediaType === 'video';
   const mediaScale = data.scale || 1;
   const mediaWidth = data.width || 140;
@@ -167,6 +168,27 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
     );
   }
 
+  // Drop-to-replace: drag a file onto an image/video element to swap media
+  const handleDragOver = (e) => {
+    if (data.type !== 'image' || data.locked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setDropHover(true);
+  };
+  const handleDragLeave = (e) => {
+    e.stopPropagation();
+    setDropHover(false);
+  };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropHover(false);
+    if (data.type !== 'image' || data.locked) return;
+    const file = e.dataTransfer?.files?.[0];
+    if (!file || (!file.type.startsWith("image/") && !file.type.startsWith("video/"))) return;
+    if (onDropReplace) onDropReplace(data.id, file);
+  };
+
   return (
     <div
       className={"element-wrap " + (isSelected ? "element-selected" : "") + (isEditing ? " element-editing" : "")}
@@ -177,8 +199,16 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
         e.stopPropagation();
         if (data.type === 'text' && !isEditing && onStartEdit) onStartEdit();
       }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       <div className="el-outline"/>
+      {dropHover && data.type === 'image' && (
+        <div style={{position:'absolute',inset:-2,borderRadius:4,border:'2px solid #0EA5E9',background:'rgba(14,165,233,0.15)',zIndex:30,display:'flex',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
+          <span style={{fontSize:10,fontWeight:700,color:'#0EA5E9',fontFamily:"'JetBrains Mono',monospace",letterSpacing:0.5}}>Replace</span>
+        </div>
+      )}
       {data.type === 'text' ? (
         <div
           ref={editRef}

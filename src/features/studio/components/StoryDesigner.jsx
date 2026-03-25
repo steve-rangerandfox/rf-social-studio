@@ -484,6 +484,40 @@ export function StoryDesigner({ row, onClose, onSave }) {
     pushElements(els => els.map(e => e.id === "bg" ? { ...e, url, mediaType: isGif ? 'gif' : isVid ? 'video' : 'image' } : e));
   };
 
+  // Replace an existing media element's source, keeping position/size/scale
+  const replaceMedia = (elementId, file) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const isGif = file.type === "image/gif";
+    const isVid = !isGif && file.type.startsWith("video/");
+    const mType = isGif ? 'gif' : isVid ? 'video' : 'image';
+    pushElements(els => els.map(e =>
+      e.id === elementId ? { ...e, url, mediaType: mType, trimLabel: file.name.split('.').pop().toUpperCase() } : e
+    ));
+  };
+
+  // Canvas-level drop: add media or set background
+  const [canvasDragOver, setCanvasDragOver] = useState(false);
+  const handleCanvasDragOver = (e) => { e.preventDefault(); setCanvasDragOver(true); };
+  const handleCanvasDragLeave = (e) => {
+    // Only trigger if leaving the canvas itself, not a child
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setCanvasDragOver(false);
+  };
+  const handleCanvasDrop = (e) => {
+    e.preventDefault();
+    setCanvasDragOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file || (!file.type.startsWith("image/") && !file.type.startsWith("video/"))) return;
+    // If no background is set, use as background; otherwise add as layer
+    const bgEl = elements.find(el => el.id === "bg");
+    if (!bgEl?.url) {
+      setBg(file);
+    } else {
+      addMedia(file);
+    }
+  };
+
   // Save template
   const saveTemplate = () => {
     if (!tmplName.trim()) return;
@@ -792,7 +826,12 @@ export function StoryDesigner({ row, onClose, onSave }) {
               </div>
             </div>
             <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top center"}}>
-              <div className="canvas" onMouseDown={e=>{if(e.target===e.currentTarget){setSelectedId(null);setEditingId(null);}}}>
+              <div className="canvas"
+                onMouseDown={e=>{if(e.target===e.currentTarget){setSelectedId(null);setEditingId(null);}}}
+                onDragOver={handleCanvasDragOver}
+                onDragLeave={handleCanvasDragLeave}
+                onDrop={handleCanvasDrop}
+                style={canvasDragOver ? {outline:'2px solid #0EA5E9',outlineOffset:-2} : undefined}>
                 {elements.filter(e=>e.locked).map(el=>(
                   <CanvasElement key={el.id} data={el} isSelected={selectedId===el.id}
                     onSelect={()=>setSelectedId(el.id)} onUpdate={p=>updateEl(el.id,p)}/>
@@ -802,6 +841,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                   <CanvasElement key={el.id} data={el} isSelected={selectedId===el.id}
                     onSelect={()=>{setSelectedId(el.id);if(editingId&&editingId!==el.id)setEditingId(null);}}
                     onUpdate={p=>updateEl(el.id,p)}
+                    onDropReplace={replaceMedia}
                     snapEnabled={snapOn} siblings={elements} onGuides={setGuides}
                     isEditing={editingId===el.id}
                     onStartEdit={()=>{setSelectedId(el.id);setEditingId(el.id);}}
