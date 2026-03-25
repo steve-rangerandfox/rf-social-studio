@@ -299,6 +299,57 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                 </div>
                 {row.platform === "ig_story" ? (
                   <StoryThumbnail elements={storyElements} onClick={onStory} />
+                ) : row.platform === "ig_reel" ? (
+                  <div>
+                    <input ref={mediaRef} type="file" accept="video/*" style={{ display: "none" }}
+                      onChange={e => {
+                        const picked = Array.from(e.target.files || []);
+                        if (!picked.length) return;
+                        const f = picked[0];
+                        if (f.type.startsWith("video/")) {
+                          const url = URL.createObjectURL(f);
+                          setMediaUrls([url]);
+                          // Read video duration
+                          const vid = document.createElement("video");
+                          vid.preload = "metadata";
+                          vid.onloadedmetadata = () => {
+                            onChange({ reelDuration: Math.round(vid.duration) });
+                            URL.revokeObjectURL(vid.src);
+                          };
+                          vid.src = url;
+                        }
+                        e.target.value = "";
+                      }} />
+                    {mediaUrls.length > 0 ? (
+                      <div className="stage-thumb">
+                        <video src={mediaUrls[0]} style={{ width: "100%", borderRadius: 8 }} />
+                        <div className="stage-thumb-overlay">
+                          <button className="stage-thumb-btn" onClick={() => { setMediaUrls([]); onChange({ reelDuration: null }); }}>Remove</button>
+                        </div>
+                        {row.reelDuration != null && (
+                          <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,0.7)", color: "#fff", fontSize: 10, fontFamily: "'JetBrains Mono',monospace", padding: "2px 6px", borderRadius: 4 }}>
+                            {Math.floor(row.reelDuration / 60)}:{String(row.reelDuration % 60).padStart(2, "0")}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="stage-post-placeholder" onClick={() => mediaRef.current?.click()}>
+                        <span style={{ fontSize: 22, opacity: 0.22 }}>&#9654;</span>
+                        <span style={{ fontSize: 11.5, color: T.textSub, fontWeight: 500 }}>Upload Reel</span>
+                        <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'JetBrains Mono',monospace" }}>9:16 video {"\u00B7"} MP4 {"\u00B7"} MOV</span>
+                      </div>
+                    )}
+                    <div style={{ marginTop: 10 }}>
+                      <label style={{ display: "block", fontSize: 10, fontFamily: "'JetBrains Mono',monospace", color: T.textDim, marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>Audio credit</label>
+                      <input
+                        className="inp"
+                        style={{ width: "100%", fontSize: 12, padding: "7px 10px" }}
+                        placeholder="Original audio or song name"
+                        value={row.reelAudio || ""}
+                        onChange={e => onChange({ reelAudio: e.target.value })}
+                      />
+                    </div>
+                  </div>
                 ) : (
                   <div>
                     <input ref={mediaRef} type="file" accept="image/*,video/*,image/gif" multiple={isLI} style={{ display: "none" }}

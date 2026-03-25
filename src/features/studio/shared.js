@@ -30,6 +30,7 @@ export const T = {
 export const PLATFORMS = {
   ig_post: { label: "Instagram Post", short: "IG Post", color: "#49433B", bg: "rgba(73,67,59,0.07)" },
   ig_story: { label: "Instagram Story", short: "Story", color: "#6E655D", bg: "rgba(110,101,93,0.07)" },
+  ig_reel: { label: "Instagram Reel", short: "Reel", color: "#49433B", bg: "rgba(73,67,59,0.07)" },
   linkedin: { label: "LinkedIn", short: "LinkedIn", color: "#4B5F66", bg: "rgba(75,95,102,0.08)" },
 };
 
@@ -308,7 +309,7 @@ export function createSeedRows() {
       platform: "ig_story",
       status: "needs_review",
       assignee: "allyson",
-      comments: [{ id: uid(), author: "allyson", text: "Love the concept — can we add a Reels cut too?", ts: "2h ago" }],
+      comments: [{ id: uid(), author: "allyson", text: "Love the concept — can we add a Reels cut too?", ts: new Date(Date.now() - 2 * 3600000).toISOString() }],
       storyElements: null,
       order: 1,
     },

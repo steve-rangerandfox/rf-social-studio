@@ -9,6 +9,28 @@ export function PlatformIcon({ platform, size = 16 }) {
       </svg>
     );
   }
+  if (platform === "ig_reel") {
+    const id = "ig-reel-grad-" + size;
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" style={{display:"block"}}>
+        <defs>
+          <radialGradient id={id} cx="30%" cy="107%" r="150%">
+            <stop offset="0%" stopColor="#fdf497"/>
+            <stop offset="5%" stopColor="#fdf497"/>
+            <stop offset="45%" stopColor="#fd5949"/>
+            <stop offset="60%" stopColor="#d6249f"/>
+            <stop offset="90%" stopColor="#285AEB"/>
+          </radialGradient>
+        </defs>
+        <rect width="24" height="24" rx="6" fill={`url(#${id})`}/>
+        <rect x="3" y="3" width="18" height="18" rx="3" stroke="#fff" strokeWidth="1.2" fill="none"/>
+        <line x1="3" y1="8" x2="21" y2="8" stroke="#fff" strokeWidth="1.2"/>
+        <line x1="9" y1="3" x2="9" y2="8" stroke="#fff" strokeWidth="1.2"/>
+        <line x1="15" y1="3" x2="15" y2="8" stroke="#fff" strokeWidth="1.2"/>
+        <polygon points="10,12 10,19 16,15.5" fill="#fff"/>
+      </svg>
+    );
+  }
   // Instagram (ig_post, ig_story)
   const id = "ig-grad-" + size;
   return (
