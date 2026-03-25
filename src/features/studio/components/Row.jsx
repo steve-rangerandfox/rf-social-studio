@@ -49,7 +49,6 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-  const [showAI, setShowAI] = useState(false);
   const [mediaUrls, setMediaUrls] = useState([]);
   const [showLIPreview, setShowLIPreview] = useState(false);
   const storyElements = row.storyElements || makeDefaultElements(row.note);
@@ -278,9 +277,6 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                 </div>
               </div>
               <div className="stage-summary-actions">
-                <button className="btn btn-ghost" style={{ padding: "8px 12px" }} onClick={() => setShowAI((current) => !current)}>
-                  {showAI ? "Hide assist" : "Caption assist"}
-                </button>
                 <button className="btn btn-primary" style={{ padding: "8px 12px" }} onClick={() => { onPostNow(); setIsExpanded(false); }}>
                   Post now
                 </button>
@@ -423,12 +419,9 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                   rows={5} />
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: -4 }}>
                   <span className={`stage-char ${over ? "over" : warn ? "warn" : ""}`}>{capLen} / {max}</span>
-                  <span className="stage-char">{row.caption ? "Draft in progress" : "Start with the core message"}</span>
                 </div>
-                {showAI && (
-                  <AICaptionAssist platform={row.platform} note={row.note} caption={row.caption}
-                    onAccept={t => onChange({ caption: t })} />
-                )}
+                <AICaptionAssist platform={row.platform} note={row.note} caption={row.caption}
+                  onAccept={t => onChange({ caption: t })} variant="inline" />
               </section>
             </div>
 
