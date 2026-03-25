@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check, Plus, Minus, RotateCcw } from "lucide-react";
+import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3 } from "lucide-react";
 import { CanvasElement, computeSnap, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
-import { generateStoryTips } from "../../lib/api-client.js";
+import { generateStoryTips } from "../../../lib/api-client.js";
 
 const BRAND_FONTS = [
   { name:"Bricolage Grotesque", label:"Bricolage",  group:"brand" },
@@ -44,12 +44,47 @@ export function StoryDesigner({ row, onClose, onSave }) {
     return makeDefault();
   });
 
+  // ── Undo / Redo history ──
+  const MAX_HISTORY = 20;
+  const [history, setHistory] = useState(() => [elements]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const pushElements = (newElements) => {
+    const resolved = typeof newElements === 'function' ? newElements(elements) : newElements;
+    setHistory(prev => {
+      const truncated = prev.slice(0, historyIndex + 1);
+      const next = [...truncated, resolved].slice(-MAX_HISTORY);
+      setHistoryIndex(next.length - 1);
+      return next;
+    });
+    setElements(resolved);
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setElements(history[newIndex]);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setElements(history[newIndex]);
+    }
+  };
+
+  // ── Guide overlay ──
+  const [showGuides, setShowGuides] = useState(false);
+
   // Auto-save elements to parent row whenever they change
   useEffect(() => { if (onSave) onSave(elements); }, [elements, onSave]);
 
   const [selectedId,  setSelectedId]  = useState(null);
   const [editingId,   setEditingId]   = useState(null);
-  const [zoom,        setZoom]        = useState(1.5);
+  const [zoom,        setZoom]        = useState(1.8);
   const [postState,   setPostState]   = useState("idle");
   const [showCopilot, setShowCopilot] = useState(false);
   const [aiLoading,   setAiLoading]   = useState(false);
@@ -66,7 +101,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
 
   const selected  = elements.find(el => el.id === selectedId);
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
-  const deleteEl  = (id) => { setElements(els => els.filter(e => e.id !== id)); setSelectedId(null); };
+  const deleteEl  = (id) => { pushElements(els => els.filter(e => e.id !== id)); setSelectedId(null); };
 
   // Arrow-key nudge (1px, or 10px with Shift) — skip while inline editing
   useEffect(() => {
@@ -88,7 +123,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
 
   const addText = () => {
     const el = { id:uid(), type:"text", content:"New text", x:40, y:180, fontSize:18, fontFamily:"Bricolage Grotesque", color:"#FFFFFF", letterSpacing:0, fontWeight:600, shadow:false };
-    setElements(els => [...els, el]); setSelectedId(el.id);
+    pushElements(els => [...els, el]); setSelectedId(el.id);
   };
 
   const addMedia = (file) => {
@@ -114,7 +149,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
         autoPlay:true,
         trimLabel: file.name.split('.').pop().toUpperCase(),
       };
-      setElements(els => [...els, el]); setSelectedId(el.id);
+      pushElements(els => [...els, el]); setSelectedId(el.id);
     };
     if (!isVid) {
       const img = new Image();
@@ -130,7 +165,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
     const url    = URL.createObjectURL(file);
     const isGif  = file.type === "image/gif";
     const isVid  = !isGif && file.type.startsWith("video/");
-    updateEl("bg", { url, mediaType: isGif ? 'gif' : isVid ? 'video' : 'image' });
+    pushElements(els => els.map(e => e.id === "bg" ? { ...e, url, mediaType: isGif ? 'gif' : isVid ? 'video' : 'image' } : e));
   };
 
   // Save template
@@ -153,7 +188,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
 
   const loadTemplate = (tmpl) => {
     const els = tmpl.elements.map(e => ({ ...e, id: e.id === 'bg' ? 'bg' : uid() }));
-    setElements(els); setSelectedId(null);
+    pushElements(els); setSelectedId(null);
   };
 
   const runAICopilot = async () => {
@@ -171,6 +206,34 @@ export function StoryDesigner({ row, onClose, onSave }) {
   };
 
   const doPost = async () => { setPostState("posting"); await new Promise(r=>setTimeout(r,2000)); setPostState("done"); };
+
+  // Undo/Redo keyboard shortcuts
+  useEffect(() => {
+    const hUR = (e) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if (mod && e.key === 'z' && e.shiftKey)  { e.preventDefault(); redo(); }
+      if (mod && e.key === 'y')                 { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', hUR);
+    return () => window.removeEventListener('keydown', hUR);
+  }, [historyIndex, history]);
+
+  // Push elements to history on mouseup (after drag / resize finishes)
+  useEffect(() => {
+    const onUp = () => {
+      setHistory(prev => {
+        const last = prev[prev.length - 1];
+        if (JSON.stringify(last) === JSON.stringify(elements)) return prev;
+        const truncated = prev.slice(0, historyIndex + 1);
+        const next = [...truncated, elements].slice(-MAX_HISTORY);
+        setHistoryIndex(next.length - 1);
+        return next;
+      });
+    };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [elements, historyIndex]);
 
   useEffect(() => {
     const h = (e) => {
@@ -431,11 +494,16 @@ export function StoryDesigner({ row, onClose, onSave }) {
                 1080 × 1920 · 9:16
               </div>
               <div className="canvas-zoom-bar">
+                <button className="zoom-btn" onClick={undo} disabled={historyIndex<=0} title="Undo (Ctrl+Z)" style={{opacity:historyIndex<=0?0.35:1}}><Undo2 size={12}/></button>
+                <button className="zoom-btn" onClick={redo} disabled={historyIndex>=history.length-1} title="Redo (Ctrl+Shift+Z)" style={{opacity:historyIndex>=history.length-1?0.35:1}}><Redo2 size={12}/></button>
+                <span style={{width:1,height:14,background:"var(--t-border)",margin:"0 2px"}}/>
+                <button className={"zoom-btn"+(showGuides?" snap-active":"")} onClick={()=>setShowGuides(g=>!g)} title="Toggle guide overlay" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}><Grid3x3 size={12}/></button>
                 <button className={"zoom-btn"+(snapOn?" snap-active":"")} onClick={()=>setSnapOn(s=>!s)} title="Toggle snap alignment" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}>{'\u229E'} Snap</button>
+                <span style={{width:1,height:14,background:"var(--t-border)",margin:"0 2px"}}/>
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.max(0.4,parseFloat((z-0.1).toFixed(1))))} title="Zoom out"><Minus size={12}/></button>
                 <span className="zoom-label">{Math.round(zoom*100)}%</span>
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.min(2.0,parseFloat((z+0.1).toFixed(1))))} title="Zoom in"><Plus size={12}/></button>
-                <button className="zoom-btn" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 4px"}} onClick={()=>setZoom(1.5)} title="Reset zoom">150%</button>
+                <button className="zoom-btn" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 4px"}} onClick={()=>setZoom(1.8)} title="Reset zoom">180%</button>
               </div>
             </div>
             <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top center"}}>
@@ -457,6 +525,20 @@ export function StoryDesigner({ row, onClose, onSave }) {
                 {guides.map((g,i) => g.axis === 'x'
                   ? <div key={i} style={{position:'absolute',left:g.pos,top:0,width:1,height:'100%',background:'rgba(0,165,114,0.6)',pointerEvents:'none',zIndex:40}}/>
                   : <div key={i} style={{position:'absolute',top:g.pos,left:0,height:1,width:'100%',background:'rgba(0,165,114,0.6)',pointerEvents:'none',zIndex:40}}/>
+                )}
+                {showGuides && (
+                  <div style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:30}}>
+                    {/* Center lines */}
+                    <div style={{position:'absolute',left:'50%',top:0,width:1,height:'100%',borderLeft:'1px dashed rgba(255,255,255,0.3)'}}/>
+                    <div style={{position:'absolute',top:'50%',left:0,height:1,width:'100%',borderTop:'1px dashed rgba(255,255,255,0.3)'}}/>
+                    {/* Rule of thirds */}
+                    <div style={{position:'absolute',left:'33.33%',top:0,width:1,height:'100%',borderLeft:'1px dashed rgba(255,255,255,0.15)'}}/>
+                    <div style={{position:'absolute',left:'66.66%',top:0,width:1,height:'100%',borderLeft:'1px dashed rgba(255,255,255,0.15)'}}/>
+                    <div style={{position:'absolute',top:'33.33%',left:0,height:1,width:'100%',borderTop:'1px dashed rgba(255,255,255,0.15)'}}/>
+                    <div style={{position:'absolute',top:'66.66%',left:0,height:1,width:'100%',borderTop:'1px dashed rgba(255,255,255,0.15)'}}/>
+                    {/* Safe zone (10% inset) */}
+                    <div style={{position:'absolute',left:'10%',top:'10%',right:'10%',bottom:'10%',border:'1px dashed rgba(255,122,0,0.3)',borderRadius:4}}/>
+                  </div>
                 )}
                 <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",pointerEvents:"none",zIndex:50}}>R&F</div>
               </div>
