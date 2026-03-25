@@ -156,38 +156,56 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",left:0,zIndex:50,
               background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
-              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:8,width:172,
+              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:8,width:180,
             }}>
-              {/* Solid colors */}
+              {/* Solid swatches */}
               <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:4}}>Solid</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3,marginBottom:8}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3,marginBottom:4}}>
                 {BRAND_COLORS.map(c => (
-                  <button key={c} onClick={() => { updateEl(selectedId, { color: c, gradient: null }); setColorOpen(false); }}
-                    style={{width:24,height:24,borderRadius:5,border:!selected.gradient&&selected.color===c?`2px solid ${T.ink}`:c==="#FFFFFF"||c==="#F7F8FA"?"1px solid #ddd":"1px solid transparent",background:c,cursor:"pointer",padding:0}}/>
+                  <button key={c} onClick={() => { updateEl(selectedId, { color: c, gradient: null }); }}
+                    style={{width:26,height:26,borderRadius:6,border:!selected.gradient&&selected.color===c?`2px solid ${T.ink}`:c==="#FFFFFF"||c==="#F7F8FA"?"1px solid #ddd":"1px solid transparent",background:c,cursor:"pointer",padding:0}}/>
                 ))}
               </div>
-              {/* Gradients */}
+              {/* Custom color picker */}
+              <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:8}}>
+                <input type="color" value={selected.gradient ? "#ffffff" : (selected.color?.startsWith("#") ? selected.color : "#ffffff")}
+                  onChange={e => updateEl(selectedId, { color: e.target.value, gradient: null })}
+                  style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer",background:"transparent"}}/>
+                <input type="text" value={selected.gradient ? "" : selected.color}
+                  placeholder="#hex"
+                  onChange={e => updateEl(selectedId, { color: e.target.value, gradient: null })}
+                  style={{flex:1,minWidth:0,fontSize:10,fontFamily:"'JetBrains Mono',monospace",padding:"4px 6px",border:`1px solid ${T.border}`,borderRadius:5,background:T.s2,color:T.text,outline:"none"}}/>
+              </div>
+
+              {/* Gradient presets */}
               <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:4}}>Gradient</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:3,marginBottom:8}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:3,marginBottom:4}}>
                 {GRADIENT_PRESETS.map(g => (
-                  <button key={g.id} title={g.label} onClick={() => { updateEl(selectedId, { gradient: g.css }); setColorOpen(false); }}
-                    style={{height:24,borderRadius:5,border:selected.gradient===g.css?`2px solid ${T.ink}`:"1px solid transparent",background:g.css,cursor:"pointer",padding:0}}/>
+                  <button key={g.id} title={g.label} onClick={() => updateEl(selectedId, { gradient: g.css })}
+                    style={{height:26,borderRadius:6,border:selected.gradient===g.css?`2px solid ${T.ink}`:"1px solid transparent",background:g.css,cursor:"pointer",padding:0}}/>
                 ))}
               </div>
-              {/* Hex input */}
-              <div style={{display:"flex",alignItems:"center",gap:4,borderTop:`1px solid ${T.border}`,paddingTop:6}}>
-                <div style={{width:18,height:18,borderRadius:4,background:colorPreview,border:`1px solid ${T.border}`,flexShrink:0}}/>
-                <input type="text" value={selected.gradient || selected.color}
+              {/* Custom gradient builder */}
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <input type="color" value={selected._gradA || "#FF7A00"}
                   onChange={e => {
-                    const v = e.target.value;
-                    if (v.startsWith("linear-gradient") || v.startsWith("radial-gradient")) updateEl(selectedId, { gradient: v });
-                    else updateEl(selectedId, { color: v, gradient: null });
+                    const a = e.target.value;
+                    const b = selected._gradB || "#7C3AED";
+                    updateEl(selectedId, { gradient: `linear-gradient(135deg, ${a}, ${b})`, _gradA: a, _gradB: b });
                   }}
-                  style={{flex:1,fontSize:10,fontFamily:"'JetBrains Mono',monospace",padding:"3px 5px",border:`1px solid ${T.border}`,borderRadius:4,background:T.s2,color:T.text,outline:"none"}}/>
+                  style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer",background:"transparent"}}/>
+                <div style={{flex:1,height:26,borderRadius:6,background:selected.gradient || `linear-gradient(135deg, ${selected._gradA||"#FF7A00"}, ${selected._gradB||"#7C3AED"})`,border:`1px solid ${T.border}`}}/>
+                <input type="color" value={selected._gradB || "#7C3AED"}
+                  onChange={e => {
+                    const a = selected._gradA || "#FF7A00";
+                    const b = e.target.value;
+                    updateEl(selectedId, { gradient: `linear-gradient(135deg, ${a}, ${b})`, _gradA: a, _gradB: b });
+                  }}
+                  style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer",background:"transparent"}}/>
               </div>
               {selected.gradient && (
-                <button onClick={() => { updateEl(selectedId, { gradient: null }); }}
-                  style={{marginTop:4,width:"100%",padding:"4px 0",border:"none",borderRadius:4,background:"transparent",cursor:"pointer",fontSize:10,fontWeight:600,color:T.textDim}}>
+                <button onClick={() => updateEl(selectedId, { gradient: null })}
+                  style={{marginTop:6,width:"100%",padding:"4px 0",border:"none",borderRadius:4,background:"transparent",cursor:"pointer",fontSize:10,fontWeight:600,color:T.textDim}}>
                   Clear gradient
                 </button>
               )}
