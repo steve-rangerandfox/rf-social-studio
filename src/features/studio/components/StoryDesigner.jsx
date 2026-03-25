@@ -254,14 +254,14 @@ export function StoryDesigner({ row, onClose, onSave }) {
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Posting...</span></div>}
             {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">Story live</span></div>}
-            <button className="btn btn-ai" style={{padding:"5px 11px",fontSize:12}}
+            <button className="btn btn-ai btn-sm"
               onClick={()=>{setShowCopilot(v=>!v);if(!showCopilot&&aiTips.length===0)runAICopilot();}}>
               {showCopilot?"Hide AI":"AI Refine"}
             </button>
-            {postState!=="done"&&<button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:12}} onClick={onClose}>Discard</button>}
+            {postState!=="done"&&<button className="btn btn-ghost btn-sm" onClick={onClose}>Discard</button>}
             {postState==="done"
-              ?<button className="btn btn-ghost" style={{padding:"5px 12px",fontSize:12}} onClick={onClose}>Close</button>
-              :<button className="btn btn-primary" style={{padding:"5px 14px",fontSize:12}} onClick={doPost} disabled={postState==="posting"}>Publish Story</button>}
+              ?<button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+              :<button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"}>Publish Story</button>}
             <button className="m-x" onClick={onClose}><X size={16}/></button>
           </div>
         </div>
@@ -274,12 +274,12 @@ export function StoryDesigner({ row, onClose, onSave }) {
             <div className="inspector-group">
               <div className="inspector-group-title">Canvas</div>
               <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 10px",justifyContent:"flex-start"}} onClick={addText}><Plus size={12} style={{marginRight:4}}/> Add Text</button>
-                <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 10px",justifyContent:"flex-start"}} onClick={()=>imgFileRef.current?.click()}><Plus size={12} style={{marginRight:4}}/> Image / GIF</button>
-                <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 10px",justifyContent:"flex-start"}} onClick={()=>vidFileRef.current?.click()}><Plus size={12} style={{marginRight:4}}/> Video Layer</button>
+                <button className="btn btn-ghost btn-sm" style={{justifyContent:"flex-start"}} onClick={addText}><Plus size={12} style={{marginRight:4}}/> Add Text</button>
+                <button className="btn btn-ghost btn-sm" style={{justifyContent:"flex-start"}} onClick={()=>imgFileRef.current?.click()}><Plus size={12} style={{marginRight:4}}/> Image / GIF</button>
+                <button className="btn btn-ghost btn-sm" style={{justifyContent:"flex-start"}} onClick={()=>vidFileRef.current?.click()}><Plus size={12} style={{marginRight:4}}/> Video Layer</button>
                 <input ref={imgFileRef} type="file" accept="image/*,image/gif" style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
                 <input ref={vidFileRef} type="file" accept="video/*,image/gif"  style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
-                <button className="btn btn-ghost" style={{flex:1,fontSize:12,padding:"6px 10px",justifyContent:"flex-start"}} onClick={()=>bgFileRef.current?.click()}>
+                <button className="btn btn-ghost btn-sm" style={{flex:1,justifyContent:"flex-start"}} onClick={()=>bgFileRef.current?.click()}>
                   {elements.find(e=>e.id==="bg")?.url?"Replace Background":"Set Background"}
                 </button>
                 <input ref={bgFileRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}} onChange={e=>setBg(e.target.files?.[0])}/>
@@ -396,7 +396,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                     <div className="lbl" style={{marginBottom:2}}>Scale — {(selected.scale||1).toFixed(2)}x</div>
                     <input type="range" className="s-slider" min={0.2} max={3} step={0.05} value={selected.scale||1}
                       onChange={e=>updateEl(selectedId,{scale:parseFloat(e.target.value)})}/>
-                    <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 10px",width:"100%",marginTop:4}}
+                    <button className="btn btn-ghost btn-sm" style={{width:"100%",marginTop:4}}
                       onClick={()=>imgFileRef.current?.click()}>Replace Image</button>
                   </>
                 )}
@@ -460,8 +460,8 @@ export function StoryDesigner({ row, onClose, onSave }) {
                 <div style={{display:"flex",gap:6,marginTop:8}}>
                   <input className="s-inp" style={{flex:1,fontSize:11.5}} value={tmplName} onChange={e=>setTmplName(e.target.value)}
                     onKeyDown={e=>e.key==="Enter"&&saveTemplate()} placeholder="Template name..." autoFocus/>
-                  <button className="btn btn-primary" style={{padding:"5px 10px",fontSize:11}} onClick={saveTemplate}>Save</button>
-                  <button className="btn btn-ghost" style={{padding:"5px 8px",fontSize:11}} onClick={()=>setShowTmplSave(false)}><X size={10}/></button>
+                  <button className="btn btn-primary btn-sm" onClick={saveTemplate}>Save</button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>setShowTmplSave(false)}><X size={10}/></button>
                 </div>
               ) : (
                 <button className="save-tmpl-btn" onClick={()=>setShowTmplSave(true)}>

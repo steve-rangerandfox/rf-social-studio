@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { X, ChevronLeft, ChevronRight, Upload, Check, RotateCcw, Plus, ArrowUp, ArrowDown } from "lucide-react";
 
 import {
   exchangeInstagramCode,
@@ -274,8 +275,8 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onStory, 
               <div className="cal-subtitle">Select a day to review timing, readiness, and post details.</div>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button className="cal-nav-btn" onClick={prevMonth}>‹</button>
-              <button className="cal-nav-btn" onClick={nextMonth}>›</button>
+              <button className="cal-nav-btn" onClick={prevMonth}><ChevronLeft size={14}/></button>
+              <button className="cal-nav-btn" onClick={nextMonth}><ChevronRight size={14}/></button>
             </div>
           </div>
           <div className="cal-header">{WEEKDAYS.map(w=><div key={w} className="cal-wd">{w}</div>)}</div>
@@ -318,7 +319,7 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onStory, 
                       })}
                       {count > 4 && <div className="cal-more">+{count - 4} more</div>}
                     </div>
-                    <div className="cal-add"><button className="cal-add-btn" onClick={(event)=>{event.stopPropagation();setSelectedDay(d);onAddDay(d, calMonth, calYear);}}>+</button></div>
+                    <div className="cal-add"><button className="cal-add-btn" onClick={(event)=>{event.stopPropagation();setSelectedDay(d);onAddDay(d, calMonth, calYear);}}><Plus size={12}/></button></div>
                   </>}
                 </div>
               );
@@ -329,7 +330,7 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onStory, 
         <aside className="cal-panel">
           <div className="cal-panel-header">
             <div className="cal-panel-day">{MONTHS_FULL[calMonth]} {selectedDay}</div>
-            <button className="btn btn-ghost" style={{padding:"6px 12px",fontSize:12}} onClick={() => onAddDay(selectedDay, calMonth, calYear)}>Add post</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => onAddDay(selectedDay, calMonth, calYear)}>Add post</button>
           </div>
           <div className="cal-panel-sub">Posts scheduled for the selected day appear here so details stay out of the grid.</div>
 
@@ -480,7 +481,7 @@ export function AssetLibrary({ onClose, onSelect }) {
           <div className="asset-title">Asset Library</div>
           <div className="asset-head-sub">{assets.length} assets ready for planning and story design</div>
         </div>
-        <button className="m-x" onClick={onClose}>×</button>
+        <button className="m-x" onClick={onClose}><X size={14}/></button>
       </div>
       <div className="asset-body">
         <div className="asset-toolbar">
@@ -507,7 +508,7 @@ export function AssetLibrary({ onClose, onSelect }) {
 
         <div className="asset-upload" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();upload(e.dataTransfer.files);}} onClick={()=>fRef.current?.click()}>
           <input ref={fRef} type="file" accept="image/*,video/*,image/gif" multiple style={{display:"none"}} onChange={e=>upload(e.target.files)}/>
-          <div style={{fontSize:20,opacity:0.4,marginBottom:6}}>↑</div><div style={{fontSize:12,color:T.textSub}}>Upload brand assets</div>
+          <div style={{opacity:0.4,marginBottom:6}}><Upload size={20}/></div><div style={{fontSize:12,color:T.textSub}}>Upload brand assets</div>
           <div style={{fontSize:10,color:T.textDim,marginTop:2,fontFamily:"'JetBrains Mono',monospace"}}>Images · Videos · GIFs</div>
         </div>
 
@@ -526,7 +527,7 @@ export function AssetLibrary({ onClose, onSelect }) {
                   {selectedAsset.favorite ? "Saved" : "Save"}
                 </button>
               </div>
-              <button className="btn btn-primary" style={{alignSelf:"flex-start",padding:"8px 12px"}} onClick={() => onSelect?.(selectedAsset)}>
+              <button className="btn btn-primary" style={{alignSelf:"flex-start"}} onClick={() => onSelect?.(selectedAsset)}>
                 Attach selected asset
               </button>
             </div>
@@ -663,7 +664,7 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
           <div className="cp-section-title">Permissions</div>
           {["Read profile & media","Access media URLs & thumbnails","Read media metadata"].map(permission => (
             <div key={permission} style={{display:"flex",alignItems:"center",gap:7,fontSize:12.5,color:T.textSub,padding:"3px 0"}}>
-              <span style={{color:"#10B981",fontWeight:700,fontSize:11}}>✓</span>{permission}
+              <span style={{color:"#10B981",display:"inline-flex"}}><Check size={12}/></span>{permission}
             </div>
           ))}
         </div>
@@ -671,10 +672,10 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
         {error && <div style={{fontSize:11.5,color:T.red,padding:"6px 0 0"}}>{error}</div>}
 
         <div style={{display:"flex",gap:8,marginTop:14}}>
-          <button className="btn btn-ghost" style={{flex:1,padding:"7px 0",fontSize:12}} onClick={syncMedia} disabled={syncing}>
-            {syncing ? "Syncing…" : `↻ Sync Posts (${mediaCount})`}
+          <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={syncMedia} disabled={syncing}>
+            {syncing ? "Syncing…" : <><RotateCcw size={11} style={{marginRight:4}}/> Sync Posts ({mediaCount})</>}
           </button>
-          <button className="btn btn-danger" style={{padding:"7px 13px",fontSize:12}} onClick={onDisconnect}>
+          <button className="btn btn-danger btn-sm" onClick={onDisconnect}>
             Disconnect
           </button>
         </div>
@@ -729,7 +730,7 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
             <div className="m-title">{isIG ? "Instagram" : "LinkedIn"}</div>
             <div className="m-sub">{isIG ? (igConfig?.username ? `@${igConfig.username}` : "Not connected") : (connected ? "@rangerandfox · Company Page" : "Not connected")}</div>
           </div>
-          <button className="m-x" onClick={onClose}>×</button>
+          <button className="m-x" onClick={onClose}><X size={14}/></button>
         </div>
         <div className="m-body">
           {isIG ? (
@@ -780,12 +781,12 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
         </div>
         {!isIG && (
           <div className="m-foot">
-            <button className="btn btn-ghost" style={{padding:"6px 13px",fontSize:12}} onClick={onClose}>Close</button>
+            <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
             {connected
-              ? <button className="btn btn-danger" style={{padding:"6px 13px",fontSize:12}} disabled={simulating} onClick={()=>simulate(onDisconnect)}>
+              ? <button className="btn btn-danger btn-sm" disabled={simulating} onClick={()=>simulate(onDisconnect)}>
                   {simulating ? "Disconnecting…" : "Disconnect"}
                 </button>
-              : <button className="btn btn-primary" style={{padding:"6px 14px",fontSize:12,background:T.blue}} disabled={simulating} onClick={()=>simulate(onConnect)}>
+              : <button className="btn btn-primary btn-sm" style={{background:T.blue}} disabled={simulating} onClick={()=>simulate(onConnect)}>
                   {simulating ? "Connecting…" : "Connect with LinkedIn →"}
                 </button>
             }
@@ -793,7 +794,7 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
         )}
         {isIG && (
           <div className="m-foot">
-            <button className="btn btn-ghost" style={{padding:"6px 13px",fontSize:12}} onClick={onClose}>Close</button>
+            <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
           </div>
         )}
       </div>
@@ -821,7 +822,7 @@ export function SettingsModal({ onClose }) {
       <div className="modal settings-modal" onClick={e=>e.stopPropagation()}>
         <div className="m-head">
           <div><div className="m-title">Settings</div><div className="m-sub">Social Studio preferences</div></div>
-          <button className="m-x" onClick={onClose}>×</button>
+          <button className="m-x" onClick={onClose}><X size={14}/></button>
         </div>
         <div className="m-body" style={{paddingTop:0}}>
           <div className="settings-tabs">
@@ -873,7 +874,7 @@ export function SettingsModal({ onClose }) {
                   </div>
                 </div>
               ))}
-              <button className="btn btn-ghost" style={{fontSize:12,marginTop:4}}>+ Invite team member</button>
+              <button className="btn btn-ghost" style={{fontSize:12,marginTop:4}}><Plus size={12} style={{marginRight:4}}/> Invite team member</button>
             </div>
           )}
 
@@ -903,8 +904,8 @@ export function SettingsModal({ onClose }) {
           )}
         </div>
         <div className="m-foot">
-          <button className="btn btn-ghost" style={{fontSize:12}} onClick={onClose}>Close</button>
-          <button className="btn btn-primary" style={{fontSize:12}} onClick={onClose}>Save Changes</button>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+          <button className="btn btn-primary btn-sm" onClick={onClose}>Save Changes</button>
         </div>
       </div>
     </div>
