@@ -286,18 +286,28 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
             <div className="stage-grid">
               <section className="stage-section">
                 <div className="stage-col-label">Media & Placement</div>
-                <div className="quick-status">
+                <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                {/* Platform selector — vertical list with icons */}
+                <div style={{display:"flex",flexDirection:"column",gap:2,flexShrink:0,width:90}}>
                   {Object.entries(PLATFORMS).map(([key, platform]) => (
                     <button
                       key={key}
-                      className={"qs-btn " + (row.platform === key ? "active" : "")}
-                      style={row.platform === key ? { color: platform.color, borderColor: platform.color, background: platform.bg } : {}}
                       onClick={() => onChange({ platform: key })}
-                    >
-                      {platform.label}
+                      style={{
+                        display:"flex",alignItems:"center",gap:6,padding:"6px 8px",
+                        borderRadius:8,border:"none",cursor:"pointer",transition:"all 0.1s",
+                        background:row.platform===key ? platform.bg : "transparent",
+                        color:row.platform===key ? T.text : T.textDim,
+                        fontWeight:row.platform===key ? 700 : 500,
+                        fontSize:11,textAlign:"left",width:"100%",
+                      }}>
+                      <PlatformIcon platform={key} size={16}/>
+                      <span>{platform.short}</span>
                     </button>
                   ))}
                 </div>
+                {/* Media content area */}
+                <div style={{flex:1,minWidth:0}}>
                 {row.platform === "ig_story" ? (
                   <StoryThumbnail elements={storyElements} onClick={onStory} />
                 ) : row.platform === "ig_reel" ? (
@@ -408,6 +418,8 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                     )}
                   </div>
                 )}
+                </div>{/* end media content area */}
+                </div>{/* end flex row */}
               </section>
 
               <section className="stage-section">
