@@ -43,11 +43,38 @@ export const STATUSES = {
   posted: { label: "Posted", dot: "#181714", next: "idea" },
 };
 
-export const TEAM = [
-  { id: "stephen", name: "Stephen", initials: "SC", color: "#0369A1" },
-  { id: "allyson", name: "Allyson", initials: "AL", color: "#BE185D" },
-  { id: "jared", name: "Jared", initials: "JR", color: "#7C3AED" },
+export const DEFAULT_TEAM = [
+  { id: "stephen", name: "Stephen", initials: "SC", color: "#0369A1", role: "Creative Director" },
+  { id: "allyson", name: "Allyson", initials: "AL", color: "#BE185D", role: "Content Lead" },
+  { id: "jared", name: "Jared", initials: "JR", color: "#7C3AED", role: "Designer" },
 ];
+
+const TEAM_STORAGE_KEY = "rf_studio_team";
+
+export function loadTeam() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(TEAM_STORAGE_KEY) || "null");
+    if (Array.isArray(stored) && stored.length > 0) return stored;
+  } catch {}
+  return DEFAULT_TEAM;
+}
+
+export function saveTeam(team) {
+  try {
+    localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(team));
+    return true;
+  } catch { return false; }
+}
+
+export function createTeamMember({ name, role = "" }) {
+  const initials = name.split(" ").map(w => w[0]?.toUpperCase() || "").join("").slice(0, 2);
+  const colors = ["#0369A1", "#BE185D", "#7C3AED", "#059669", "#D97706", "#DC2626"];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  return { id: name.toLowerCase().replace(/\s+/g, "_"), name, initials, color, role };
+}
+
+// Keep backward compatibility - TEAM is still exported
+export const TEAM = loadTeam();
 
 export const MONTHS_FULL = [
   "January",

@@ -859,3 +859,28 @@ button.stat{font:inherit;text-align:left}
   .cp-modal,.settings-modal{width:min(94vw,430px)}
   .add-post-row{grid-template-columns:1fr}
 }
+
+/* ─── EXIT ANIMATIONS ─── */
+@keyframes modalOut {
+  from { transform: translateY(0) scale(1); opacity: 1; }
+  to { transform: translateY(10px) scale(0.96); opacity: 0; }
+}
+@keyframes overlayOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes toastOut {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(8px); opacity: 0; }
+}
+@keyframes drawerOut {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+.overlay.closing { animation: overlayOut 0.15s ease forwards; }
+.overlay.closing .modal { animation: modalOut 0.15s ease forwards; }
+.toast.closing { animation: toastOut 0.15s ease forwards; }
+.asset-drawer.closing { animation: drawerOut 0.2s ease forwards; }
+
+/* Smooth row collapse — match expansion easing */
+.stage-reveal-wrapper { transition: grid-template-rows 320ms cubic-bezier(0.4, 0, 0.2, 1); }
