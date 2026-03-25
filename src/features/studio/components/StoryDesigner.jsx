@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, AArrowUp } from "lucide-react";
+import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, Image, Film, Wallpaper } from "lucide-react";
 import { CanvasElement, computeSnap, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
@@ -588,18 +588,28 @@ export function StoryDesigner({ row, onClose, onSave }) {
 
             {/* Canvas actions */}
             <div className="inspector-group">
-              <div className="inspector-group-title">Canvas</div>
-              <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                <button className="btn btn-ghost btn-sm" style={{justifyContent:"flex-start"}} onClick={addText}><Plus size={12} style={{marginRight:4}}/> Add Text</button>
-                <button className="btn btn-ghost btn-sm" style={{justifyContent:"flex-start"}} onClick={()=>imgFileRef.current?.click()}><Plus size={12} style={{marginRight:4}}/> Image / GIF</button>
-                <button className="btn btn-ghost btn-sm" style={{justifyContent:"flex-start"}} onClick={()=>vidFileRef.current?.click()}><Plus size={12} style={{marginRight:4}}/> Video Layer</button>
-                <input ref={imgFileRef} type="file" accept="image/*,image/gif" style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
-                <input ref={vidFileRef} type="file" accept="video/*,image/gif"  style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
-                <button className="btn btn-ghost btn-sm" style={{flex:1,justifyContent:"flex-start"}} onClick={()=>bgFileRef.current?.click()}>
-                  {elements.find(e=>e.id==="bg")?.url?"Replace Background":"Set Background"}
-                </button>
-                <input ref={bgFileRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}} onChange={e=>setBg(e.target.files?.[0])}/>
+              <div style={{display:"flex",gap:4}}>
+                {[
+                  { icon: <Type size={15}/>, title: "Add Text", action: addText },
+                  { icon: <Image size={15}/>, title: "Image / GIF", action: () => imgFileRef.current?.click() },
+                  { icon: <Film size={15}/>, title: "Video Layer", action: () => vidFileRef.current?.click() },
+                  { icon: <Wallpaper size={15}/>, title: elements.find(e=>e.id==="bg")?.url ? "Replace BG" : "Set BG", action: () => bgFileRef.current?.click() },
+                ].map((btn, i) => (
+                  <button key={i} title={btn.title} onClick={btn.action}
+                    style={{
+                      flex:1,height:36,display:"flex",alignItems:"center",justifyContent:"center",
+                      border:`1px solid ${T.border}`,borderRadius:8,background:T.s2,
+                      cursor:"pointer",color:T.textSub,transition:"all 0.1s",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.border2; e.currentTarget.style.color = T.text; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textSub; }}>
+                    {btn.icon}
+                  </button>
+                ))}
               </div>
+              <input ref={imgFileRef} type="file" accept="image/*,image/gif" style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
+              <input ref={vidFileRef} type="file" accept="video/*,image/gif"  style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
+              <input ref={bgFileRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}} onChange={e=>setBg(e.target.files?.[0])}/>
             </div>
 
             {/* Element properties */}
