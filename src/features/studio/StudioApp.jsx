@@ -564,6 +564,7 @@ export default function App() {
           <div><div className="logo-name">Ranger & Fox</div><div className="logo-sub">Social Studio</div></div>
         </div>
         <div className="s-sect">
+          <button className="btn btn-primary" style={{width:"100%",marginBottom:12,padding:"10px 16px",fontSize:13,justifyContent:"center"}} onClick={()=>add(month)}>+ Add post</button>
           <span className="s-lbl">Calendar</span>
           {/* Time scale toggle */}
           <div className="time-toggle">
@@ -642,7 +643,6 @@ export default function App() {
             onClick={()=>{ exportStudioData(studioDoc); showToast('Backup downloaded', T.mint); }}>
             Export
           </button>
-          <button className="btn btn-ghost" onClick={()=>add(month)}>+ Add</button>
         </div>
 
         {/* STATS — YTD in year view, monthly in month view */}
@@ -655,7 +655,7 @@ export default function App() {
                 { val: igC, key: "Instagram", onClick: () => jumpToStatsFilter({ platform: "instagram" }) },
                 { val: liC, key: "LinkedIn", onClick: () => jumpToStatsFilter({ platform: "linkedin" }) },
                 { val: reviewC, key: "Needs review", onClick: () => jumpToStatsFilter({ status: "needs_review" }) },
-                { val: readyC, key: "Approved / sched", onClick: () => jumpToStatsFilter({ status: "ready" }) },
+                { val: readyC, key: "Ready", onClick: () => jumpToStatsFilter({ status: "ready" }) },
               ].map((s,i)=>(
                 <button key={i} className="stat clickable" onClick={s.onClick}>
                   <div className="stat-val">{s.val}</div>
@@ -681,7 +681,7 @@ export default function App() {
               options={[
                 { value: "all", label: "All statuses" },
                 { value: "needs_review", label: "Needs review" },
-                { value: "ready", label: "Approved / sched" },
+                { value: "ready", label: "Ready" },
                 { value: "approved", label: "Approved" },
                 { value: "scheduled", label: "Scheduled" },
                 { value: "posted", label: "Posted" },
