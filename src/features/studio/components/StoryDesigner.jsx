@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2 } from "lucide-react";
+import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, ChevronDown, Type, ALargeSmall, Droplets } from "lucide-react";
 import { CanvasElement, computeSnap, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
@@ -15,6 +15,193 @@ const SYS_FONTS   = [
   { name:"Arial",        label:"Arial",        group:"system" },
 ];
 const ALL_FONTS = [...BRAND_FONTS, ...SYS_FONTS];
+
+// ─── TEXT INSPECTOR (Canva/Photoshop-style compact panel) ────────
+const ALL_FONTS_GROUPED = () => {
+  const brand = BRAND_FONTS.map(f => ({ ...f, group: "Brand" }));
+  const sys = SYS_FONTS.map(f => ({ ...f, group: "System" }));
+  return [...brand, ...sys];
+};
+
+function TextInspector({ selected, selectedId, updateEl, customFonts, removeCustomFont, fontFileRef, handleFontUpload, fontInstalling, fontError }) {
+  const [fontOpen, setFontOpen] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
+  const fontRef = useRef(null);
+  const colorRef = useRef(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const h = (e) => {
+      if (fontRef.current && !fontRef.current.contains(e.target)) setFontOpen(false);
+      if (colorRef.current && !colorRef.current.contains(e.target)) setColorOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const allFonts = ALL_FONTS_GROUPED();
+  const currentFont = [...allFonts, ...customFonts].find(f => f.name === selected.fontFamily);
+  const currentLabel = currentFont?.label || selected.fontFamily || "Select font";
+
+  const stepSize = (delta) => {
+    const next = Math.max(6, Math.min(96, Math.round(selected.fontSize + delta)));
+    updateEl(selectedId, { fontSize: next });
+  };
+
+  const stepSpacing = (delta) => {
+    const next = Math.max(-2, Math.min(10, parseFloat(((selected.letterSpacing || 0) + delta).toFixed(1))));
+    updateEl(selectedId, { letterSpacing: next });
+  };
+
+  // Shared button style for toolbar icons
+  const tb = (active) => ({
+    width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",
+    border:"none",borderRadius:6,cursor:"pointer",transition:"all 0.1s",flexShrink:0,
+    background:active?T.ink:"transparent",color:active?T.surface:T.textSub,
+  });
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {/* ── Row 1: Font dropdown + Size stepper ── */}
+      <div style={{display:"flex",gap:4,alignItems:"stretch"}}>
+        {/* Font dropdown */}
+        <div style={{position:"relative",flex:1,minWidth:0}} ref={fontRef}>
+          <button onClick={() => setFontOpen(v => !v)}
+            style={{
+              width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",
+              gap:4,padding:"0 8px",borderRadius:8,border:`1px solid ${T.border}`,
+              background:T.s2,cursor:"pointer",fontFamily:`'${selected.fontFamily}',sans-serif`,
+              fontSize:13,fontWeight:600,color:T.text,minHeight:32,
+            }}>
+            <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentLabel}</span>
+            <ChevronDown size={10} style={{flexShrink:0,opacity:0.4,transform:fontOpen?"rotate(180deg)":"none",transition:"transform 0.15s"}}/>
+          </button>
+          {fontOpen && (
+            <div style={{
+              position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:50,
+              background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
+              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",maxHeight:220,overflowY:"auto",padding:4,
+            }}>
+              {[
+                { label: "Brand", fonts: BRAND_FONTS },
+                { label: "System", fonts: SYS_FONTS },
+                ...(customFonts.length > 0 ? [{ label: "Custom", fonts: customFonts, custom: true }] : []),
+              ].map(group => (
+                <div key={group.label}>
+                  <div style={{padding:"6px 8px 2px",fontSize:9,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textDim,fontFamily:"'JetBrains Mono',monospace"}}>{group.label}</div>
+                  {group.fonts.map(f => (
+                    <div key={f.name || f.id} style={{display:"flex",alignItems:"center"}}>
+                      <button onClick={() => { updateEl(selectedId, { fontFamily: f.name }); setFontOpen(false); }}
+                        style={{
+                          flex:1,display:"flex",alignItems:"center",gap:6,padding:"5px 8px",border:"none",
+                          borderRadius:6,background:selected.fontFamily===f.name?T.s3:"transparent",
+                          cursor:"pointer",fontSize:12,color:T.text,fontFamily:`'${f.name}',sans-serif`,
+                          fontWeight:selected.fontFamily===f.name?700:500,textAlign:"left",
+                        }}>
+                        {f.label}
+                        {selected.fontFamily===f.name && <Check size={10} style={{marginLeft:"auto",opacity:0.5}}/>}
+                      </button>
+                      {group.custom && (
+                        <button onClick={() => removeCustomFont(f.id)} title="Remove"
+                          style={{background:"transparent",border:"none",cursor:"pointer",color:T.textDim,padding:4,borderRadius:4}}>
+                          <Trash2 size={9}/>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <div style={{borderTop:`1px solid ${T.border}`,margin:"2px 0 0",padding:"2px 0 0"}}>
+                <button onClick={() => { fontFileRef.current?.click(); setFontOpen(false); }} disabled={fontInstalling}
+                  style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:4,padding:"6px 8px",border:"none",borderRadius:6,background:"transparent",cursor:"pointer",fontSize:11,fontWeight:600,color:T.textSub}}>
+                  <Upload size={10}/> {fontInstalling ? "Installing..." : "Upload font"}
+                </button>
+              </div>
+            </div>
+          )}
+          <input ref={fontFileRef} type="file" accept=".woff,.woff2,.ttf,.otf,.eot" style={{display:"none"}}
+            onChange={e => { handleFontUpload(e.target.files?.[0]); e.target.value = ""; }}/>
+        </div>
+
+        {/* Size stepper */}
+        <div style={{display:"flex",alignItems:"center",border:`1px solid ${T.border}`,borderRadius:8,background:T.s2,flexShrink:0,width:80}}>
+          <button onClick={() => stepSize(-1)} style={{padding:"0 4px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center",height:"100%"}}><Minus size={10}/></button>
+          <input type="number" value={Math.round(selected.fontSize)} min={6} max={96}
+            onChange={e => updateEl(selectedId, { fontSize: Math.max(6, Math.min(96, parseInt(e.target.value) || 6)) })}
+            style={{width:"100%",textAlign:"center",border:"none",background:"transparent",fontSize:12,fontWeight:700,color:T.text,padding:0,outline:"none",fontFamily:"'JetBrains Mono',monospace",MozAppearance:"textfield"}}/>
+          <button onClick={() => stepSize(1)} style={{padding:"0 4px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center",height:"100%"}}><Plus size={10}/></button>
+        </div>
+      </div>
+      {fontError && <div style={{fontSize:10,color:T.red,lineHeight:1.4}}>{fontError}</div>}
+
+      {/* ── Row 2: Color + B/I/Shadow + Spacing ── */}
+      <div style={{display:"flex",alignItems:"center",gap:2,background:T.s2,borderRadius:8,padding:2,border:`1px solid ${T.border}`}}>
+        {/* Color picker */}
+        <div style={{position:"relative"}} ref={colorRef}>
+          <button title="Text color" onClick={() => setColorOpen(v => !v)}
+            style={{...tb(false),position:"relative",width:30,height:30}}>
+            <Type size={13} style={{color:T.textSub}}/>
+            <div style={{position:"absolute",bottom:3,left:5,right:5,height:3,borderRadius:1,background:selected.color}}/>
+          </button>
+          {colorOpen && (
+            <div style={{
+              position:"absolute",top:"calc(100% + 4px)",left:0,zIndex:50,
+              background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
+              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:8,width:148,
+            }}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3}}>
+                {BRAND_COLORS.map(c => (
+                  <button key={c} onClick={() => { updateEl(selectedId, { color: c }); setColorOpen(false); }}
+                    style={{width:24,height:24,borderRadius:5,border:selected.color===c?`2px solid ${T.ink}`:c==="#FFFFFF"||c==="#F7F8FA"?"1px solid #ddd":"1px solid transparent",background:c,cursor:"pointer",padding:0}}/>
+                ))}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:4,marginTop:6,borderTop:`1px solid ${T.border}`,paddingTop:6}}>
+                <div style={{width:18,height:18,borderRadius:4,background:selected.color,border:`1px solid ${T.border}`,flexShrink:0}}/>
+                <input type="text" value={selected.color} onChange={e => updateEl(selectedId, { color: e.target.value })}
+                  style={{flex:1,fontSize:10,fontFamily:"'JetBrains Mono',monospace",padding:"3px 5px",border:`1px solid ${T.border}`,borderRadius:4,background:T.s2,color:T.text,outline:"none"}}/>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{width:1,height:18,background:T.border,flexShrink:0}}/>
+
+        {/* Weight: Regular / Bold / Black */}
+        <button title="Regular (400)" onClick={() => updateEl(selectedId, { fontWeight: 400 })}
+          style={tb(selected.fontWeight===400)}>
+          <span style={{fontSize:13,fontFamily:"'Inter',sans-serif",fontWeight:400}}>R</span>
+        </button>
+        <button title="Bold (700)" onClick={() => updateEl(selectedId, { fontWeight: 700 })}
+          style={tb(selected.fontWeight===700)}>
+          <Bold size={13}/>
+        </button>
+        <button title="Black (800)" onClick={() => updateEl(selectedId, { fontWeight: 800 })}
+          style={tb(selected.fontWeight===800)}>
+          <span style={{fontSize:13,fontFamily:"'Inter',sans-serif",fontWeight:900}}>H</span>
+        </button>
+
+        <div style={{width:1,height:18,background:T.border,flexShrink:0}}/>
+
+        {/* Shadow */}
+        <button title="Text shadow" onClick={() => updateEl(selectedId, { shadow: !selected.shadow })}
+          style={tb(selected.shadow)}>
+          <Droplets size={13}/>
+        </button>
+
+        <div style={{width:1,height:18,background:T.border,flexShrink:0}}/>
+
+        {/* Spacing stepper (compact) */}
+        <div style={{display:"flex",alignItems:"center",flex:1,minWidth:0}} title="Letter spacing">
+          <button onClick={() => stepSpacing(-0.5)} style={{padding:"0 3px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center"}}><Minus size={9}/></button>
+          <input type="number" value={selected.letterSpacing || 0} min={-2} max={10} step={0.5}
+            onChange={e => updateEl(selectedId, { letterSpacing: Math.max(-2, Math.min(10, parseFloat(e.target.value) || 0)) })}
+            style={{width:"100%",textAlign:"center",border:"none",background:"transparent",fontSize:10,fontWeight:600,color:T.text,padding:0,outline:"none",fontFamily:"'JetBrains Mono',monospace",MozAppearance:"textfield"}}/>
+          <button onClick={() => stepSpacing(0.5)} style={{padding:"0 3px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center"}}><Plus size={9}/></button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Custom Font Manager ─────────────────────────────────────────
 const CUSTOM_FONTS_KEY = "rf_studio_custom_fonts";
@@ -366,82 +553,17 @@ export function StoryDesigner({ row, onClose, onSave }) {
                 </div>
 
                 {selected.type==='text' && (
-                  <>
-                    <div className="lbl" style={{marginBottom:4}}>Font</div>
-                    <div className="font-section-header"><span className="font-verified"><Check size={10}/></span> Brand Fonts</div>
-                    <div className="font-row">
-                      {BRAND_FONTS.map(f=>(
-                        <button key={f.name} className={"font-btn "+(selected.fontFamily===f.name?"sel":"")}
-                          style={{fontFamily:`'${f.name}',sans-serif`}}
-                          onClick={()=>updateEl(selectedId,{fontFamily:f.name})}>{f.label}</button>
-                      ))}
-                    </div>
-                    <div className="font-section-header">System Fonts</div>
-                    <div className="font-row">
-                      {SYS_FONTS.map(f=>(
-                        <button key={f.name} className={"font-btn "+(selected.fontFamily===f.name?"sel":"")}
-                          style={{fontFamily:`'${f.name}',sans-serif`}}
-                          onClick={()=>updateEl(selectedId,{fontFamily:f.name})}>{f.label}</button>
-                      ))}
-                    </div>
-
-                    <div className="font-section-header">Custom Fonts</div>
-                    {customFonts.length > 0 && (
-                      <div className="font-row" style={{marginBottom:4}}>
-                        {customFonts.map(f=>(
-                          <div key={f.id} style={{position:"relative",display:"inline-flex"}}>
-                            <button className={"font-btn "+(selected.fontFamily===f.name?"sel":"")}
-                              style={{fontFamily:`'${f.name}',sans-serif`,paddingRight:20}}
-                              onClick={()=>updateEl(selectedId,{fontFamily:f.name})}>{f.label}</button>
-                            <button onClick={()=>removeCustomFont(f.id)} title="Remove font"
-                              style={{position:"absolute",top:2,right:2,background:"transparent",border:"none",cursor:"pointer",color:T.textDim,padding:0,lineHeight:1}}>
-                              <Trash2 size={8}/>
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <input ref={fontFileRef} type="file" accept=".woff,.woff2,.ttf,.otf,.eot" style={{display:"none"}}
-                      onChange={e=>{handleFontUpload(e.target.files?.[0]); e.target.value="";}}/>
-                    <button className="btn btn-ghost btn-sm" style={{width:"100%",justifyContent:"center",gap:4,marginBottom:4}}
-                      onClick={()=>fontFileRef.current?.click()} disabled={fontInstalling}>
-                      <Upload size={11}/> {fontInstalling ? "Installing..." : "Upload Font"}
-                    </button>
-                    {fontError && <div style={{fontSize:10,color:T.red,lineHeight:1.4,marginBottom:4}}>{fontError}</div>}
-
-                    <div className="lbl" style={{marginBottom:2}}>Size — {selected.fontSize}px</div>
-                    <input type="range" className="s-slider" min={7} max={72} value={selected.fontSize}
-                      onChange={e=>updateEl(selectedId,{fontSize:parseInt(e.target.value)})}/>
-
-                    <div className="lbl" style={{marginBottom:2}}>Letter Spacing — {selected.letterSpacing||0}</div>
-                    <input type="range" className="s-slider" min={-2} max={10} step={0.5} value={selected.letterSpacing||0}
-                      onChange={e=>updateEl(selectedId,{letterSpacing:parseFloat(e.target.value)})}/>
-
-                    <div className="lbl" style={{marginBottom:6}}>Weight</div>
-                    <div className="font-row" style={{marginBottom:8}}>
-                      {[{l:"Regular",v:400},{l:"Bold",v:700},{l:"Black",v:800}].map(w=>(
-                        <button key={w.v} className={"font-btn "+(selected.fontWeight===w.v?"sel":"")}
-                          style={{fontWeight:w.v}} onClick={()=>updateEl(selectedId,{fontWeight:w.v})}>{w.l}</button>
-                      ))}
-                    </div>
-
-                    <div className="s-toggle-row">
-                      <div className="lbl" style={{margin:0}}>Text Shadow</div>
-                      <div className="s-toggle" style={{background:selected.shadow?T.ink:T.border2}}
-                        onClick={()=>updateEl(selectedId,{shadow:!selected.shadow})}>
-                        <div className="s-toggle-knob" style={{left:selected.shadow?14:2}}/>
-                      </div>
-                    </div>
-
-                    <div className="lbl" style={{marginBottom:4}}>Color</div>
-                    <div className="color-swatches">
-                      {BRAND_COLORS.map(c=>(
-                        <div key={c} className={"color-swatch "+(selected.color===c?"sel":"")}
-                          style={{background:c,border:c==="#FFFFFF"?"2px solid #E5E7EB":undefined}}
-                          onClick={()=>updateEl(selectedId,{color:c})}/>
-                      ))}
-                    </div>
-                  </>
+                  <TextInspector
+                    selected={selected}
+                    selectedId={selectedId}
+                    updateEl={updateEl}
+                    customFonts={customFonts}
+                    removeCustomFont={removeCustomFont}
+                    fontFileRef={fontFileRef}
+                    handleFontUpload={handleFontUpload}
+                    fontInstalling={fontInstalling}
+                    fontError={fontError}
+                  />
                 )}
 
                 {selected.type==='image' && selected.mediaType==='video' && (
