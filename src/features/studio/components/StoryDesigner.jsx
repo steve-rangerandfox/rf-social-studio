@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3 } from "lucide-react";
+import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2 } from "lucide-react";
 import { CanvasElement, computeSnap, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
@@ -15,6 +15,48 @@ const SYS_FONTS   = [
   { name:"Arial",        label:"Arial",        group:"system" },
 ];
 const ALL_FONTS = [...BRAND_FONTS, ...SYS_FONTS];
+
+// ─── Custom Font Manager ─────────────────────────────────────────
+const CUSTOM_FONTS_KEY = "rf_studio_custom_fonts";
+
+function loadCustomFonts() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CUSTOM_FONTS_KEY) || "[]");
+    if (!Array.isArray(stored)) return [];
+    // Re-register each font face on load
+    stored.forEach((f) => {
+      const face = new FontFace(f.name, `url(${f.dataUrl})`);
+      face.load().then(() => document.fonts.add(face)).catch(() => {});
+    });
+    return stored;
+  } catch { return []; }
+}
+
+function saveCustomFonts(fonts) {
+  try { localStorage.setItem(CUSTOM_FONTS_KEY, JSON.stringify(fonts)); } catch {}
+}
+
+async function installFontFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result;
+      // Derive font name from filename: "My Font Bold.woff2" → "My Font Bold"
+      const rawName = file.name.replace(/\.(woff2?|ttf|otf|eot)$/i, "").replace(/[-_]/g, " ");
+      const fontName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+      try {
+        const face = new FontFace(fontName, `url(${dataUrl})`);
+        await face.load();
+        document.fonts.add(face);
+        resolve({ id: uid(), name: fontName, label: fontName, dataUrl, fileName: file.name, group: "custom" });
+      } catch (err) {
+        reject(new Error(`Could not load "${file.name}" as a font: ${err.message}`));
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
 
 // Module-level template store (persists across opens in the session)
 let _savedTemplates = [];
@@ -98,6 +140,33 @@ export function StoryDesigner({ row, onClose, onSave }) {
   const bgFileRef  = useRef(null);
   const imgFileRef = useRef(null);
   const vidFileRef = useRef(null);
+  const fontFileRef = useRef(null);
+
+  // Custom fonts
+  const [customFonts, setCustomFonts] = useState(() => loadCustomFonts());
+  const [fontInstalling, setFontInstalling] = useState(false);
+  const [fontError, setFontError] = useState(null);
+
+  const handleFontUpload = async (file) => {
+    if (!file) return;
+    setFontInstalling(true);
+    setFontError(null);
+    try {
+      const font = await installFontFile(file);
+      const updated = [...customFonts, font];
+      setCustomFonts(updated);
+      saveCustomFonts(updated);
+    } catch (err) {
+      setFontError(err.message);
+    }
+    setFontInstalling(false);
+  };
+
+  const removeCustomFont = (fontId) => {
+    const updated = customFonts.filter(f => f.id !== fontId);
+    setCustomFonts(updated);
+    saveCustomFonts(updated);
+  };
 
   const selected  = elements.find(el => el.id === selectedId);
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
@@ -315,6 +384,30 @@ export function StoryDesigner({ row, onClose, onSave }) {
                           onClick={()=>updateEl(selectedId,{fontFamily:f.name})}>{f.label}</button>
                       ))}
                     </div>
+
+                    <div className="font-section-header">Custom Fonts</div>
+                    {customFonts.length > 0 && (
+                      <div className="font-row" style={{marginBottom:4}}>
+                        {customFonts.map(f=>(
+                          <div key={f.id} style={{position:"relative",display:"inline-flex"}}>
+                            <button className={"font-btn "+(selected.fontFamily===f.name?"sel":"")}
+                              style={{fontFamily:`'${f.name}',sans-serif`,paddingRight:20}}
+                              onClick={()=>updateEl(selectedId,{fontFamily:f.name})}>{f.label}</button>
+                            <button onClick={()=>removeCustomFont(f.id)} title="Remove font"
+                              style={{position:"absolute",top:2,right:2,background:"transparent",border:"none",cursor:"pointer",color:T.textDim,padding:0,lineHeight:1}}>
+                              <Trash2 size={8}/>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input ref={fontFileRef} type="file" accept=".woff,.woff2,.ttf,.otf,.eot" style={{display:"none"}}
+                      onChange={e=>{handleFontUpload(e.target.files?.[0]); e.target.value="";}}/>
+                    <button className="btn btn-ghost btn-sm" style={{width:"100%",justifyContent:"center",gap:4,marginBottom:4}}
+                      onClick={()=>fontFileRef.current?.click()} disabled={fontInstalling}>
+                      <Upload size={11}/> {fontInstalling ? "Installing..." : "Upload Font"}
+                    </button>
+                    {fontError && <div style={{fontSize:10,color:T.red,lineHeight:1.4,marginBottom:4}}>{fontError}</div>}
 
                     <div className="lbl" style={{marginBottom:2}}>Size — {selected.fontSize}px</div>
                     <input type="range" className="s-slider" min={7} max={72} value={selected.fontSize}

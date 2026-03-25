@@ -169,10 +169,14 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
 
   return (
     <div
-      className={"element-wrap " + (isSelected ? "element-selected" : "")}
+      className={"element-wrap " + (isSelected ? "element-selected" : "") + (isEditing ? " element-editing" : "")}
       style={wrapperStyle}
-      onPointerDown={handleDrag}
+      onPointerDown={isEditing ? undefined : handleDrag}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        if (data.type === 'text' && !isEditing && onStartEdit) onStartEdit();
+      }}
     >
       <div className="el-outline"/>
       {data.type === 'text' ? (
@@ -180,7 +184,6 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
           ref={editRef}
           contentEditable={isEditing}
           suppressContentEditableWarning
-          onDoubleClick={(e) => { e.stopPropagation(); if (!isEditing) onStartEdit(); }}
           onBlur={() => {
             if (isEditing && editRef.current) {
               onUpdate({ content: editRef.current.innerText });
@@ -202,7 +205,8 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
             textShadow: data.shadow ? '0 2px 12px rgba(0,0,0,0.8)' : undefined,
             textRendering: 'optimizeLegibility',
             pointerEvents: isEditing ? 'auto' : 'none',
-            outline: 'none', cursor: isEditing ? 'text' : 'default',
+            outline: 'none',
+            cursor: isEditing ? 'text' : 'move',
           }}
         >
           {data.content}
