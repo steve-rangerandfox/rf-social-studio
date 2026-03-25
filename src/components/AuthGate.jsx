@@ -1,4 +1,5 @@
 import { SignIn, useAuth } from "@clerk/react";
+import { Routes, Route } from "react-router-dom";
 
 import App from "../App.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
@@ -485,7 +486,9 @@ export function AuthGate() {
 
   return (
     <ErrorBoundary>
-      <App />
+      <Routes>
+        <Route path="/*" element={<App />} />
+      </Routes>
     </ErrorBoundary>
   );
 }
