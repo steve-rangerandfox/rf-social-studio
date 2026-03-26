@@ -3,6 +3,10 @@
     {
       "source": "/instagram/oauth/callback",
       "destination": "/"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/"
     }
   ],
   "headers": [
