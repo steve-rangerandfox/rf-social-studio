@@ -702,12 +702,6 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
           : <>{IG_ICON} Sign in with Instagram</>
         }
       </button>
-      <p className="cp-setup-note" style={{marginTop:10}}>
-        A popup will open on Instagram's website — sign in and approve access. You'll be redirected back automatically.
-      </p>
-      <p className="cp-setup-note" style={{marginTop:0}}>
-        Callback URL: <code>{redirectUri}</code>
-      </p>
     </>
   );
 }
