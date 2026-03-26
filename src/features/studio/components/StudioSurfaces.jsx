@@ -14,6 +14,7 @@ import {
   T,
   TEAM,
   WEEKDAYS,
+  createTeamMember,
   formatRelativeStamp,
   isRowNeedingAttention,
   makeDefaultElements,
@@ -804,9 +805,12 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
 
 const SETTINGS_TABS = ["General","Team","Notifications","Integrations"];
 
-export function SettingsModal({ onClose }) {
+export function SettingsModal({ onClose, onExport, team = TEAM, onTeamUpdate }) {
   const [tab, setTab] = useState("General");
   const [notifs, setNotifs] = useState({ review:true, comment:true, scheduled:false, posted:true });
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteRole, setInviteRole] = useState("");
   const ToggleRow = ({ label, sub, k }) => (
     <div className="settings-field-row">
       <div><div className="settings-field-label">{label}</div>{sub&&<div className="settings-field-sub">{sub}</div>}</div>
@@ -816,6 +820,15 @@ export function SettingsModal({ onClose }) {
       </button>
     </div>
   );
+
+  const handleInviteSubmit = () => {
+    const trimmed = inviteName.trim();
+    if (!trimmed || !onTeamUpdate) return;
+    onTeamUpdate([...team, createTeamMember({ name: trimmed, role: inviteRole.trim() })]);
+    setInviteName("");
+    setInviteRole("");
+    setShowInvite(false);
+  };
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -857,24 +870,51 @@ export function SettingsModal({ onClose }) {
                   <div style={{fontSize:11,fontWeight:600,color:T.textSub}}>Enabled</div>
                 </div>
               </div>
+              <div className="settings-card" style={{marginTop:8}}>
+                <div className="settings-card-title">Data & Backup</div>
+                <div className="settings-field-row">
+                  <div>
+                    <div className="settings-field-label">Export studio data</div>
+                    <div className="settings-field-sub">Download all posts, audit log, and config as JSON</div>
+                  </div>
+                  <button className="btn btn-ghost btn-sm" onClick={onExport}>Export</button>
+                </div>
+              </div>
             </div>
           )}
 
           {tab==="Team"&&(
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {TEAM.map(t=>(
+              {team.map(t=>(
                 <div key={t.id} className="settings-card" style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px"}}>
                   <div className="av" style={{width:32,height:32,background:t.color+"22",color:t.color,fontSize:11,borderRadius:7}}>{t.initials}</div>
                   <div style={{flex:1}}>
                     <div style={{fontSize:13,fontWeight:600,color:T.text}}>{t.name}</div>
-                    <div style={{fontSize:11,color:T.textDim,marginTop:1}}>{t.id}@rangerandfox.com</div>
+                    <div style={{fontSize:11,color:T.textDim,marginTop:1}}>{t.role || "Team member"}</div>
                   </div>
                   <div style={{fontSize:11,fontWeight:600,padding:"3px 9px",borderRadius:99,background:t.id==="stephen"?T.s3:"transparent",border:`1px solid ${T.border}`,color:T.textSub}}>
                     {t.id==="stephen"?"Admin":"Editor"}
                   </div>
+                  {onTeamUpdate && (
+                    <button className="m-x" style={{width:22,height:22,flexShrink:0}} title="Remove member"
+                      onClick={()=>onTeamUpdate(team.filter(m=>m.id!==t.id))}>
+                      <X size={12}/>
+                    </button>
+                  )}
                 </div>
               ))}
-              <button className="btn btn-ghost" style={{fontSize:12,marginTop:4}}><Plus size={12} style={{marginRight:4}}/> Invite team member</button>
+              {showInvite ? (
+                <div className="settings-card" style={{padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
+                  <div className="field"><div className="lbl">Name</div><input className="inp" placeholder="Full name" value={inviteName} onChange={e=>setInviteName(e.target.value)} autoFocus/></div>
+                  <div className="field"><div className="lbl">Role</div><input className="inp" placeholder="e.g. Designer, Content Lead" value={inviteRole} onChange={e=>setInviteRole(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter") handleInviteSubmit(); }}/></div>
+                  <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>{setShowInvite(false);setInviteName("");setInviteRole("");}}>Cancel</button>
+                    <button className="btn btn-primary btn-sm" disabled={!inviteName.trim()} onClick={handleInviteSubmit}>Add Member</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="btn btn-ghost" style={{fontSize:12,marginTop:4}} onClick={()=>setShowInvite(true)}><Plus size={12} style={{marginRight:4}}/> Invite team member</button>
+              )}
             </div>
           )}
 

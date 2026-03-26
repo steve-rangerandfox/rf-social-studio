@@ -36,6 +36,7 @@ import {
   formatRelativeStamp,
   getReadinessChecks,
   isRowNeedingAttention,
+  loadTeam,
   makeDefaultElements,
   MENTIONS,
   MONTHS_FULL,
@@ -43,9 +44,9 @@ import {
   nowPT,
   PLATFORMS,
   ptPickerToISO,
+  saveTeam,
   STATUSES,
   T,
-  TEAM,
   toPTDisplay,
   uid,
   WD_SHORT,
@@ -113,6 +114,8 @@ export default function App() {
   const [showAssets, setAssets]   = useState(false);
   const [showConn, setShowConn]   = useState(null); // 'instagram' | 'linkedin' | null
   const [showSettings, setSettings] = useState(false);
+  const [team, setTeam] = useState(() => loadTeam());
+  const updateTeam = (newTeam) => { setTeam(newTeam); saveTeam(newTeam); };
   const [connections, setConns]   = useState({ instagram: false, tiktok: false, facebook: false, linkedin: false });
   const [saveState, setSaveState] = useState(() => ({
     status: studioDoc.lastSavedAt ? "saved" : "idle",
@@ -138,7 +141,7 @@ export default function App() {
   const rows = studioDoc.rows.filter((row) => !row.deletedAt);
   const filteredRows = rows.filter((row) => {
     const q = query.trim().toLowerCase();
-    const assigneeName = TEAM.find((member) => member.id === row.assignee)?.name?.toLowerCase() || "";
+    const assigneeName = team.find((member) => member.id === row.assignee)?.name?.toLowerCase() || "";
     const matchesQuery = !q || [row.note, row.caption, assigneeName].filter(Boolean).some((value) => value.toLowerCase().includes(q));
     const matchesStatus =
       statusFilter === "all" ||
@@ -514,7 +517,7 @@ export default function App() {
   });
 
   const renderRow = (row, idx) => (
-    <Row key={row.id} row={row} sel={sel.has(row.id)} currentUser={currentUser}
+    <Row key={row.id} row={row} sel={sel.has(row.id)} currentUser={currentUser} team={team}
       onSel={v=>toggleSel(row.id,v)}
       onChange={p=>update(row.id,p)}
       onDel={()=>{remove(row.id);showToast("Post removed",T.red);}}
@@ -588,7 +591,7 @@ export default function App() {
         <div className="s-div"/>
         <div className="s-team">
           <span className="s-lbl">Team</span>
-          {TEAM.map(t=>(
+          {team.map(t=>(
             <div key={t.id} className="team-row">
               <div className="av" style={{background:t.color+"22",color:t.color}}>{t.initials}</div>
               <span className="team-name">{t.name}</span>
@@ -641,10 +644,6 @@ export default function App() {
           </div>
           <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>setAssets(v=>!v)}>
             {showAssets?"Assets ✕":"Assets"}
-          </button>
-          <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} title="Download all data as JSON backup"
-            onClick={()=>{ exportStudioData(studioDoc); showToast('Backup downloaded', T.mint); }}>
-            Export
           </button>
         </div>
 
@@ -866,7 +865,7 @@ export default function App() {
           setShowConn(null);
         }}
         onClose={()=>setShowConn(null)}/>}
-      {showSettings&&<SettingsModal onClose={()=>setSettings(false)}/>}
+      {showSettings&&<SettingsModal onClose={()=>setSettings(false)} onExport={()=>{ exportStudioData(studioDoc); showToast('Backup downloaded', T.mint); }} team={team} onTeamUpdate={updateTeam}/>}
       {toast&&<Toast key={toast.id} msg={toast.msg} color={toast.color} onDone={()=>setToast(null)}/>}
 
       {/* Soft-delete undo toast */}
