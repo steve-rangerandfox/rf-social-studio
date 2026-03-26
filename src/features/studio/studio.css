@@ -886,5 +886,11 @@ button.stat{font:inherit;text-align:left}
 .toast.closing { animation: toastOut 0.15s ease forwards; }
 .asset-drawer.closing { animation: drawerOut 0.2s ease forwards; }
 
+/* Exit animations */
+@keyframes fOut{from{opacity:1}to{opacity:0}}
+@keyframes mOut{from{transform:translateY(0) scale(1);opacity:1}to{transform:translateY(10px) scale(0.98);opacity:0}}
+@keyframes tOut{from{transform:translateY(0);opacity:1}to{transform:translateY(6px);opacity:0}}
+@keyframes bOut{from{transform:translateX(-50%) translateY(0);opacity:1}to{transform:translateX(-50%) translateY(8px);opacity:0}}
+
 /* Smooth row collapse — match expansion easing */
 .stage-reveal-wrapper { transition: grid-template-rows 320ms cubic-bezier(0.4, 0, 0.2, 1); }

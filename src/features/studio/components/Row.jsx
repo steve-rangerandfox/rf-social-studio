@@ -15,7 +15,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, getAvailableTransitions, STATUS_ORDER } from "./StatusMachine.js";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 
 // Lucide-style inline SVG icons (avoids a package dependency for now)
 function XIcon({ size = 14, color = "currentColor" }) {
@@ -35,14 +35,14 @@ function GripVerticalIcon({ size = 12, color = "currentColor" }) {
   );
 }
 
-export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandlers, showComments, onAddComment, currentUser, hasConnectedAccount = false }) {
+export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, dragHandlers, showComments, onAddComment, currentUser, hasConnectedAccount = false, team = TEAM }) {
   const p = PLATFORMS[row.platform], s = STATUSES[row.status];
   const nextP = () => { const ks = Object.keys(PLATFORMS); onChange({ platform: ks[(ks.indexOf(row.platform) + 1) % ks.length] }); };
   const nextAssignee = () => {
-    const all = [{ id: null }, ...TEAM]; const cur = all.findIndex(t => t.id === row.assignee);
+    const all = [{ id: null }, ...team]; const cur = all.findIndex(t => t.id === row.assignee);
     onChange({ assignee: all[(cur + 1) % all.length].id });
   };
-  const assignee = row.assignee ? TEAM.find(t => t.id === row.assignee) : null;
+  const assignee = row.assignee ? team.find(t => t.id === row.assignee) : null;
   const [commentText, setCommentText] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -52,6 +52,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
   const [mediaUrls, setMediaUrls] = useState([]);
   const [mediaTypes, setMediaTypes] = useState([]); // "image" | "video" per URL
   const [showLIPreview, setShowLIPreview] = useState(false);
+  const [mediaWarnings, setMediaWarnings] = useState([]);
   const storyElements = row.storyElements || makeDefaultElements(row.note);
   const mediaRef = useRef(null);
   const isLI = row.platform === "linkedin";
@@ -167,6 +168,25 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
     }
     return items;
   })();
+
+  const validateMedia = (file, platform) => {
+    const warnings = [];
+    const sizeMB = file.size / (1024 * 1024);
+    const isVideo = file.type.startsWith("video/");
+    const isImage = file.type.startsWith("image/");
+
+    // File size
+    if (isImage && sizeMB > 8) warnings.push(`Image is ${sizeMB.toFixed(1)}MB — may be slow to upload (recommended under 8MB)`);
+    if (isVideo && sizeMB > 100) warnings.push(`Video is ${sizeMB.toFixed(0)}MB — may exceed platform limits (recommended under 100MB)`);
+
+    // Format
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (['bmp', 'tiff', 'tif', 'webp'].includes(ext)) {
+      warnings.push(`${ext.toUpperCase()} may not be supported on all platforms — consider converting to JPG or PNG`);
+    }
+
+    return warnings;
+  };
 
   return (
     <>
@@ -321,6 +341,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                         if (f.type.startsWith("video/")) {
                           const url = URL.createObjectURL(f);
                           setMediaUrls([url]);
+                          setMediaWarnings(validateMedia(f, row.platform));
                           // Read video duration
                           const vid = document.createElement("video");
                           vid.preload = "metadata";
@@ -373,9 +394,14 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                           const urls = picked.slice(0, remaining).filter(f => f.type.startsWith("image/") || f.type.startsWith("video/")).map(f => ({ url: URL.createObjectURL(f), isVideo: f.type.startsWith("video/") }));
                           setMediaUrls(prev => [...prev, ...urls.map(u => u.url)]);
                           setMediaTypes(prev => [...prev, ...urls.map(u => u.isVideo ? "video" : "image")]);
+                          const allWarnings = picked.slice(0, remaining).flatMap(f => validateMedia(f, row.platform));
+                          setMediaWarnings(allWarnings);
                         } else {
                           const f = picked[0];
-                          if (f.type.startsWith("image/") || f.type.startsWith("video/")) setMediaUrls([URL.createObjectURL(f)]);
+                          if (f.type.startsWith("image/") || f.type.startsWith("video/")) {
+                            setMediaUrls([URL.createObjectURL(f)]);
+                            setMediaWarnings(validateMedia(f, row.platform));
+                          }
                         }
                         e.target.value = "";
                       }} />
@@ -422,6 +448,16 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                     )}
                   </div>
                 )}
+                {mediaWarnings.length > 0 && (
+                  <div style={{display:"flex",flexDirection:"column",gap:2,marginTop:4}}>
+                    {mediaWarnings.map((w, i) => (
+                      <div key={i} style={{display:"flex",alignItems:"flex-start",gap:4,fontSize:10,color:T.amber,lineHeight:1.4}}>
+                        <AlertTriangle size={10} style={{flexShrink:0,marginTop:1}}/>
+                        <span>{w}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 </div>{/* end media content area */}
                 </div>{/* end flex row */}
               </section>
@@ -445,7 +481,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
               <section className="stage-section">
                 <div className="stage-col-label">Comments</div>
                 {(row.comments || []).slice(-3).map(c => {
-                  const m = TEAM.find(t => t.id === c.author) || { initials: "?", color: T.textDim, name: "Unknown" };
+                  const m = team.find(t => t.id === c.author) || { initials: "?", color: T.textDim, name: "Unknown" };
                   return (
                     <div key={c.id} style={{ display: "flex", gap: 9, alignItems: "flex-start", marginBottom: 2 }}>
                       <div style={{ width: 22, height: 22, borderRadius: 7, background: m.color + "22", color: m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8.5, fontWeight: 700, flexShrink: 0 }}>{m.initials}</div>
@@ -562,7 +598,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
       {showComments && (
         <div className="thread" style={{ gridColumn: "1/-1" }}>
           {(row.comments || []).length === 0 && <div style={{ fontSize: 12, color: T.textDim }}>No comments yet</div>}
-          {(row.comments || []).map(c => { const m = TEAM.find(t => t.id === c.author) || { initials: "?", color: T.textDim, name: "Unknown" }; return (
+          {(row.comments || []).map(c => { const m = team.find(t => t.id === c.author) || { initials: "?", color: T.textDim, name: "Unknown" }; return (
             <div key={c.id} className="comment" style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
               <div className="comment-av" style={{ background: m.color + "22", color: m.color }}>{m.initials}</div>
               <div style={{ flex: 1 }}><div className="comment-meta"><span className="comment-name">{m.name}</span><span className="comment-ts">{formatRelativeStamp(c.ts)}</span></div><div className="comment-text" style={{ opacity: c.resolved ? 0.45 : 1, textDecoration: c.resolved ? "line-through" : "none" }}>{c.text}</div></div>
