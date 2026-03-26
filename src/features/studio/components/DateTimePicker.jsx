@@ -38,8 +38,8 @@ export function DateTimePicker({ isoValue, onChange, onClose, anchorRef }) {
   // Click outside close
   useEffect(() => {
     const h = (e) => { if (popRef.current && !popRef.current.contains(e.target) && !anchorRef?.current?.contains(e.target)) onClose(); };
-    setTimeout(() => document.addEventListener("mousedown", h), 10);
-    return () => document.removeEventListener("mousedown", h);
+    setTimeout(() => document.addEventListener("pointerdown", h), 10);
+    return () => document.removeEventListener("pointerdown", h);
   }, [anchorRef, onClose]);
 
   const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();

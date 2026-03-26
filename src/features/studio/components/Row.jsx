@@ -90,8 +90,8 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
         setIsMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isMenuOpen]);
 
   useEffect(() => {
@@ -101,8 +101,8 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
         setIsApprovalOpen(false);
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isApprovalOpen]);
 
   useEffect(() => {
@@ -112,8 +112,8 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
         setIsStatusDropdownOpen(false);
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isStatusDropdownOpen]);
 
   // Attempt a status transition via the status pill dropdown

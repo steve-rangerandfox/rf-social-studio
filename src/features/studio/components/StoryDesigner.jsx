@@ -46,8 +46,8 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
       if (colorRef.current && !colorRef.current.contains(e.target)) setColorOpen(false);
       if (spacingRef.current && !spacingRef.current.contains(e.target)) setSpacingOpen(false);
     };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
+    document.addEventListener("pointerdown", h);
+    return () => document.removeEventListener("pointerdown", h);
   }, []);
 
   const allFonts = ALL_FONTS_GROUPED();
@@ -959,7 +959,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
             </div>
             <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top center"}}>
               <div className="canvas"
-                onMouseDown={e=>{if(e.target===e.currentTarget){setSelectedId(null);setEditingId(null);}}}
+                onPointerDown={e=>{if(e.target===e.currentTarget){setSelectedId(null);setEditingId(null);}}}
                 onDragOver={handleCanvasDragOver}
                 onDragLeave={handleCanvasDragLeave}
                 onDrop={handleCanvasDrop}
