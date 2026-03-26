@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { nowPT, ptPickerToISO, MONTHS_SHORT, WD_SHORT } from "../shared.js";
 
 export function DateTimePicker({ isoValue, onChange, onClose, anchorRef }) {
@@ -71,9 +72,9 @@ export function DateTimePicker({ isoValue, onChange, onClose, anchorRef }) {
   return createPortal(
     <div ref={popRef} className="dt-popup" style={{ position:"fixed", top:pos.top, left:pos.left }}>
       <div className="cal-nav">
-        <button className="cal-nav-btn" onClick={prevMonth}>{"\u2039"}</button>
+        <button className="cal-nav-btn" onClick={prevMonth}><ChevronLeft size={14}/></button>
         <span className="cal-nav-label">{MONTHS_SHORT[viewMonth]} {viewYear}</span>
-        <button className="cal-nav-btn" onClick={nextMonth}>{"\u203A"}</button>
+        <button className="cal-nav-btn" onClick={nextMonth}><ChevronRight size={14}/></button>
       </div>
       <div className="cal-wd-row">
         {WD_SHORT.map((w,i)=><div key={i} className="cal-wd-cell">{w}</div>)}

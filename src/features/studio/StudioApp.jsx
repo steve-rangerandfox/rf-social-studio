@@ -568,7 +568,7 @@ export default function App() {
           <div><div className="logo-name">Ranger & Fox</div><div className="logo-sub">Social Studio</div></div>
         </div>
         <div className="s-sect">
-          <button className="btn btn-primary" style={{width:"100%",marginBottom:12,padding:"10px 16px",fontSize:13,justifyContent:"center"}} onClick={()=>add(month)}>+ Add post</button>
+          <button className="btn btn-primary" style={{width:"100%",marginBottom:12,padding:"10px 16px",fontSize:13,justifyContent:"center"}} onClick={()=>add(month)} title="New post (N)">+ Add post</button>
           <span className="s-lbl">Calendar</span>
           {/* Time scale toggle */}
           <div className="time-toggle">
@@ -638,8 +638,8 @@ export default function App() {
           <div className="tb-space"/>
           <SaveStatusBadge saveState={saveState} />
           <div className="view-toggle">
-            {[["list","List"],["calendar","Cal"],["grid","Grid"],["analytics","Stats"]].map(([v,l])=>(
-              <button key={v} className={"vt-btn "+(view===v?"on":"")} onClick={()=>setView(v)}>{l}</button>
+            {[["list","List","1"],["calendar","Cal","2"],["grid","Grid","3"],["analytics","Stats","4"]].map(([v,l,key])=>(
+              <button key={v} className={"vt-btn "+(view===v?"on":"")} onClick={()=>setView(v)} title={`${l} (${key})`}>{l}</button>
             ))}
           </div>
           <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>setAssets(v=>!v)}>
@@ -675,6 +675,7 @@ export default function App() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search titles, captions, or owner"
+              title="Search (/)"
             />
             <FilterMenu
               label="Status"

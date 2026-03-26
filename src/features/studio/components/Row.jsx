@@ -15,7 +15,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, getAvailableTransitions, STATUS_ORDER } from "./StatusMachine.js";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Play, Upload } from "lucide-react";
 
 // Lucide-style inline SVG icons (avoids a package dependency for now)
 function XIcon({ size = 14, color = "currentColor" }) {
@@ -367,7 +367,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                       </div>
                     ) : (
                       <div className="stage-post-placeholder" onClick={() => mediaRef.current?.click()}>
-                        <span style={{ fontSize: 22, opacity: 0.22 }}>&#9654;</span>
+                        <Play size={22} style={{opacity:0.22}}/>
                         <span style={{ fontSize: 11.5, color: T.textSub, fontWeight: 500 }}>Upload Reel</span>
                         <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'JetBrains Mono',monospace" }}>9:16 video {"\u00B7"} MP4 {"\u00B7"} MOV</span>
                       </div>
@@ -441,7 +441,7 @@ export function Row({ row, sel, onSel, onChange, onDel, onStory, onPostNow, drag
                       )
                     ) : (
                       <div className="stage-post-placeholder" onClick={() => mediaRef.current?.click()}>
-                        <span style={{ fontSize: 22, opacity: 0.22 }}>&#8593;</span>
+                        <Upload size={22} style={{opacity:0.22}}/>
                         <span style={{ fontSize: 11.5, color: T.textSub, fontWeight: 500 }}>Attach media</span>
                         <span style={{ fontSize: 10, color: T.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{isLI ? "Up to 9 files \u00B7 JPG \u00B7 PNG \u00B7 MP4" : "JPG \u00B7 PNG \u00B7 GIF \u00B7 MP4"}</span>
                       </div>
