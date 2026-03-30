@@ -179,7 +179,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
     const isVid = data.mediaType === 'video';
     return (
       <>
-        {data.url && data.mediaType !== 'video' && <img src={data.url} className="canvas-img" alt="" draggable="false"/>}
+        {data.url && data.mediaType !== 'video' && <img src={data.url} className="canvas-img" alt="" draggable="false" onError={e=>{e.target.style.display='none';}}/>}
         {data.url && isVid && (
           <video ref={videoRef} src={data.url} className="canvas-img"
             autoPlay loop muted={muted} playsInline draggable={false}
@@ -293,6 +293,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
       ) : (
         <img src={data.url} alt="" draggable="false"
           style={{display:'block',width:'100%',height:'100%',borderRadius:4,pointerEvents:'none'}}
+          onError={e=>{e.target.style.display='none';}}
           onLoad={(e)=>{
             const fitted = fitMediaBox(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight);
             if (fitted.width !== data.width || fitted.height !== data.height) onUpdate(fitted);

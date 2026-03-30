@@ -467,9 +467,15 @@ export function StoryDesigner({ row, onClose, onSave }) {
     pushElements(els => [...els, el]); setSelectedId(el.id);
   };
 
-  const addMedia = (file) => {
+  const fileToDataURL = (file) => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+
+  const addMedia = async (file) => {
     if (!file) return;
-    const url    = URL.createObjectURL(file);
+    const url    = await fileToDataURL(file);
     const isGif  = file.type === "image/gif";
     const isVid  = !isGif && file.type.startsWith("video/");
     const mType  = isGif ? 'gif' : isVid ? 'video' : 'image';
@@ -493,7 +499,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
       pushElements(els => [...els, el]); setSelectedId(el.id);
     };
     if (!isVid) {
-      const img = new Image();
+      const img = new window.Image();
       img.onload = () => { const fitted = fitMediaBox(img.naturalWidth, img.naturalHeight); makeEl(fitted.width, fitted.height); };
       img.src = url;
     } else {
@@ -501,18 +507,18 @@ export function StoryDesigner({ row, onClose, onSave }) {
     }
   };
 
-  const setBg = (file) => {
+  const setBg = async (file) => {
     if (!file) return;
-    const url    = URL.createObjectURL(file);
+    const url    = await fileToDataURL(file);
     const isGif  = file.type === "image/gif";
     const isVid  = !isGif && file.type.startsWith("video/");
     pushElements(els => els.map(e => e.id === "bg" ? { ...e, url, mediaType: isGif ? 'gif' : isVid ? 'video' : 'image' } : e));
   };
 
   // Replace an existing media element's source, keeping position/size/scale
-  const replaceMedia = (elementId, file) => {
+  const replaceMedia = async (elementId, file) => {
     if (!file) return;
-    const url = URL.createObjectURL(file);
+    const url = await fileToDataURL(file);
     const isGif = file.type === "image/gif";
     const isVid = !isGif && file.type.startsWith("video/");
     const mType = isGif ? 'gif' : isVid ? 'video' : 'image';
