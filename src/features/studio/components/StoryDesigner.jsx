@@ -977,7 +977,8 @@ export function StoryDesigner({ row, onClose, onSave }) {
                     snapEnabled={snapOn} siblings={elements} onGuides={setGuides}
                     isEditing={editingId===el.id}
                     onStartEdit={()=>{setSelectedId(el.id);setEditingId(el.id);}}
-                    onStopEdit={()=>setEditingId(null)}/>
+                    onStopEdit={()=>setEditingId(null)}
+                    zoom={zoom}/>
                 ))}
                 {guides.map((g,i) => g.axis === 'x'
                   ? <div key={i} style={{position:'absolute',left:g.pos,top:0,width:1,height:'100%',background:'rgba(0,165,114,0.6)',pointerEvents:'none',zIndex:40}}/>

@@ -54,7 +54,7 @@ export function fitMediaBox(width, height, maxWidth = 260, maxHeight = 460) {
   };
 }
 
-export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace }) {
+export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, zoom = 1 }) {
   const videoRef = useRef(null);
   const editRef = useRef(null);
   const [muted, setMuted] = useState(true);
@@ -91,9 +91,11 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
     if (data.locked || isEditing) return;
     e.preventDefault(); e.stopPropagation();
     onSelect();
-    const sx = e.clientX - data.x, sy = e.clientY - data.y;
+    const startMouseX = e.clientX, startMouseY = e.clientY;
+    const startX = data.x, startY = data.y;
     const onMove = (mv) => {
-      let nx = mv.clientX - sx, ny = mv.clientY - sy;
+      let nx = startX + (mv.clientX - startMouseX) / zoom;
+      let ny = startY + (mv.clientY - startMouseY) / zoom;
       if (snapEnabled && siblings) {
         const snap = computeSnap({ ...data, x: nx, y: ny }, siblings);
         if (snap.x !== null) nx = snap.x;
@@ -111,16 +113,39 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
     document.addEventListener('pointerup', onUp);
   };
 
-  const handleResize = (e) => {
+  const handleResize = (corner) => (e) => {
     e.preventDefault(); e.stopPropagation();
-    const startX   = e.clientX, startY = e.clientY;
-    const startVal = data.type === 'text' ? (data.fontSize || 14) : (data.scale || 1);
+    const startMouseX = e.clientX, startMouseY = e.clientY;
+    const startScale = data.scale || 1;
+    const startFontSize = data.fontSize || 14;
+    const startX = data.x, startY = data.y;
+    const w = data.width || 140, h = data.height || 140;
+
+    // Which directions grow scale for this corner
+    const signX = corner === 'se' || corner === 'ne' ? 1 : -1;
+    const signY = corner === 'se' || corner === 'sw' ? 1 : -1;
+
     const onMove = (mv) => {
-      const delta = (mv.clientX - startX + mv.clientY - startY) / 2;
+      // Convert screen-pixel delta to canvas-pixel delta by dividing by zoom
+      const dx = (mv.clientX - startMouseX) / zoom;
+      const dy = (mv.clientY - startMouseY) / zoom;
+      // Project mouse movement onto the diagonal direction for this corner
+      const delta = (dx * signX + dy * signY) / 2;
+
       if (data.type === 'text') {
-        onUpdate({ fontSize: Math.max(6, Math.min(96, startVal + delta * 0.35)) });
+        onUpdate({ fontSize: Math.max(6, Math.min(96, startFontSize + delta * 0.35)) });
       } else {
-        onUpdate({ scale: Math.max(0.1, Math.min(8, startVal + delta * 0.012)) });
+        // Scale proportionally: delta in canvas-px relative to current element size
+        const baseDim = Math.max(w, h) * startScale;
+        const newScale = Math.max(0.1, Math.min(8, startScale * (1 + delta / baseDim)));
+        const patch = { scale: newScale };
+        // Anchor the opposite corner by adjusting position
+        const dScale = newScale - startScale;
+        if (corner === 'nw') { patch.x = startX - w * dScale; patch.y = startY - h * dScale; }
+        else if (corner === 'ne') { patch.y = startY - h * dScale; }
+        else if (corner === 'sw') { patch.x = startX - w * dScale; }
+        // 'se' — top-left is already the anchor, no position adjustment needed
+        onUpdate(patch);
       }
     };
     const onUp = () => { document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); };
@@ -130,11 +155,11 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
 
   const handleResizeBox = (side) => (e) => {
     e.preventDefault(); e.stopPropagation();
-    const startX = e.clientX;
+    const startMouseX = e.clientX;
     const startW = data.boxWidth || 190;
     const startElX = data.x;
     const onMove = (mv) => {
-      const dx = mv.clientX - startX;
+      const dx = (mv.clientX - startMouseX) / zoom;
       if (side === 'e') {
         onUpdate({ boxWidth: Math.max(40, startW + dx) });
       } else {
@@ -273,10 +298,10 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
       )}
       {isSelected && (
         <>
-          <div className="handle handle-nw" onPointerDown={handleResize}/>
-          <div className="handle handle-ne" onPointerDown={handleResize}/>
-          <div className="handle handle-sw" onPointerDown={handleResize}/>
-          <div className="handle handle-se" onPointerDown={handleResize}/>
+          <div className="handle handle-nw" onPointerDown={handleResize('nw')}/>
+          <div className="handle handle-ne" onPointerDown={handleResize('ne')}/>
+          <div className="handle handle-sw" onPointerDown={handleResize('sw')}/>
+          <div className="handle handle-se" onPointerDown={handleResize('se')}/>
           {data.type === 'text' && <>
             <div className="handle handle-e" onPointerDown={handleResizeBox('e')}/>
             <div className="handle handle-w" onPointerDown={handleResizeBox('w')}/>
