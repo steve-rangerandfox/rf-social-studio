@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, Image, Film, Wallpaper, Layers, LayoutTemplate, Sparkles, PanelLeftClose, Sliders } from "lucide-react";
+import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, Image as ImageIcon, Film, Wallpaper, Layers, LayoutTemplate, Sparkles, PanelLeftClose, Sliders } from "lucide-react";
 import { CanvasElement, computeSnap, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
@@ -643,9 +643,9 @@ export function StoryDesigner({ row, onClose, onSave }) {
 
         <div className="s-layout">
           {/* Hidden file inputs */}
-          <input ref={imgFileRef} type="file" accept="image/*,image/gif" style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
-          <input ref={vidFileRef} type="file" accept="video/*,image/gif"  style={{display:"none"}} onChange={e=>addMedia(e.target.files?.[0])}/>
-          <input ref={bgFileRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}} onChange={e=>setBg(e.target.files?.[0])}/>
+          <input ref={imgFileRef} type="file" accept="image/*,image/gif" style={{display:"none"}} onChange={e=>{addMedia(e.target.files?.[0]); e.target.value="";}}/>
+          <input ref={vidFileRef} type="file" accept="video/*,image/gif"  style={{display:"none"}} onChange={e=>{addMedia(e.target.files?.[0]); e.target.value="";}}/>
+          <input ref={bgFileRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}} onChange={e=>{setBg(e.target.files?.[0]); e.target.value="";}}/>
 
           {/* ── ICON RAIL ── */}
           <div style={{
@@ -653,7 +653,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
             display:"flex",flexDirection:"column",alignItems:"center",padding:"8px 0",gap:2,
           }}>
             {[
-              { id:"elements", icon:<Image size={18}/>, label:"Elements" },
+              { id:"elements", icon:<ImageIcon size={18}/>, label:"Elements" },
               { id:"text", icon:<Type size={18}/>, label:"Text" },
               { id:"uploads", icon:<Upload size={18}/>, label:"Uploads" },
               { id:"templates", icon:<LayoutTemplate size={18}/>, label:"Templates" },
@@ -729,7 +729,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                         style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
                         onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
                         onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
-                        <Image size={20}/> Image / GIF
+                        <ImageIcon size={20}/> Image / GIF
                       </button>
                       <button onClick={()=>vidFileRef.current?.click()}
                         style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
@@ -848,7 +848,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                     {layersRev.map(el=>(
                       <div key={el.id} className={"layer-item "+(selectedId===el.id?"active":"")} onClick={()=>setSelectedId(el.id)}>
                         <span className="layer-icon" style={{color:selectedId===el.id?T.ink:T.textDim}}>
-                          {el.type==='text'?<Type size={12}/>:el.locked?<Wallpaper size={12}/>:el.mediaType==='video'?<Film size={12}/>:<Image size={12}/>}
+                          {el.type==='text'?<Type size={12}/>:el.locked?<Wallpaper size={12}/>:el.mediaType==='video'?<Film size={12}/>:<ImageIcon size={12}/>}
                         </span>
                         <span className="layer-label">{el.type==='text'?el.content?.slice(0,20):el.locked?'Background':el.mediaType==='video'?'Video':'Image'}</span>
                         {!el.locked&&<button className="layer-del" onClick={e=>{e.stopPropagation();deleteEl(el.id);}}><X size={10}/></button>}
