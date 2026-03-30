@@ -133,7 +133,9 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
       const delta = (dx * signX + dy * signY) / 2;
 
       if (data.type === 'text') {
-        onUpdate({ fontSize: Math.max(6, Math.min(96, startFontSize + delta * 0.35)) });
+        // Scale proportionally relative to current font size so feel is consistent
+        const newSize = Math.max(6, Math.min(96, startFontSize * (1 + delta / 100)));
+        onUpdate({ fontSize: newSize });
       } else {
         // Scale proportionally: delta in canvas-px relative to current element size
         const baseDim = Math.max(w, h) * startScale;
