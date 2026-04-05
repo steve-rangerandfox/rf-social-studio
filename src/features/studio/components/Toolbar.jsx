@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { Search } from "lucide-react";
 import { useStudio } from "../StudioContext.jsx";
 import { FilterMenu } from "./FilterMenu.jsx";
 
@@ -11,17 +12,27 @@ export function Toolbar() {
     attentionCount, filteredRows,
   } = useStudio();
 
+  const [searchExpanded, setSearchExpanded] = useState(false);
+
   if (view === "analytics") return null;
 
   return (
     <div className="ops-toolbar">
-      <input
-        className="ops-search"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search titles, captions, or owner"
-        title="Search (/)"
-      />
+      {searchExpanded || query ? (
+        <input
+          className="ops-search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search titles, captions, or owner"
+          title="Search (/)"
+          autoFocus={searchExpanded}
+          onBlur={() => { if (!query) setSearchExpanded(false); }}
+        />
+      ) : (
+        <button className="ops-search-trigger" onClick={() => setSearchExpanded(true)} title="Search (/)">
+          <Search size={14} />
+        </button>
+      )}
       <FilterMenu
         label="Status"
         value={statusFilter}

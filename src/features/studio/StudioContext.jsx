@@ -105,6 +105,7 @@ export function StudioProvider({ children }) {
   const [toast, setToast] = useState(null);
   const [publishConfirm, setPublishConfirm] = useState(null);
   const [selectedRowId, setSelectedRowId] = useState(null);
+  const [inlineCreateActive, setInlineCreateActive] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const showToast = useCallback((msg, color) => setToast({ msg, color, id: uid() }), []);
   const dragIdx = useRef(null);
@@ -481,6 +482,46 @@ export function StudioProvider({ children }) {
     setAddPostDraft(null);
   };
 
+  const getNextAvailableWeekday = () => {
+    const pt = nowPT();
+    const candidate = new Date(pt.getFullYear(), pt.getMonth(), pt.getDate() + 1);
+    // Skip Saturday (6) and Sunday (0)
+    while (candidate.getDay() === 0 || candidate.getDay() === 6) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+    return candidate;
+  };
+
+  const startInlineCreate = () => {
+    setInlineCreateActive(true);
+  };
+
+  const commitInlineCreate = (title) => {
+    const nextDay = getNextAvailableWeekday();
+    const dateValue = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
+    const timeValue = "09:00";
+    const platform = "ig_post";
+
+    const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
+    const [hour, minute] = timeValue.split(":").map(Number);
+    const iso = ptPickerToISO(targetYear, targetMonth - 1, day, hour, minute);
+
+    const newRow = createNewRow({ scheduledAt: iso, note: title, platform }, currentUser, studioDoc.rows.length);
+    updateDocument(
+      (current) => ({
+        ...current,
+        rows: [...current.rows, newRow],
+      }),
+      () => createAuditEntry("post.created", currentUser, "Created a new post draft (inline)", { scheduledAt: iso, title, platform }),
+    );
+    setInlineCreateActive(false);
+    setSelectedRowId(newRow.id);
+  };
+
+  const cancelInlineCreate = () => {
+    setInlineCreateActive(false);
+  };
+
   const add = (targetMonth = month, day = 1, targetYear = year) => {
     const nowVal = nowPT();
     const fallbackDay =
@@ -623,6 +664,7 @@ export function StudioProvider({ children }) {
     toast, setToast,
     publishConfirm, setPublishConfirm,
     selectedRowId, setSelectedRowId,
+    inlineCreateActive, startInlineCreate, commitInlineCreate, cancelInlineCreate,
     showToast,
     sel, setSel,
     monthRefs,

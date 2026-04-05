@@ -2,6 +2,7 @@ import React, { useRef, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useStudio } from "../StudioContext.jsx";
 import { Row } from "./Row.jsx";
+import { InlineCreateRow } from "./InlineCreateRow.jsx";
 import { EmptyState } from "./EmptyState.jsx";
 import { MONTHS_FULL, PLATFORMS, T } from "../shared.js";
 
@@ -14,6 +15,7 @@ export function ListView() {
     selectedRowId, setSelectedRowId,
     makeDrag, add,
     monthRefs, maxMonthCount,
+    inlineCreateActive,
   } = useStudio();
 
   const parentRef = useRef(null);
@@ -93,6 +95,8 @@ export function ListView() {
         <div className="th">Status</div>
         <div className="th" />
       </div>
+
+      {inlineCreateActive && <InlineCreateRow />}
 
       {timeScale === "month" ? (
         <>

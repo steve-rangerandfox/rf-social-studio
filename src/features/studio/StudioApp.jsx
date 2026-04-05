@@ -1,5 +1,5 @@
 import "./studio.css";
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 
 import { StudioProvider, useStudio } from "./StudioContext.jsx";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts.js";
@@ -20,6 +20,7 @@ import { Toast } from "./components/Toast.jsx";
 import { TokenExpiryBanner } from "./components/TokenExpiryBanner.jsx";
 import { UndoDeleteToast } from "./components/UndoDeleteToast.jsx";
 import { PublishConfirmModal } from "./components/PublishConfirmModal.jsx";
+import { CommandPalette } from "./components/CommandPalette.jsx";
 
 import { Sidebar } from "./components/Sidebar.jsx";
 import { Topbar } from "./components/Topbar.jsx";
@@ -35,6 +36,7 @@ import { PLATFORMS, T } from "./shared.js";
 
 // ─── Inner shell (consumes StudioContext) ─────────────────────────
 function StudioShell() {
+  const [showCommandPalette, setCommandPalette] = useState(false);
   const ctx = useStudio();
   const {
     // State
@@ -55,7 +57,7 @@ function StudioShell() {
     filteredRows, rows, igConfig, igMedia,
     // Actions
     update, showToast, createPostDraft,
-    add, setView, undoDelete, handleTokenRefresh,
+    add, startInlineCreate, setView, undoDelete, handleTokenRefresh,
     updateDocument, currentUser, exportData,
     team, updateTeam,
   } = ctx;
@@ -72,8 +74,9 @@ function StudioShell() {
     else if (name === "publishConfirm") setPublishConfirm(null);
   }, [setComposer, setStory, setAddPostDraft, setPublishConfirm]);
 
-  const addForMonth = useCallback(() => add(month), [add, month]);
-  useKeyboardShortcuts({ add: addForMonth, setView, getModals, closeModal });
+  const addForMonth = useCallback(() => view === "list" ? startInlineCreate() : add(month), [view, startInlineCreate, add, month]);
+  const toggleCommandPalette = useCallback(() => setCommandPalette(v => !v), []);
+  useKeyboardShortcuts({ add: addForMonth, setView, getModals, closeModal, toggleCommandPalette });
 
   return (
     <div className="app">
@@ -250,6 +253,9 @@ function StudioShell() {
           onCancel={() => setPublishConfirm(null)}
         />
       )}
+
+      {/* Command palette */}
+      {showCommandPalette && <CommandPalette onClose={() => setCommandPalette(false)} />}
     </div>
   );
 }

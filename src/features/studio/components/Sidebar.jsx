@@ -1,13 +1,40 @@
-import React from "react";
+import React, { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { useStudio } from "../StudioContext.jsx";
 import { MONTHS_FULL, T } from "../shared.js";
+
+const SIDEBAR_STATE_KEY = "rf_sidebar_state";
+
+function loadSidebarState() {
+  try {
+    return JSON.parse(localStorage.getItem(SIDEBAR_STATE_KEY)) || {};
+  } catch { return {}; }
+}
+
+function saveSidebarState(state) {
+  try { localStorage.setItem(SIDEBAR_STATE_KEY, JSON.stringify(state)); } catch { /* */ }
+}
+
+const DEFAULT_COLLAPSED = { calendar: false, team: true, connections: true };
 
 export function Sidebar() {
   const {
     month, setMonth, timeScale, setTimeScale,
-    monthCounts, team, connections,
-    add, jumpToMonth, setShowConn, setSettings,
+    monthCounts, team, connections, view,
+    add, startInlineCreate, jumpToMonth, setShowConn, setSettings,
   } = useStudio();
+
+  const [collapsed, setCollapsed] = useState(() => {
+    const saved = loadSidebarState();
+    return { ...DEFAULT_COLLAPSED, ...saved };
+  });
+  const toggleSection = (key) => {
+    setCollapsed(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveSidebarState(next);
+      return next;
+    });
+  };
 
   return (
     <aside className="sidebar">
@@ -22,39 +49,49 @@ export function Sidebar() {
       <div className="s-sect">
         <button
           className="btn btn-primary sidebar-add-btn"
-          onClick={() => add(month)}
+          onClick={() => view === "list" ? startInlineCreate() : add(month)}
           title="Create new post (N)"
         >
           + Add post
         </button>
 
-        <span className="s-lbl">Calendar</span>
+        <button className="s-lbl s-lbl-toggle" onClick={() => toggleSection("calendar")}>
+          <span>Calendar</span>
+          <ChevronDown size={10} className={`s-lbl-chevron${collapsed.calendar ? " collapsed" : ""}`} />
+        </button>
 
-        {/* Time scale toggle */}
-        <div className="time-toggle">
-          {[["month", "Month"], ["year", "Year"]].map(([v, l]) => (
-            <button key={v} className={"time-toggle-btn " + (timeScale === v ? "on" : "")}
-              onClick={() => setTimeScale(v)}>{l}</button>
-          ))}
-        </div>
-
-        {MONTHS_FULL.map((m, i) => {
-          const cnt = monthCounts[i];
-          return (
-            <div key={i} className={"m-item " + (timeScale === "month" && month === i ? "on" : "")}
-              onClick={() => { jumpToMonth(i); if (timeScale === "month") setMonth(i); }}>
-              <span>{m}</span>
-              <span className="m-ct">{cnt > 0 ? cnt : ""}</span>
+        {!collapsed.calendar && (
+          <>
+            {/* Time scale toggle */}
+            <div className="time-toggle">
+              {[["month", "Month"], ["year", "Year"]].map(([v, l]) => (
+                <button key={v} className={"time-toggle-btn " + (timeScale === v ? "on" : "")}
+                  onClick={() => setTimeScale(v)}>{l}</button>
+              ))}
             </div>
-          );
-        })}
+
+            {MONTHS_FULL.map((m, i) => {
+              const cnt = monthCounts[i];
+              return (
+                <div key={i} className={"m-item " + (timeScale === "month" && month === i ? "on" : "")}
+                  onClick={() => { jumpToMonth(i); if (timeScale === "month") setMonth(i); }}>
+                  <span>{m}</span>
+                  <span className="m-ct">{cnt > 0 ? cnt : ""}</span>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       <div className="s-div" />
 
       <div className="s-team">
-        <span className="s-lbl">Team</span>
-        {team.map(t => (
+        <button className="s-lbl s-lbl-toggle" onClick={() => toggleSection("team")}>
+          <span>Team</span>
+          <ChevronDown size={10} className={`s-lbl-chevron${collapsed.team ? " collapsed" : ""}`} />
+        </button>
+        {!collapsed.team && team.map(t => (
           <div key={t.id} className="team-row">
             <div className="av" style={{ background: t.color + "22", color: t.color }}>{t.initials}</div>
             <span className="team-name">{t.name}</span>
@@ -66,22 +103,29 @@ export function Sidebar() {
       <div className="s-div" />
 
       <div className="s-bottom">
-        <span className="s-lbl">Connections</span>
-        {[
-          { key: "instagram", label: "Instagram" },
-          { key: "tiktok", label: "TikTok" },
-          { key: "facebook", label: "Facebook" },
-          { key: "linkedin", label: "LinkedIn" },
-        ].map(c => {
-          const on = connections[c.key];
-          return (
-            <div key={c.key} className="conn-row" onClick={() => setShowConn(c.key)}>
-              <div className={"conn-dot " + (on ? "on" : "off")} />
-              <span className="conn-name">{c.label}</span>
-              <span className={"conn-st " + (on ? "on" : "off")}>{on ? "Live" : "Setup \u2192"}</span>
-            </div>
-          );
-        })}
+        <button className="s-lbl s-lbl-toggle" onClick={() => toggleSection("connections")}>
+          <span>Connections</span>
+          <ChevronDown size={10} className={`s-lbl-chevron${collapsed.connections ? " collapsed" : ""}`} />
+        </button>
+        {!collapsed.connections && (
+          <>
+            {[
+              { key: "instagram", label: "Instagram" },
+              { key: "tiktok", label: "TikTok" },
+              { key: "facebook", label: "Facebook" },
+              { key: "linkedin", label: "LinkedIn" },
+            ].map(c => {
+              const on = connections[c.key];
+              return (
+                <div key={c.key} className="conn-row" onClick={() => setShowConn(c.key)}>
+                  <div className={"conn-dot " + (on ? "on" : "off")} />
+                  <span className="conn-name">{c.label}</span>
+                  <span className={"conn-st " + (on ? "on" : "off")}>{on ? "Live" : "Setup \u2192"}</span>
+                </div>
+              );
+            })}
+          </>
+        )}
         <div style={{ height: 6 }} />
         <button className="s-settings-btn" onClick={() => setSettings(true)}>
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0, opacity: .6 }}>
