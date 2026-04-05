@@ -107,18 +107,24 @@ export async function fetchInstagramProfile(accessToken) {
   };
 }
 
-export async function fetchInstagramMedia(accessToken, limit = 30) {
-  const response = await fetchWithTimeout(
-    `https://graph.instagram.com/me/media?fields=${MEDIA_FIELDS}&access_token=${encodeURIComponent(accessToken)}&limit=${limit}`,
-  );
-  const body = await response.json();
-
-  if (!response.ok || body.error) {
-    throw new Error(body.error?.message || "Instagram media fetch failed");
+export async function fetchInstagramMedia(accessToken, { limit = 30, after = null } = {}) {
+  let url = `https://graph.instagram.com/me/media?fields=${MEDIA_FIELDS}&access_token=${encodeURIComponent(accessToken)}&limit=${Math.min(limit, 100)}`;
+  if (after) {
+    url += `&after=${encodeURIComponent(after)}`;
   }
 
+  const response = await fetchWithTimeout(url);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Instagram media request failed (${response.status})`);
+  }
+
+  const body = await response.json();
   return {
-    data: Array.isArray(body.data) ? body.data : [],
-    paging: body.paging || null,
+    data: body.data || [],
+    paging: {
+      hasNext: Boolean(body.paging?.cursors?.after),
+      after: body.paging?.cursors?.after || null,
+    },
   };
 }

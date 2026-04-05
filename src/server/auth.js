@@ -1,7 +1,5 @@
 import crypto from "node:crypto";
 
-import { getRequestUserId } from "./cookies.js";
-
 function base64UrlDecodeJson(value) {
   const normalized = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
   const padding = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
@@ -60,10 +58,11 @@ function verifyClerkToken(token, env) {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && Number(payload.exp) <= now) {
+  const CLOCK_SKEW_TOLERANCE = 5;
+  if (payload.exp && Number(payload.exp) + CLOCK_SKEW_TOLERANCE <= now) {
     throw new Error("Authorization token has expired");
   }
-  if (payload.nbf && Number(payload.nbf) > now) {
+  if (payload.nbf && Number(payload.nbf) - CLOCK_SKEW_TOLERANCE > now) {
     throw new Error("Authorization token is not active yet");
   }
   if (!payload.sub || typeof payload.sub !== "string") {
@@ -109,27 +108,9 @@ export function resolveRequestAuth(req, env) {
     }
   }
 
-  if (env.nodeEnv === "production") {
-    return {
-      ok: false,
-      status: 503,
-      error: "Server auth is not configured",
-    };
-  }
-
-  const devUserId = getRequestUserId(req);
-  if (!devUserId) {
-    return {
-      ok: false,
-      status: 401,
-      error: "user context is required",
-    };
-  }
-
   return {
-    ok: true,
-    userId: devUserId,
-    sessionId: "",
-    verified: false,
+    ok: false,
+    status: 503,
+    error: "Server auth is not configured",
   };
 }

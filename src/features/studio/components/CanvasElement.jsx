@@ -1,9 +1,17 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+
+function formatTime(s) {
+  if (!s || isNaN(s)) return "0:00";
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
 
 // ─── SNAP ALIGNMENT ENGINE ───────────────────────────────────────
 export const CANVAS_W = 290, CANVAS_H = 515, SNAP_THRESH = 4;
 
-export function computeSnap(el, siblings) {
+export function computeSnap(el, siblings, canvasW = CANVAS_W, canvasH = CANVAS_H) {
   const w = el.type === 'text' ? (el.boxWidth || 190) : ((el.width || 140) * (el.scale || 1));
   const h = el.type === 'text' ? 40 : ((el.height || 140) * (el.scale || 1)); // approximate text height
   const cx = el.x + w / 2, cy = el.y + h / 2;
@@ -11,7 +19,7 @@ export function computeSnap(el, siblings) {
   let guides = [], snapX = null, snapY = null;
 
   // Snap to canvas center
-  const canvasCx = CANVAS_W / 2, canvasCy = CANVAS_H / 2;
+  const canvasCx = canvasW / 2, canvasCy = canvasH / 2;
   if (Math.abs(cx - canvasCx) < SNAP_THRESH) { snapX = canvasCx - w / 2; guides.push({ axis:'x', pos: canvasCx }); }
   if (Math.abs(cy - canvasCy) < SNAP_THRESH) { snapY = canvasCy - h / 2; guides.push({ axis:'y', pos: canvasCy }); }
 
@@ -42,38 +50,57 @@ export function computeSnap(el, siblings) {
 export const BRAND_COLORS = ["#111318","#7C3AED","#F59E0B","#0A66C2","#BE185D","#FFFFFF","#F7F8FA","#10B981","#E5E7EB"];
 export const FONTS = ["Bricolage Grotesque","JetBrains Mono"];
 
-export function fitMediaBox(width, height, maxWidth = 260, maxHeight = 460) {
+export function fitMediaBox(width, height, maxWidth, maxHeight) {
   if (!width || !height) {
     return { width: 140, height: 140 };
   }
 
-  const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+  const mw = maxWidth || (CANVAS_W - 30);   // 15px margin each side
+  const mh = maxHeight || (CANVAS_H - 55);  // margins top/bottom
+  const scale = Math.min(mw / width, mh / height, 1);
   return {
     width: Math.max(48, Math.round(width * scale)),
     height: Math.max(48, Math.round(height * scale)),
   };
 }
 
-export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, zoom = 1 }) {
+export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H }) {
   const videoRef = useRef(null);
   const editRef = useRef(null);
   const [muted, setMuted] = useState(true);
   const [dropHover, setDropHover] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
+  const [rotationDisplay, setRotationDisplay] = useState(null);
+  const [playing, setPlaying] = useState(true);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   const isVideo = data.mediaType === 'video';
+  const isGif = data.mediaType === 'gif' || (data.url && /\.gif(\?|$)/i.test(data.url));
   const mediaScale = data.scale || 1;
   const mediaWidth = data.width || 140;
   const mediaHeight = data.height || 140;
+  const rotation = data.rotation || 0;
+
+  // CSS filter for media elements
+  const filterStyle = (data.type === "image" || data.type === "video") && !data.locked
+    ? `brightness(${data.brightness ?? 100}%) contrast(${data.contrast ?? 100}%) saturate(${data.saturation ?? 100}%) blur(${data.blur ?? 0}px)`
+    : undefined;
+
   const wrapperStyle = {
     left: data.x,
     top: data.y,
     zIndex: isSelected ? 10 : 2,
+    opacity: data.opacity ?? 1,
+    transform: [
+      data.type === "image" ? `scale(${mediaScale})` : null,
+      rotation ? `rotate(${rotation}deg)` : null,
+    ].filter(Boolean).join(' ') || undefined,
     ...(data.type === "image"
       ? {
           width: mediaWidth,
           height: mediaHeight,
-          transform: `scale(${mediaScale})`,
         }
-      : null),
+      : rotation ? {} : null),
   };
 
   // Focus contentEditable when entering edit mode
@@ -87,22 +114,93 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
     }
   }, [isEditing]);
 
+  // Track video time for seek bar
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (!vid || !isVideo) return;
+    const onMeta = () => setVideoDuration(vid.duration || 0);
+    const onTime = () => setCurrentTime(vid.currentTime || 0);
+    vid.addEventListener("loadedmetadata", onMeta);
+    vid.addEventListener("timeupdate", onTime);
+    if (vid.duration) setVideoDuration(vid.duration);
+    return () => {
+      vid.removeEventListener("loadedmetadata", onMeta);
+      vid.removeEventListener("timeupdate", onTime);
+    };
+  }, [isVideo, data.url]);
+
+  const togglePlay = useCallback((e) => {
+    e.stopPropagation();
+    const vid = videoRef.current;
+    if (!vid) return;
+    if (vid.paused) { vid.play(); setPlaying(true); }
+    else { vid.pause(); setPlaying(false); }
+  }, []);
+
+  // ── Rotation handle drag ──
+  const handleRotate = useCallback((e) => {
+    e.preventDefault(); e.stopPropagation();
+    setIsRotating(true);
+    const elW = data.type === 'text' ? (data.boxWidth || 190) : (mediaWidth * mediaScale);
+    const elH = data.type === 'text' ? 40 : (mediaHeight * mediaScale);
+    const onMove = (mv) => {
+      // Get canvas-space cursor position
+      const canvasEl = e.target.closest('.canvas');
+      if (!canvasEl) return;
+      const rect = canvasEl.getBoundingClientRect();
+      const scaleX = canvasW / rect.width;
+      const scaleY = canvasH / rect.height;
+      const cursorX = (mv.clientX - rect.left) * scaleX;
+      const cursorY = (mv.clientY - rect.top) * scaleY;
+      const centerX = data.x + elW / 2;
+      const centerY = data.y + elH / 2;
+      let angle = Math.atan2(cursorY - centerY, cursorX - centerX) * (180 / Math.PI) + 90;
+      // Normalize to 0-360
+      angle = ((angle % 360) + 360) % 360;
+      // Snap to 45-degree increments when shift is held
+      if (mv.shiftKey) {
+        const snapAngles = [0, 45, 90, 135, 180, 225, 270, 315, 360];
+        for (const sa of snapAngles) {
+          if (Math.abs(angle - sa) < 5) { angle = sa === 360 ? 0 : sa; break; }
+        }
+      }
+      angle = Math.round(angle * 10) / 10;
+      setRotationDisplay(angle);
+      onUpdate({ rotation: angle });
+    };
+    const onUp = () => {
+      setIsRotating(false);
+      setRotationDisplay(null);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  }, [data, mediaWidth, mediaHeight, mediaScale, onUpdate]);
+
   const handleDrag = (e) => {
     if (data.locked || isEditing) return;
     e.preventDefault(); e.stopPropagation();
-    onSelect();
+    onSelect(data.id, e.shiftKey);
     const startMouseX = e.clientX, startMouseY = e.clientY;
     const startX = data.x, startY = data.y;
     const onMove = (mv) => {
       let nx = startX + (mv.clientX - startMouseX) / zoom;
       let ny = startY + (mv.clientY - startMouseY) / zoom;
       if (snapEnabled && siblings) {
-        const snap = computeSnap({ ...data, x: nx, y: ny }, siblings);
+        const snap = computeSnap({ ...data, x: nx, y: ny }, siblings, canvasW, canvasH);
         if (snap.x !== null) nx = snap.x;
         if (snap.y !== null) ny = snap.y;
         if (onGuides) onGuides(snap.guides);
       }
-      onUpdate({ x: nx, y: ny });
+      // Multi-select: move all selected elements together
+      if (onDragAll) {
+        const dx = (mv.clientX - startMouseX) / zoom;
+        const dy = (mv.clientY - startMouseY) / zoom;
+        onDragAll(dx, dy);
+      } else {
+        onUpdate({ x: nx, y: ny });
+      }
     };
     const onUp = () => {
       document.removeEventListener('pointermove', onMove);
@@ -221,7 +319,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
       className={"element-wrap " + (isSelected ? "element-selected" : "") + (isEditing ? " element-editing" : "")}
       style={wrapperStyle}
       onPointerDown={isEditing ? undefined : handleDrag}
-      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onClick={(e) => { e.stopPropagation(); onSelect(data.id, e.shiftKey); }}
       onDoubleClick={(e) => {
         e.stopPropagation();
         if (data.type === 'text' && !isEditing && onStartEdit) onStartEdit();
@@ -264,9 +362,11 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
             fontStyle: data.italic ? 'italic' : 'normal',
             textDecoration: [data.underline && 'underline', data.strikethrough && 'line-through'].filter(Boolean).join(' ') || 'none',
             lineHeight: data.lineHeight || 1.25,
+            textAlign: data.textAlign || 'left',
             whiteSpace: 'pre-wrap',
             width: data.boxWidth || 190,
             textShadow: data.shadow ? '0 2px 12px rgba(0,0,0,0.8)' : undefined,
+            WebkitTextStroke: data.outline ? `${data.outline}px ${data.outlineColor || "#000"}` : undefined,
             textRendering: 'optimizeLegibility',
             pointerEvents: isEditing ? 'auto' : 'none',
             outline: 'none',
@@ -278,7 +378,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
       ) : isVideo ? (
         <div className="video-el">
           <video ref={videoRef} src={data.url}
-            style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:4,display:'block'}}
+            style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:4,display:'block',filter:filterStyle}}
             autoPlay={data.autoPlay!==false} loop={data.loop!==false}
             muted={data.muted!==false} playsInline draggable={false}
             onLoadedMetadata={(e)=>{
@@ -286,13 +386,37 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
               if (fitted.width !== data.width || fitted.height !== data.height) onUpdate(fitted);
             }}/>
           <div className="video-badge">{data.trimLabel||'VID'}</div>
-          <button className="mute-toggle" onClick={e=>{e.stopPropagation();onUpdate({muted:!data.muted});}}>
-            {data.muted!==false?'Mute':'Sound'}
-          </button>
+          {isSelected && (
+            <div className="sd-video-controls" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
+              <button className="sd-video-playpause" onClick={togglePlay}>
+                {playing ? <Pause size={10}/> : <Play size={10}/>}
+              </button>
+              <input type="range" className="sd-video-seek" min={0} max={videoDuration || 1} step={0.01}
+                value={currentTime}
+                onChange={(e) => { if (videoRef.current) videoRef.current.currentTime = parseFloat(e.target.value); }}/>
+              <span className="sd-video-time">{formatTime(currentTime)} / {formatTime(videoDuration)}</span>
+              <button className="sd-video-mute" onClick={e=>{e.stopPropagation();onUpdate({muted:!data.muted});}}>
+                {data.muted!==false ? <VolumeX size={10}/> : <Volume2 size={10}/>}
+              </button>
+            </div>
+          )}
+          {!isSelected && (
+            <button className="mute-toggle" onClick={e=>{e.stopPropagation();onUpdate({muted:!data.muted});}}>
+              {data.muted!==false?'Mute':'Sound'}
+            </button>
+          )}
         </div>
+      ) : isGif ? (
+        <img src={data.url} alt="" draggable="false"
+          style={{display:'block',width:'100%',height:'100%',borderRadius:4,pointerEvents:'none',objectFit:'contain',filter:filterStyle}}
+          onError={e=>{e.target.style.display='none';}}
+          onLoad={(e)=>{
+            const fitted = fitMediaBox(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight);
+            if (fitted.width !== data.width || fitted.height !== data.height) onUpdate(fitted);
+          }}/>
       ) : (
         <img src={data.url} alt="" draggable="false"
-          style={{display:'block',width:'100%',height:'100%',borderRadius:4,pointerEvents:'none'}}
+          style={{display:'block',width:'100%',height:'100%',borderRadius:4,pointerEvents:'none',filter:filterStyle}}
           onError={e=>{e.target.style.display='none';}}
           onLoad={(e)=>{
             const fitted = fitMediaBox(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight);
@@ -309,6 +433,12 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, snapEnable
             <div className="handle handle-e" onPointerDown={handleResizeBox('e')}/>
             <div className="handle handle-w" onPointerDown={handleResizeBox('w')}/>
           </>}
+          {/* Rotation handle */}
+          <div className="handle-rotate-line"/>
+          <div className="handle-rotate" onPointerDown={handleRotate}/>
+          {isRotating && rotationDisplay !== null && (
+            <div className="rotation-tooltip">{Math.round(rotationDisplay)}°</div>
+          )}
         </>
       )}
     </div>

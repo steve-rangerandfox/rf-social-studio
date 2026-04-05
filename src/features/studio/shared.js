@@ -38,10 +38,10 @@ export const PLATFORMS = {
 
 export const STATUSES = {
   idea: { label: "Idea", dot: "#B5ADA0", next: "draft" },
-  draft: { label: "Draft", dot: "#93897C", next: "needs_review" },
+  draft: { label: "Draft", dot: "#5B7FA6", next: "needs_review" },
   needs_review: { label: "Needs Review", dot: "#E56A0B", next: "approved" },
-  approved: { label: "Approved", dot: "#5E6659", next: "scheduled" },
-  scheduled: { label: "Scheduled", dot: "#66727A", next: "posted" },
+  approved: { label: "Approved", dot: "#3D8C5C", next: "scheduled" },
+  scheduled: { label: "Scheduled", dot: "#5BA8B5", next: "posted" },
   posted: { label: "Posted", dot: "#181714", next: "idea" },
 };
 

@@ -122,9 +122,9 @@ test("GET /api/ig-oauth returns authorize URL and state cookie", async () => {
     new MockRequest({
       method: "GET",
       url: "/api/ig-oauth?redirectUri=http%3A%2F%2Flocalhost%3A5173",
-      headers: userHeaders,
+      headers: verifiedUserHeaders,
     }),
-    sharedEnv,
+    verifiedEnv,
   );
 
   assert.equal(res.status, 200);
@@ -138,14 +138,14 @@ test("POST /api/ig-oauth rejects invalid redirect URIs", async () => {
     new MockRequest({
       method: "POST",
       url: "/api/ig-oauth",
-      headers: userHeaders,
+      headers: verifiedUserHeaders,
       body: {
         code: "abc123",
         redirectUri: "https://evil.example.com/callback",
         state: "bad-state",
       },
     }),
-    sharedEnv,
+    verifiedEnv,
   );
 
   assert.equal(res.status, 400);
@@ -157,9 +157,9 @@ test("GET /api/ig-posts returns 401 when disconnected", async () => {
     new MockRequest({
       method: "GET",
       url: "/api/ig-posts",
-      headers: userHeaders,
+      headers: verifiedUserHeaders,
     }),
-    sharedEnv,
+    verifiedEnv,
   );
 
   assert.equal(res.status, 401);
@@ -171,14 +171,14 @@ test("POST /api/captions returns 503 when AI configuration is missing", async ()
     new MockRequest({
       method: "POST",
       url: "/api/captions",
-      headers: userHeaders,
+      headers: verifiedUserHeaders,
       body: {
         platform: "ig_post",
         prompt: "A motion design case study launch",
       },
     }),
     {
-      ...sharedEnv,
+      ...verifiedEnv,
       anthropicApiKey: "",
     },
   );
@@ -187,18 +187,18 @@ test("POST /api/captions returns 503 when AI configuration is missing", async ()
   assert.ok(Array.isArray(res.body.missing));
 });
 
-test("GET /api/ig-oauth requires user context", async () => {
+test("GET /api/ig-oauth requires a bearer token", async () => {
   const res = await runRequest(
     new MockRequest({
       method: "GET",
       url: "/api/ig-oauth?redirectUri=http%3A%2F%2Flocalhost%3A5173",
       headers: { origin: "http://localhost:5173", host: "localhost:3001" },
     }),
-    sharedEnv,
+    verifiedEnv,
   );
 
   assert.equal(res.status, 401);
-  assert.ok(res.body.error.includes("user context"));
+  assert.ok(res.body.error.includes("Authorization token"));
 });
 
 test("GET /api/studio-document returns 503 when persistence is not configured", async () => {
@@ -206,9 +206,9 @@ test("GET /api/studio-document returns 503 when persistence is not configured", 
     new MockRequest({
       method: "GET",
       url: "/api/studio-document",
-      headers: userHeaders,
+      headers: verifiedUserHeaders,
     }),
-    sharedEnv,
+    verifiedEnv,
   );
 
   assert.equal(res.status, 503);

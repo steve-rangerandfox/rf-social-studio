@@ -3,10 +3,6 @@ import crypto from "node:crypto";
 export const IG_SESSION_COOKIE = "rf_ig_session";
 export const IG_OAUTH_STATE_COOKIE = "rf_ig_oauth_state";
 
-export function getRequestUserId(req) {
-  return String(req.headers["x-rf-user-id"] || "").trim();
-}
-
 function base64UrlEncode(buffer) {
   return buffer
     .toString("base64")

@@ -1,8 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check, Plus, Minus, RotateCcw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, Image as ImageIcon, Film, Wallpaper, Layers, LayoutTemplate, Sparkles, PanelLeftClose, Sliders } from "lucide-react";
-import { CanvasElement, computeSnap, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
+import { X, Check, Plus, Minus, RotateCcw, RotateCw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, Image as ImageIcon, Film, Wallpaper, Layers, LayoutTemplate, Sparkles, PanelLeftClose, Sliders, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, Download } from "lucide-react";
+import { CanvasElement, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
+
+const CANVAS_PRESETS = [
+  { key: "ig_story", label: "IG Story", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
+  { key: "ig_post", label: "IG Post", w: 290, h: 290, exportW: 1080, exportH: 1080, ratio: "1:1" },
+  { key: "ig_reel", label: "IG Reel", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
+  { key: "tiktok", label: "TikTok", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
+  { key: "linkedin", label: "LinkedIn", w: 290, h: 152, exportW: 1200, exportH: 628, ratio: "1.91:1" },
+  { key: "youtube", label: "YouTube", w: 290, h: 163, exportW: 1280, exportH: 720, ratio: "16:9" },
+];
 
 const BRAND_FONTS = [
   { name:"Bricolage Grotesque", label:"Bricolage",  group:"brand" },
@@ -298,7 +307,7 @@ function loadCustomFonts() {
 }
 
 function saveCustomFonts(fonts) {
-  try { localStorage.setItem(CUSTOM_FONTS_KEY, JSON.stringify(fonts)); } catch {}
+  try { localStorage.setItem(CUSTOM_FONTS_KEY, JSON.stringify(fonts)); } catch { /* storage full */ }
 }
 
 async function installFontFile(file) {
@@ -323,9 +332,29 @@ async function installFontFile(file) {
   });
 }
 
-// Module-level template store (persists across opens in the session)
-let _savedTemplates = [];
-let _defaultTmplId  = null;
+// ─── Persistent Template Storage ─────────────────────────────────
+const TEMPLATES_STORAGE_KEY = "rf_studio_templates";
+const DEFAULT_TMPL_KEY = "rf_studio_default_template";
+
+function loadSavedTemplates() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(TEMPLATES_STORAGE_KEY));
+    return Array.isArray(stored) ? stored : [];
+  } catch { return []; }
+}
+
+function saveSavedTemplates(templates) {
+  try { localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates)); } catch { /* storage full */ }
+}
+
+function loadDefaultTmplId() {
+  return localStorage.getItem(DEFAULT_TMPL_KEY) || null;
+}
+
+function saveDefaultTmplId(id) {
+  if (id) localStorage.setItem(DEFAULT_TMPL_KEY, id);
+  else localStorage.removeItem(DEFAULT_TMPL_KEY);
+}
 
 export function StoryDesigner({ row, onClose, onSave }) {
   const makeDefault = () => [
@@ -339,8 +368,10 @@ export function StoryDesigner({ row, onClose, onSave }) {
     // Use previously saved elements for this row
     if (row?.storyElements) return row.storyElements;
     // If a default template exists, clone it (update headline with note)
-    if (_defaultTmplId) {
-      const t = _savedTemplates.find(t => t.id === _defaultTmplId);
+    const storedDefaultId = loadDefaultTmplId();
+    if (storedDefaultId) {
+      const storedTemplates = loadSavedTemplates();
+      const t = storedTemplates.find(t => t.id === storedDefaultId);
       if (t) {
         const els = t.elements.map(e => ({ ...e, id: e.id === 'bg' ? 'bg' : uid() }));
         const headlineEl = els.find(e => e.type === 'text' && e.fontSize >= 20);
@@ -352,7 +383,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
   });
 
   // ── Undo / Redo history ──
-  const MAX_HISTORY = 20;
+  const MAX_HISTORY = 50;
   const [history, setHistory] = useState(() => [elements]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
@@ -389,18 +420,37 @@ export function StoryDesigner({ row, onClose, onSave }) {
   // Auto-save elements to parent row whenever they change
   useEffect(() => { if (onSave) onSave(elements); }, [elements, onSave]);
 
-  const [selectedId,  setSelectedId]  = useState(null);
+  const [selectedIds, setSelectedIds]  = useState(new Set());
   const [editingId,   setEditingId]   = useState(null);
+  // Convenience: single selectedId for backward compat in properties panel
+  const selectedId = selectedIds.size === 1 ? [...selectedIds][0] : null;
   const [zoom,        setZoom]        = useState(1.8);
+  const [canvasPreset, setCanvasPreset] = useState("ig_story");
   const [postState,   setPostState]   = useState("idle");
   const [aiLoading,   setAiLoading]   = useState(false);
   const [aiTips,      setAiTips]      = useState([]);
-  const [templates,   setTemplates]   = useState(_savedTemplates);
-  const [defaultId,   setDefaultId]   = useState(_defaultTmplId);
+  const [templates,   setTemplates]   = useState(() => loadSavedTemplates());
+  const [defaultId,   setDefaultId]   = useState(() => loadDefaultTmplId());
   const [tmplName,    setTmplName]    = useState("");
   const [showTmplSave,setShowTmplSave]= useState(false);
   const [snapOn,      setSnapOn]      = useState(true);
   const [guides,      setGuides]      = useState([]);
+  // Layer drag-to-reorder state
+  const [dragLayerIdx, setDragLayerIdx] = useState(null);
+  const [dragOverLayerIdx, setDragOverLayerIdx] = useState(null);
+
+  const handleLayerDragStart = (idx) => setDragLayerIdx(idx);
+  const handleLayerDragOver = (e, idx) => { e.preventDefault(); setDragOverLayerIdx(idx); };
+  const handleLayerDrop = (idx) => {
+    if (dragLayerIdx === null || dragLayerIdx === idx) return;
+    const reordered = [...elements];
+    const [moved] = reordered.splice(dragLayerIdx, 1);
+    reordered.splice(idx, 0, moved);
+    setElements(reordered);
+    pushElements(reordered);
+    setDragLayerIdx(null);
+    setDragOverLayerIdx(null);
+  };
   // Sidebar tab: null = collapsed, 'elements' | 'text' | 'uploads' | 'templates' | 'layers' | 'ai'
   const [sideTab, setSideTab] = useState('elements');
   const bgFileRef  = useRef(null);
@@ -434,37 +484,98 @@ export function StoryDesigner({ row, onClose, onSave }) {
     saveCustomFonts(updated);
   };
 
-  const selected  = elements.find(el => el.id === selectedId);
+  const preset = CANVAS_PRESETS.find(p => p.key === canvasPreset) || CANVAS_PRESETS[0];
+  const selected  = selectedId ? elements.find(el => el.id === selectedId) : null;
 
-  // Auto-open properties panel when selecting an unlocked element
+  // Helper: select element(s) with shift support
+  const handleSelect = (id, shiftKey) => {
+    if (shiftKey) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    } else {
+      setSelectedIds(new Set([id]));
+    }
+  };
+
+  // Auto-open properties panel when selecting a single unlocked element
   useEffect(() => {
     if (selected && !selected.locked) setSideTab("props");
   }, [selectedId]);
 
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
-  const deleteEl  = (id) => { pushElements(els => els.filter(e => e.id !== id)); setSelectedId(null); };
+  const deleteEl  = (id) => { pushElements(els => els.filter(e => e.id !== id)); setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; }); };
+  const deleteSelected = () => {
+    const toDelete = [...selectedIds].filter(id => { const el = elements.find(e => e.id === id); return el && !el.locked; });
+    if (toDelete.length === 0) return;
+    pushElements(els => els.filter(e => !toDelete.includes(e.id)));
+    setSelectedIds(new Set());
+  };
+
+  // ── Alignment functions ──
+  const alignSelected = (direction) => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setElements(els => els.map(el => {
+      if (!ids.includes(el.id) || el.locked) return el;
+      const w = el.type === 'text' ? (el.boxWidth || 190) : ((el.width || 140) * (el.scale || 1));
+      const h = el.type === 'text' ? 40 : ((el.height || 140) * (el.scale || 1));
+      switch (direction) {
+        case 'left':     return { ...el, x: 0 };
+        case 'center-h': return { ...el, x: (CANVAS_W - w) / 2 };
+        case 'right':    return { ...el, x: CANVAS_W - w };
+        case 'top':      return { ...el, y: 0 };
+        case 'center-v': return { ...el, y: (CANVAS_H - h) / 2 };
+        case 'bottom':   return { ...el, y: CANVAS_H - h };
+        default: return el;
+      }
+    }));
+  };
+
+  // Multi-drag: store start positions for all selected elements
+  const dragStartRef = useRef({});
+  const initMultiDrag = () => {
+    const starts = {};
+    selectedIds.forEach(id => {
+      const el = elements.find(e => e.id === id);
+      if (el && !el.locked) starts[id] = { x: el.x, y: el.y };
+    });
+    dragStartRef.current = starts;
+  };
+  const multiDrag = (dx, dy) => {
+    const starts = dragStartRef.current;
+    setElements(els => els.map(e => {
+      if (starts[e.id]) return { ...e, x: starts[e.id].x + dx, y: starts[e.id].y + dy };
+      return e;
+    }));
+  };
 
   // Arrow-key nudge (1px, or 10px with Shift) — skip while inline editing
   useEffect(() => {
     const onKey = (e) => {
       if (editingId) return;
-      if (!selectedId) return;
-      const sel = elements.find(el => el.id === selectedId);
-      if (!sel || sel.locked) return;
+      if (selectedIds.size === 0) return;
       const arrows = { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0] };
       const dir = arrows[e.key];
       if (!dir) return;
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
-      updateEl(selectedId, { x: sel.x + dir[0] * step, y: sel.y + dir[1] * step });
+      selectedIds.forEach(id => {
+        const sel = elements.find(el => el.id === id);
+        if (sel && !sel.locked) updateEl(id, { x: sel.x + dir[0] * step, y: sel.y + dir[1] * step });
+      });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, elements, editingId]);
+  }, [selectedIds, elements, editingId]);
 
-  const addText = () => {
-    const el = { id:uid(), type:"text", content:"New text", x:40, y:180, fontSize:18, fontFamily:"Bricolage Grotesque", color:"#FFFFFF", letterSpacing:0, fontWeight:600, shadow:false };
-    pushElements(els => [...els, el]); setSelectedId(el.id);
+  const canvasRef = useRef(null);
+
+  const addText = (dropX, dropY) => {
+    const el = { id:uid(), type:"text", content:"New text", x: dropX ?? 40, y: dropY ?? 180, fontSize:18, fontFamily:"Bricolage Grotesque", color:"#FFFFFF", letterSpacing:0, fontWeight:600, shadow:false };
+    pushElements(els => [...els, el]); setSelectedIds(new Set([el.id]));
   };
 
   const fileToDataURL = (file) => new Promise((resolve) => {
@@ -473,7 +584,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
     reader.readAsDataURL(file);
   });
 
-  const addMedia = async (file) => {
+  const addMedia = async (file, dropX, dropY) => {
     if (!file) return;
     const url    = await fileToDataURL(file);
     const isGif  = file.type === "image/gif";
@@ -484,8 +595,8 @@ export function StoryDesigner({ row, onClose, onSave }) {
         id:uid(),
         type:"image",
         url,
-        x:56,
-        y:140,
+        x: dropX ?? 56,
+        y: dropY ?? 140,
         scale:1,
         width: w,
         height: h,
@@ -496,7 +607,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
         autoPlay:true,
         trimLabel: file.name.split('.').pop().toUpperCase(),
       };
-      pushElements(els => [...els, el]); setSelectedId(el.id);
+      pushElements(els => [...els, el]); setSelectedIds(new Set([el.id]));
     };
     if (!isVid) {
       const img = new window.Image();
@@ -538,15 +649,132 @@ export function StoryDesigner({ row, onClose, onSave }) {
   const handleCanvasDrop = (e) => {
     e.preventDefault();
     setCanvasDragOver(false);
+    // Check for toolbar element drag
+    const toolType = e.dataTransfer.getData("application/rf-tool-type");
+    if (toolType) {
+      const canvasRect = canvasRef.current?.getBoundingClientRect();
+      if (canvasRect) {
+        const x = (e.clientX - canvasRect.left) / zoom;
+        const y = (e.clientY - canvasRect.top) / zoom;
+        if (toolType === "text") addText(x, y);
+        else if (toolType === "image") imgFileRef.current?.click();
+        else if (toolType === "video") vidFileRef.current?.click();
+      }
+      return;
+    }
     const file = e.dataTransfer?.files?.[0];
     if (!file || (!file.type.startsWith("image/") && !file.type.startsWith("video/"))) return;
-    // If no background is set, use as background; otherwise add as layer
     const bgEl = elements.find(el => el.id === "bg");
     if (!bgEl?.url) {
       setBg(file);
     } else {
-      addMedia(file);
+      const canvasRect = canvasRef.current?.getBoundingClientRect();
+      if (canvasRect) {
+        addMedia(file, (e.clientX - canvasRect.left) / zoom, (e.clientY - canvasRect.top) / zoom);
+      } else {
+        addMedia(file);
+      }
     }
+  };
+
+  const handleToolDragStart = (e, type) => {
+    e.dataTransfer.setData("application/rf-tool-type", type);
+    e.dataTransfer.effectAllowed = "copy";
+  };
+
+  // ── PNG Export ──
+  const exportAsPng = async () => {
+    const EXPORT_W = preset.exportW;
+    const EXPORT_H = preset.exportH;
+    const SCALE = EXPORT_W / preset.w;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = EXPORT_W;
+    canvas.height = EXPORT_H;
+    const ctx = canvas.getContext("2d");
+
+    // Draw background
+    const bgEl = elements.find(e => e.locked);
+    if (bgEl?.url && bgEl.mediaType !== 'video') {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; img.src = bgEl.url; });
+      ctx.drawImage(img, 0, 0, EXPORT_W, EXPORT_H);
+    } else {
+      ctx.fillStyle = "#080A0E";
+      ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
+    }
+
+    // Draw text elements
+    for (const el of elements.filter(e => !e.locked && e.type === "text")) {
+      ctx.save();
+      const x = el.x * SCALE;
+      const y = el.y * SCALE;
+      const fontSize = (el.fontSize || 18) * SCALE;
+
+      if (el.rotation) {
+        const cx = x + ((el.boxWidth || 190) * SCALE) / 2;
+        const cy = y + fontSize / 2;
+        ctx.translate(cx, cy);
+        ctx.rotate((el.rotation * Math.PI) / 180);
+        ctx.translate(-cx, -cy);
+      }
+
+      ctx.font = `${el.fontWeight || 600} ${fontSize}px ${el.fontFamily || "sans-serif"}`;
+      ctx.fillStyle = el.gradient ? el.gradient : (el.color || "#fff");
+      ctx.textBaseline = "top";
+
+      if (el.shadow) {
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 12 * SCALE;
+      }
+
+      // Word wrap
+      const maxWidth = (el.boxWidth || 190) * SCALE;
+      const words = (el.content || "").split(" ");
+      let line = "";
+      let lineY = y;
+      const lineHeight = fontSize * (el.lineHeight || 1.25);
+
+      for (const word of words) {
+        const test = line + (line ? " " : "") + word;
+        if (ctx.measureText(test).width > maxWidth && line) {
+          ctx.fillText(line, x, lineY);
+          line = word;
+          lineY += lineHeight;
+        } else {
+          line = test;
+        }
+      }
+      ctx.fillText(line, x, lineY);
+      ctx.restore();
+    }
+
+    // Draw image / GIF elements
+    for (const el of elements.filter(e => !e.locked && (e.type === "image" || e.mediaType === "image" || e.mediaType === "gif") && e.url && e.mediaType !== "video")) {
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = el.url; });
+        const scale = el.scale || 1;
+        ctx.save();
+        if (el.rotation) {
+          const cx = el.x * SCALE + ((el.width || img.width) * scale * SCALE) / 2;
+          const cy = el.y * SCALE + ((el.height || img.height) * scale * SCALE) / 2;
+          ctx.translate(cx, cy);
+          ctx.rotate((el.rotation * Math.PI) / 180);
+          ctx.translate(-cx, -cy);
+        }
+        ctx.drawImage(img, el.x * SCALE, el.y * SCALE, (el.width || img.width) * scale * SCALE, (el.height || img.height) * scale * SCALE);
+        ctx.restore();
+      } catch { /* skip failed images */ }
+    }
+
+    // Trigger download
+    const link = document.createElement("a");
+    link.download = `story-${Date.now()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
   };
 
   // Save template
@@ -557,19 +785,26 @@ export function StoryDesigner({ row, onClose, onSave }) {
       name: tmplName.trim(),
       elements: elements.map(e => ({ ...e, url: e.locked ? null : e.url })), // strip bg URL
     };
-    _savedTemplates = [..._savedTemplates, tmpl];
-    setTemplates(_savedTemplates);
+    const updated = [...templates, tmpl];
+    setTemplates(updated); saveSavedTemplates(updated);
     setTmplName(""); setShowTmplSave(false);
   };
 
   const setDefault = (id) => {
-    _defaultTmplId = id === defaultId ? null : id;
-    setDefaultId(_defaultTmplId);
+    const newId = id === defaultId ? null : id;
+    setDefaultId(newId); saveDefaultTmplId(newId);
+  };
+
+  const deleteTemplate = (tmplId) => {
+    const updated = templates.filter(t => t.id !== tmplId);
+    setTemplates(updated);
+    saveSavedTemplates(updated);
+    if (defaultId === tmplId) { setDefaultId(null); saveDefaultTmplId(null); }
   };
 
   const loadTemplate = (tmpl) => {
     const els = tmpl.elements.map(e => ({ ...e, id: e.id === 'bg' ? 'bg' : uid() }));
-    pushElements(els); setSelectedId(null);
+    pushElements(els); setSelectedIds(new Set());
   };
 
   const runAICopilot = async () => {
@@ -619,11 +854,11 @@ export function StoryDesigner({ row, onClose, onSave }) {
   useEffect(() => {
     const h = (e) => {
       if (editingId) return;
-      if ((e.key==='Backspace'||e.key==='Delete') && selectedId && selected && !selected.locked && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA') deleteEl(selectedId);
-      if (e.key==='Escape') setSelectedId(null);
+      if ((e.key==='Backspace'||e.key==='Delete') && selectedIds.size > 0 && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA') deleteSelected();
+      if (e.key==='Escape') setSelectedIds(new Set());
     };
     window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h);
-  }, [selectedId,selected,editingId]);
+  }, [selectedIds,elements,editingId]);
 
   const layersRev = [...elements].reverse();
 
@@ -642,8 +877,8 @@ export function StoryDesigner({ row, onClose, onSave }) {
             {postState!=="done"&&<button className="btn btn-ghost btn-sm" onClick={onClose}>Discard</button>}
             {postState==="done"
               ?<button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
-              :<button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"}>Publish Story</button>}
-            <button className="m-x" onClick={onClose}><X size={16}/></button>
+              :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title="Download as PNG"><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"}>Publish Story</button></>}
+            <button className="m-x" onClick={onClose} aria-label="Close story designer"><X size={16}/></button>
           </div>
         </div>
 
@@ -712,7 +947,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                 <span style={{fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:T.text,fontFamily:"'JetBrains Mono',monospace"}}>
                   {{elements:"Elements",text:"Text",uploads:"Uploads",templates:"Templates",layers:"Layers",ai:"AI Copilot",props:"Properties"}[sideTab]}
                 </span>
-                <button onClick={() => setSideTab(null)} title="Collapse"
+                <button onClick={() => setSideTab(null)} title="Collapse" aria-label="Collapse panel"
                   style={{background:"transparent",border:"none",cursor:"pointer",color:T.textDim,padding:2,display:"flex"}}>
                   <PanelLeftClose size={14}/>
                 </button>
@@ -724,21 +959,21 @@ export function StoryDesigner({ row, onClose, onSave }) {
                 {/* ── ELEMENTS tab ── */}
                 {sideTab === "elements" && (
                   <>
-                    <button onClick={addText}
-                      style={{width:"100%",padding:"10px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:600,color:T.text,transition:"border-color 0.1s"}}
+                    <button onClick={addText} draggable onDragStart={(e)=>handleToolDragStart(e,"text")}
+                      style={{width:"100%",padding:"10px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:600,color:T.text,transition:"border-color 0.1s"}}
                       onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
                       onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
                       <Type size={16}/> Add text box
                     </button>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
-                      <button onClick={()=>imgFileRef.current?.click()}
-                        style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                      <button onClick={()=>imgFileRef.current?.click()} draggable onDragStart={(e)=>handleToolDragStart(e,"image")}
+                        style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
                         onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
                         onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
                         <ImageIcon size={20}/> Image / GIF
                       </button>
-                      <button onClick={()=>vidFileRef.current?.click()}
-                        style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                      <button onClick={()=>vidFileRef.current?.click()} draggable onDragStart={(e)=>handleToolDragStart(e,"video")}
+                        style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
                         onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
                         onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
                         <Film size={20}/> Video
@@ -765,7 +1000,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                       <button key={preset.label}
                         onClick={() => {
                           const el = { id:uid(), type:"text", content:preset.label, x:20, y:160, fontSize:preset.fontSize, fontFamily:preset.fontFamily, color:"#FFFFFF", letterSpacing:preset.letterSpacing||0, fontWeight:preset.fontWeight, shadow:false };
-                          pushElements(els => [...els, el]); setSelectedId(el.id); setSideTab("props");
+                          pushElements(els => [...els, el]); setSelectedIds(new Set([el.id])); setSideTab("props");
                         }}
                         style={{
                           width:"100%",padding:"12px 14px",borderRadius:10,border:`1px solid ${T.border}`,
@@ -821,11 +1056,18 @@ export function StoryDesigner({ row, onClose, onSave }) {
                               ))}
                             </div>
                             <div className="tmpl-name">{tmpl.name}</div>
-                            <button className={"tmpl-heart "+(defaultId===tmpl.id?"is-default":"")}
-                              onClick={e=>{e.stopPropagation();setDefault(tmpl.id);}}
-                              title={defaultId===tmpl.id?"Remove default":"Set as default"}>
-                              {defaultId===tmpl.id?"Default":"Set default"}
-                            </button>
+                            <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                              <button className={"tmpl-heart "+(defaultId===tmpl.id?"is-default":"")}
+                                onClick={e=>{e.stopPropagation();setDefault(tmpl.id);}}
+                                title={defaultId===tmpl.id?"Remove default":"Set as default"} aria-label={defaultId===tmpl.id?"Remove default template":"Set as default template"}>
+                                {defaultId===tmpl.id?"Default":"Set default"}
+                              </button>
+                              <button className="tmpl-del-btn"
+                                onClick={e=>{e.stopPropagation();deleteTemplate(tmpl.id);}}
+                                title="Delete template" aria-label="Delete template">
+                                <Trash2 size={10}/>
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -851,15 +1093,29 @@ export function StoryDesigner({ row, onClose, onSave }) {
                 {/* ── LAYERS tab ── */}
                 {sideTab === "layers" && (
                   <div className="layers-stack" style={{maxHeight:"none"}}>
-                    {layersRev.map(el=>(
-                      <div key={el.id} className={"layer-item "+(selectedId===el.id?"active":"")} onClick={()=>setSelectedId(el.id)}>
-                        <span className="layer-icon" style={{color:selectedId===el.id?T.ink:T.textDim}}>
-                          {el.type==='text'?<Type size={12}/>:el.locked?<Wallpaper size={12}/>:el.mediaType==='video'?<Film size={12}/>:<ImageIcon size={12}/>}
-                        </span>
-                        <span className="layer-label">{el.type==='text'?el.content?.slice(0,20):el.locked?'Background':el.mediaType==='video'?'Video':'Image'}</span>
-                        {!el.locked&&<button className="layer-del" onClick={e=>{e.stopPropagation();deleteEl(el.id);}}><X size={10}/></button>}
-                      </div>
-                    ))}
+                    {layersRev.map((el, revIdx) => {
+                      const realIdx = elements.length - 1 - revIdx;
+                      return (
+                        <div key={el.id}
+                          className={"layer-item " + (selectedIds.has(el.id) ? "active" : "") + (dragOverLayerIdx === realIdx ? " drag-over" : "")}
+                          draggable={!el.locked}
+                          onDragStart={() => handleLayerDragStart(realIdx)}
+                          onDragOver={(e) => handleLayerDragOver(e, realIdx)}
+                          onDragEnd={() => { setDragLayerIdx(null); setDragOverLayerIdx(null); }}
+                          onDrop={() => handleLayerDrop(realIdx)}
+                          onClick={() => setSelectedIds(new Set([el.id]))}
+                        >
+                          {dragOverLayerIdx === realIdx && dragLayerIdx !== null && dragLayerIdx !== realIdx && (
+                            <div className="layer-drop-indicator" />
+                          )}
+                          <span className="layer-icon" style={{color:selectedIds.has(el.id)?T.ink:T.textDim}}>
+                            {el.type==='text'?<Type size={12}/>:el.locked?<Wallpaper size={12}/>:el.mediaType==='video'?<Film size={12}/>:<ImageIcon size={12}/>}
+                          </span>
+                          <span className="layer-label">{el.type==='text'?el.content?.slice(0,20):el.locked?'Background':el.mediaType==='video'?'Video':'Image'}</span>
+                          {!el.locked&&<button className="layer-del" aria-label="Remove layer" onClick={e=>{e.stopPropagation();deleteEl(el.id);}}><X size={10}/></button>}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -886,16 +1142,66 @@ export function StoryDesigner({ row, onClose, onSave }) {
                       <span style={{fontSize:11,fontWeight:600,color:T.textSub}}>
                         {selected.type==='text'?'Text':selected.mediaType==='video'?'Video':'Image'}
                       </span>
-                      <button className="del-btn" onClick={()=>deleteEl(selectedId)} style={{fontSize:10,padding:"2px 8px"}}><X size={9} style={{marginRight:2}}/> Delete</button>
+                      <button className="del-btn" onClick={()=>deleteEl(selectedId)} aria-label="Delete selected element" style={{fontSize:10,padding:"2px 8px"}}><X size={9} style={{marginRight:2}}/> Delete</button>
+                    </div>
+
+                    {/* Opacity control for all elements */}
+                    <div className="inspector-group">
+                      <div className="inspector-group-title">Opacity</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input
+                          type="range"
+                          className="s-slider"
+                          min="0"
+                          max="100"
+                          value={Math.round((selected.opacity ?? 1) * 100)}
+                          onChange={(e) => updateEl(selectedId, { opacity: Number(e.target.value) / 100 })}
+                        />
+                        <span className="sd-opacity-value">{Math.round((selected.opacity ?? 1) * 100)}%</span>
+                      </div>
                     </div>
 
                     {selected.type==='text' && (
+                      <>
                       <TextInspector
                         selected={selected} selectedId={selectedId} updateEl={updateEl}
                         customFonts={customFonts} removeCustomFont={removeCustomFont}
                         fontFileRef={fontFileRef} handleFontUpload={handleFontUpload}
                         fontInstalling={fontInstalling} fontError={fontError}
                       />
+                      {/* Text Alignment */}
+                      <div className="inspector-group">
+                        <div className="inspector-group-title">Alignment</div>
+                        <div className="sd-text-align">
+                          {["left", "center", "right"].map(align => (
+                            <button
+                              key={align}
+                              className={`sd-align-btn${(selected.textAlign || "left") === align ? " active" : ""}`}
+                              onClick={() => updateEl(selectedId, { textAlign: align })}
+                              aria-label={`Align ${align}`}
+                            >
+                              {align === "left" && <AlignLeft size={14} />}
+                              {align === "center" && <AlignCenter size={14} />}
+                              {align === "right" && <AlignRight size={14} />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Text Outline */}
+                      <div className="inspector-group">
+                        <div className="inspector-group-title">Outline</div>
+                        <div className="sd-outline-row">
+                          <label style={{fontSize:11,color:T.textSub,fontWeight:600}}>Outline</label>
+                          <input type="checkbox" checked={!!selected.outline} onChange={(e) => updateEl(selectedId, { outline: e.target.checked ? 1 : 0 })} />
+                          {selected.outline > 0 && (
+                            <>
+                              <input type="range" className="s-slider" min="0.5" max="3" step="0.5" value={selected.outline || 1} onChange={(e) => updateEl(selectedId, { outline: Number(e.target.value) })} style={{flex:1}} />
+                              <input type="color" value={selected.outlineColor || "#000000"} onChange={(e) => updateEl(selectedId, { outlineColor: e.target.value })} style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      </>
                     )}
 
                     {selected.type==='image' && selected.mediaType==='video' && (
@@ -933,6 +1239,74 @@ export function StoryDesigner({ row, onClose, onSave }) {
                           onClick={()=>imgFileRef.current?.click()}>Replace Image</button>
                       </>
                     )}
+
+                    {/* ── Rotation controls ── */}
+                    <div style={{marginTop:8,borderTop:`1px solid ${T.border}`,paddingTop:8}}>
+                      <div className="lbl" style={{marginBottom:4}}>Rotation — {Math.round(selected.rotation||0)}°</div>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <input type="range" className="s-slider" min={0} max={360} step={1} value={selected.rotation||0}
+                          style={{flex:1,margin:0}}
+                          onChange={e=>updateEl(selectedId,{rotation:parseFloat(e.target.value)})}/>
+                        <input type="number" min={0} max={360} value={Math.round(selected.rotation||0)}
+                          onChange={e=>updateEl(selectedId,{rotation:Math.max(0,Math.min(360,parseInt(e.target.value)||0))})}
+                          style={{width:44,textAlign:"center",border:`1px solid ${T.border}`,borderRadius:6,background:T.s2,fontSize:10,fontWeight:700,color:T.text,padding:"3px 2px",outline:"none",fontFamily:"'JetBrains Mono',monospace"}}/>
+                      </div>
+                      <button className="btn btn-ghost btn-sm" style={{width:"100%",marginTop:4,fontSize:10}}
+                        onClick={()=>updateEl(selectedId,{rotation:0})}>
+                        <RotateCcw size={10} style={{marginRight:4}}/> Reset rotation
+                      </button>
+                    </div>
+
+                    {/* ── Filters (media only) ── */}
+                    {(selected.type==='image' && !selected.locked) && (
+                      <div style={{marginTop:8,borderTop:`1px solid ${T.border}`,paddingTop:8}}>
+                        <div className="lbl" style={{marginBottom:6}}>Filters</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
+                          {[
+                            {label:"Reset",brightness:100,contrast:100,saturation:100,blur:0},
+                            {label:"Vivid",brightness:100,contrast:110,saturation:130,blur:0},
+                            {label:"Muted",brightness:110,contrast:100,saturation:60,blur:0},
+                            {label:"B&W",brightness:100,contrast:100,saturation:0,blur:0},
+                            {label:"Dreamy",brightness:110,contrast:100,saturation:80,blur:1},
+                          ].map(preset=>(
+                            <button key={preset.label} onClick={()=>updateEl(selectedId,{brightness:preset.brightness,contrast:preset.contrast,saturation:preset.saturation,blur:preset.blur})}
+                              style={{padding:"3px 8px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",fontSize:9,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}>
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                          <div>
+                            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:2}}>
+                              <span>Brightness</span><span>{selected.brightness??100}%</span>
+                            </div>
+                            <input type="range" className="s-slider" min={0} max={200} step={1} value={selected.brightness??100} style={{margin:0}}
+                              onChange={e=>updateEl(selectedId,{brightness:parseInt(e.target.value)})}/>
+                          </div>
+                          <div>
+                            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:2}}>
+                              <span>Contrast</span><span>{selected.contrast??100}%</span>
+                            </div>
+                            <input type="range" className="s-slider" min={0} max={200} step={1} value={selected.contrast??100} style={{margin:0}}
+                              onChange={e=>updateEl(selectedId,{contrast:parseInt(e.target.value)})}/>
+                          </div>
+                          <div>
+                            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:2}}>
+                              <span>Saturation</span><span>{selected.saturation??100}%</span>
+                            </div>
+                            <input type="range" className="s-slider" min={0} max={200} step={1} value={selected.saturation??100} style={{margin:0}}
+                              onChange={e=>updateEl(selectedId,{saturation:parseInt(e.target.value)})}/>
+                          </div>
+                          <div>
+                            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:2}}>
+                              <span>Blur</span><span>{selected.blur??0}px</span>
+                            </div>
+                            <input type="range" className="s-slider" min={0} max={20} step={0.5} value={selected.blur??0} style={{margin:0}}
+                              onChange={e=>updateEl(selectedId,{blur:parseFloat(e.target.value)})}/>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
                 {sideTab === "props" && (!selected || selected.locked) && (
@@ -947,44 +1321,78 @@ export function StoryDesigner({ row, onClose, onSave }) {
           {/* ── CANVAS AREA ── */}
           <div className="s-canvas-area">
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%"}}>
-              <div style={{fontSize:9,color:"rgba(255,255,255,0.45)",fontFamily:"'JetBrains Mono',monospace",letterSpacing:1.2,textTransform:"uppercase"}}>
-                1080 × 1920 · 9:16
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <select className="sd-preset-select" value={canvasPreset} onChange={(e) => setCanvasPreset(e.target.value)} aria-label="Canvas size preset">
+                  {CANVAS_PRESETS.map(p => (
+                    <option key={p.key} value={p.key}>{p.label} ({p.ratio})</option>
+                  ))}
+                </select>
+                <span style={{fontSize:9,color:"rgba(255,255,255,0.45)",fontFamily:"'JetBrains Mono',monospace",letterSpacing:1.2,textTransform:"uppercase"}}>
+                  {preset.exportW} × {preset.exportH} · {preset.ratio}
+                </span>
               </div>
-              <div className="canvas-zoom-bar">
-                <button className="zoom-btn" onClick={undo} disabled={historyIndex<=0} title="Undo (Ctrl+Z)" style={{opacity:historyIndex<=0?0.35:1}}><Undo2 size={12}/></button>
-                <button className="zoom-btn" onClick={redo} disabled={historyIndex>=history.length-1} title="Redo (Ctrl+Shift+Z)" style={{opacity:historyIndex>=history.length-1?0.35:1}}><Redo2 size={12}/></button>
+              <div className="canvas-zoom-bar" role="toolbar" aria-label="Canvas toolbar">
+                <button className="zoom-btn" onClick={undo} disabled={historyIndex<=0} title="Undo (Ctrl+Z)" aria-label="Undo (Ctrl+Z)" style={{opacity:historyIndex<=0?0.35:1}}><Undo2 size={12}/></button>
+                <button className="zoom-btn" onClick={redo} disabled={historyIndex>=history.length-1} title="Redo (Ctrl+Shift+Z)" aria-label="Redo (Ctrl+Shift+Z)" style={{opacity:historyIndex>=history.length-1?0.35:1}}><Redo2 size={12}/></button>
                 <span style={{width:1,height:14,background:"var(--t-border)",margin:"0 2px"}}/>
-                <button className={"zoom-btn"+(showGuides?" snap-active":"")} onClick={()=>setShowGuides(g=>!g)} title="Toggle guide overlay" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}><Grid3x3 size={12}/></button>
-                <button className={"zoom-btn"+(snapOn?" snap-active":"")} onClick={()=>setSnapOn(s=>!s)} title="Toggle snap alignment" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}>{'\u229E'} Snap</button>
+                <button className={"zoom-btn"+(showGuides?" snap-active":"")} onClick={()=>setShowGuides(g=>!g)} title="Toggle guide overlay" aria-label="Toggle grid overlay" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}><Grid3x3 size={12}/></button>
+                <button className={"zoom-btn"+(snapOn?" snap-active":"")} onClick={()=>setSnapOn(s=>!s)} title="Toggle snap alignment" aria-label="Toggle snap to guides" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}>{'\u229E'} Snap</button>
                 <span style={{width:1,height:14,background:"var(--t-border)",margin:"0 2px"}}/>
-                <button className="zoom-btn" onClick={()=>setZoom(z=>Math.max(0.4,parseFloat((z-0.1).toFixed(1))))} title="Zoom out"><Minus size={12}/></button>
+                <button className="zoom-btn" onClick={()=>setZoom(z=>Math.max(0.4,parseFloat((z-0.1).toFixed(1))))} title="Zoom out" aria-label="Zoom out"><Minus size={12}/></button>
                 <span className="zoom-label">{Math.round(zoom*100)}%</span>
-                <button className="zoom-btn" onClick={()=>setZoom(z=>Math.min(2.0,parseFloat((z+0.1).toFixed(1))))} title="Zoom in"><Plus size={12}/></button>
-                <button className="zoom-btn" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 4px"}} onClick={()=>setZoom(1.8)} title="Reset zoom">180%</button>
+                <button className="zoom-btn" onClick={()=>setZoom(z=>Math.min(2.0,parseFloat((z+0.1).toFixed(1))))} title="Zoom in" aria-label="Zoom in"><Plus size={12}/></button>
+                <button className="zoom-btn" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 4px"}} onClick={()=>setZoom(1.8)} title="Reset zoom" aria-label="Reset zoom">180%</button>
               </div>
             </div>
+            {selectedIds.size > 0 && (
+              <div className="sd-align-bar">
+                {selectedIds.size > 1 && (
+                  <span style={{fontSize:9,fontWeight:700,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",marginRight:4}}>{selectedIds.size} sel</span>
+                )}
+                <button onClick={() => alignSelected("left")} title="Align left" aria-label="Align left">
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="1" x2="1" y2="13" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="3" y="8" width="5" height="3" rx="0.5" fill="currentColor"/></svg>
+                </button>
+                <button onClick={() => alignSelected("center-h")} title="Align center" aria-label="Align center horizontally">
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="4" y="8" width="6" height="3" rx="0.5" fill="currentColor"/></svg>
+                </button>
+                <button onClick={() => alignSelected("right")} title="Align right" aria-label="Align right">
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="13" y1="1" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="6" y="8" width="5" height="3" rx="0.5" fill="currentColor"/></svg>
+                </button>
+                <div className="sd-align-divider" />
+                <button onClick={() => alignSelected("top")} title="Align top" aria-label="Align top">
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="1" x2="13" y2="1" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="3" width="3" height="5" rx="0.5" fill="currentColor"/></svg>
+                </button>
+                <button onClick={() => alignSelected("center-v")} title="Align middle" aria-label="Align center vertically">
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="4" width="3" height="6" rx="0.5" fill="currentColor"/></svg>
+                </button>
+                <button onClick={() => alignSelected("bottom")} title="Align bottom" aria-label="Align bottom">
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="13" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="6" width="3" height="5" rx="0.5" fill="currentColor"/></svg>
+                </button>
+              </div>
+            )}
             <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top center"}}>
-              <div className="canvas"
-                onPointerDown={e=>{if(e.target===e.currentTarget){setSelectedId(null);setEditingId(null);}}}
+              <div className="canvas" ref={canvasRef} role="application" aria-label="Story canvas"
+                onPointerDown={e=>{if(e.target===e.currentTarget){setSelectedIds(new Set());setEditingId(null);}}}
                 onDragOver={handleCanvasDragOver}
                 onDragLeave={handleCanvasDragLeave}
                 onDrop={handleCanvasDrop}
-                style={canvasDragOver ? {outline:'2px solid #0EA5E9',outlineOffset:-2} : undefined}>
+                style={{width:preset.w,height:preset.h,...(canvasDragOver ? {outline:'2px solid #0EA5E9',outlineOffset:-2} : {})}}>
                 {elements.filter(e=>e.locked).map(el=>(
-                  <CanvasElement key={el.id} data={el} isSelected={selectedId===el.id}
-                    onSelect={()=>setSelectedId(el.id)} onUpdate={p=>updateEl(el.id,p)}/>
+                  <CanvasElement key={el.id} data={el} isSelected={selectedIds.has(el.id)}
+                    onSelect={()=>setSelectedIds(new Set([el.id]))} onUpdate={p=>updateEl(el.id,p)} canvasW={preset.w} canvasH={preset.h}/>
                 ))}
                 <div className="canvas-ov" style={{background:"linear-gradient(to top,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,0.28) 100%)"}}/>
                 {elements.filter(e=>!e.locked).map(el=>(
-                  <CanvasElement key={el.id} data={el} isSelected={selectedId===el.id}
-                    onSelect={()=>{setSelectedId(el.id);if(editingId&&editingId!==el.id)setEditingId(null);}}
+                  <CanvasElement key={el.id} data={el} isSelected={selectedIds.has(el.id)}
+                    onSelect={(id, shiftKey)=>{handleSelect(el.id, shiftKey);initMultiDrag();if(editingId&&editingId!==el.id)setEditingId(null);}}
                     onUpdate={p=>updateEl(el.id,p)}
+                    onDragAll={selectedIds.size > 1 && selectedIds.has(el.id) ? multiDrag : undefined}
                     onDropReplace={replaceMedia}
                     snapEnabled={snapOn} siblings={elements} onGuides={setGuides}
                     isEditing={editingId===el.id}
-                    onStartEdit={()=>{setSelectedId(el.id);setEditingId(el.id);}}
+                    onStartEdit={()=>{setSelectedIds(new Set([el.id]));setEditingId(el.id);}}
                     onStopEdit={()=>setEditingId(null)}
-                    zoom={zoom}/>
+                    zoom={zoom} canvasW={preset.w} canvasH={preset.h}/>
                 ))}
                 {guides.map((g,i) => g.axis === 'x'
                   ? <div key={i} style={{position:'absolute',left:g.pos,top:0,width:1,height:'100%',background:'rgba(0,165,114,0.6)',pointerEvents:'none',zIndex:40}}/>
@@ -1005,6 +1413,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                   </div>
                 )}
                 <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",pointerEvents:"none",zIndex:50}}>R&F</div>
+                <div className="sd-shortcuts-hint" title="Keyboard shortcuts: Arrow keys to nudge, Shift+Arrow for 10px, Delete to remove, Ctrl+Z/Y for undo/redo, Escape to deselect">{"\u2318?"}</div>
               </div>
             </div>
 

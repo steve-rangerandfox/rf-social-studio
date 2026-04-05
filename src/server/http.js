@@ -29,10 +29,9 @@ export function setCorsHeaders(req, res, allowedOrigins) {
   if (allowedOrigins.has(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   }
-
-  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-RF-User-Id");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 }
 
 export function appendResponseCookie(res, cookie) {
@@ -52,6 +51,24 @@ export function json(res, status, payload) {
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Content-Length", Buffer.byteLength(body));
   res.end(body);
+}
+
+/**
+ * Standardized error response with machine-readable code.
+ *
+ * @param {import("node:http").ServerResponse} res
+ * @param {number} status  HTTP status
+ * @param {string} code    Machine-readable error code (e.g. "AUTH_REQUIRED")
+ * @param {string} message Human-readable message
+ * @param {object} details Extra fields merged into the response body
+ */
+export function errorJson(res, status, code, message, details = {}) {
+  return json(res, status, {
+    error: message,
+    code,
+    retryable: status >= 500 || status === 429,
+    ...details,
+  });
 }
 
 export function noContent(res) {

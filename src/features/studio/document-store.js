@@ -7,12 +7,14 @@ import {
   STATUSES,
   uid,
 } from "./shared.js";
+import { saveDocument as idbSave, loadDocument as idbLoad } from "../../lib/idb-store.js";
 
 const DOCUMENT_STORAGE_KEY = "rf_studio_document";
 const LEGACY_ROWS_KEY = "rf_rows";
 const LEGACY_IG_MEDIA_KEY = "rf_ig_media";
 const STORE_VERSION = 2;
-const MAX_AUDIT_ENTRIES = 200;
+const MAX_AUDIT_ENTRIES = 1000;
+const PURGE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 function normalizeScope(scope = "anonymous") {
   return String(scope || "anonymous").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_") || "anonymous";
@@ -31,12 +33,27 @@ function lsGet(key) {
 }
 
 export function persistStudioDocument(document, scope = "anonymous") {
+  let lsSaved = false;
   try {
     localStorage.setItem(getDocumentStorageKey(scope), JSON.stringify(document));
-    return true;
+    lsSaved = true;
   } catch {
-    return false;
+    // localStorage full — IndexedDB is the fallback
   }
+  // Also save to IndexedDB (fire and forget — it's async but we don't block on it)
+  idbSave(normalizeScope(scope), document).catch(() => {});
+  return lsSaved;
+}
+
+// Async loader for IndexedDB — used as progressive enhancement after initial render
+export async function loadStudioDocumentAsync(scope = "anonymous") {
+  try {
+    const doc = await idbLoad(normalizeScope(scope));
+    if (doc && doc.schemaVersion) return doc;
+  } catch {
+    // IndexedDB unavailable
+  }
+  return null;
 }
 
 function isValidRow(row) {
@@ -136,14 +153,48 @@ function migrateLegacyDocument() {
   };
 }
 
+export function purgeDeletedRows(document) {
+  const now = Date.now();
+  const before = document.rows.length;
+
+  const rows = document.rows.filter((row) => {
+    if (!row.deletedAt) return true; // Keep non-deleted rows
+    const deletedMs = new Date(row.deletedAt).getTime();
+    return (now - deletedMs) < PURGE_AFTER_MS; // Keep if deleted < 30 days ago
+  });
+
+  const purged = before - rows.length;
+  if (purged === 0) return document;
+
+  return { ...document, rows };
+}
+
+export function migrateDocument(document) {
+  if (!document || typeof document !== "object") return createInitialDocument();
+
+  let doc = { ...document };
+
+  // v1 → v2: added schemaVersion
+  if (!doc.schemaVersion) {
+    doc.schemaVersion = 2;
+  }
+
+  // Future migrations go here:
+  // if (doc.schemaVersion < 3) { ... doc.schemaVersion = 3; }
+
+  return doc;
+}
+
 export function loadStudioDocument(scope = "anonymous") {
   const storageKey = getDocumentStorageKey(scope);
   const stored = lsGet(storageKey);
+  let document;
+
   if (!stored || typeof stored !== "object") {
     if (scope !== "anonymous") {
       const legacy = lsGet(DOCUMENT_STORAGE_KEY);
       if (legacy && typeof legacy === "object") {
-        return {
+        document = {
           schemaVersion: STORE_VERSION,
           rows: Array.isArray(legacy.rows) ? legacy.rows.filter(isValidRow).map((row) => normalizeRow(row)) : createInitialDocument().rows,
           auditLog: Array.isArray(legacy.auditLog)
@@ -154,19 +205,27 @@ export function loadStudioDocument(scope = "anonymous") {
         };
       }
     }
-    return migrateLegacyDocument();
+    if (!document) {
+      document = migrateLegacyDocument();
+    }
+  } else {
+    const rows = Array.isArray(stored.rows) ? stored.rows.filter(isValidRow).map((row) => normalizeRow(row)) : [];
+    document = {
+      schemaVersion: STORE_VERSION,
+      rows: rows.length ? rows : createInitialDocument().rows,
+      auditLog: Array.isArray(stored.auditLog)
+        ? stored.auditLog.slice(0, MAX_AUDIT_ENTRIES).map(normalizeAuditEntry)
+        : [],
+      instagram: stored.instagram || { account: null, media: null, syncedAt: null },
+      lastSavedAt: stored.lastSavedAt || null,
+    };
   }
 
-  const rows = Array.isArray(stored.rows) ? stored.rows.filter(isValidRow).map((row) => normalizeRow(row)) : [];
-  return {
-    schemaVersion: STORE_VERSION,
-    rows: rows.length ? rows : createInitialDocument().rows,
-    auditLog: Array.isArray(stored.auditLog)
-      ? stored.auditLog.slice(0, MAX_AUDIT_ENTRIES).map(normalizeAuditEntry)
-      : [],
-    instagram: stored.instagram || { account: null, media: null, syncedAt: null },
-    lastSavedAt: stored.lastSavedAt || null,
-  };
+  // Apply schema migrations and auto-purge old soft-deleted rows
+  document = migrateDocument(document);
+  document = purgeDeletedRows(document);
+
+  return document;
 }
 
 export function createAuditEntry(type, actor, summary, meta = {}) {

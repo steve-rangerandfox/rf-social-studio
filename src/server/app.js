@@ -17,6 +17,7 @@ import {
 import { ensureEnv, loadServerEnv } from "./env.js";
 import {
   appendResponseCookie,
+  errorJson,
   getOrigin,
   getRequestUrl,
   json,
@@ -34,13 +35,38 @@ import {
   refreshInstagramToken,
   validateRedirectUri,
 } from "./instagram.js";
-import { createLogger, sanitizeLogValue } from "./log.js";
+import { createLogger, log, sanitizeLogValue } from "./log.js";
 import { hasStudioPersistence, loadStudioDocumentRecord, saveStudioDocumentRecord } from "./persistence.js";
 import { resolveRequestAuth } from "./auth.js";
+import { rateLimit } from "./rate-limit.js";
+import { validateCaptionRequest, validateDocument } from "./validate.js";
 
 const logger = createLogger("rf-social-studio-api");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_STATIC_DIR = path.resolve(__dirname, "../../dist");
+
+// Instagram sync deduplication — concurrent requests share one API call
+const igSyncInflight = new Map();
+const igSyncCache = new Map();
+const IG_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function getCachedIgSync(userId) {
+  const cached = igSyncCache.get(userId);
+  if (cached && Date.now() - cached.timestamp < IG_CACHE_TTL_MS) {
+    return cached.data;
+  }
+  igSyncCache.delete(userId);
+  return null;
+}
+
+function setCachedIgSync(userId, data) {
+  igSyncCache.set(userId, { data, timestamp: Date.now() });
+  // Cap cache size
+  if (igSyncCache.size > 5000) {
+    const oldest = [...igSyncCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+    for (let i = 0; i < 1000; i++) igSyncCache.delete(oldest[i][0]);
+  }
+}
 
 function getRequestOrigin(req) {
   const proto = String(req.headers["x-forwarded-proto"] || "http").split(",")[0].trim();
@@ -55,11 +81,22 @@ function getRequestOrigin(req) {
 function requireRequestAuth(req, res, env) {
   const auth = resolveRequestAuth(req, env);
   if (!auth.ok) {
-    json(res, auth.status, { error: auth.error });
+    const code = /expired/i.test(auth.error) ? "AUTH_EXPIRED" : "AUTH_REQUIRED";
+    errorJson(res, auth.status, code, auth.error);
     return null;
   }
 
   return auth;
+}
+
+function checkRateLimit(res, userId, endpoint, limits) {
+  const result = rateLimit(userId, endpoint, limits);
+  if (!result.allowed) {
+    res.setHeader("Retry-After", String(result.retryAfter));
+    errorJson(res, 429, "RATE_LIMITED", "Rate limit exceeded", { retryAfter: result.retryAfter });
+    return false;
+  }
+  return true;
 }
 
 function clearCookie(res, name, env, req) {
@@ -99,36 +136,31 @@ function setInstagramSession(res, req, env, session) {
 async function handleCaptionRequest(req, res, env, reqId) {
   const envCheck = ensureEnv(env, ["anthropicApiKey"]);
   if (!envCheck.ok) {
-    return json(res, 503, {
-      error: "AI caption service is not configured",
-      missing: envCheck.missing,
-    });
+    return errorJson(res, 503, "SERVER_ERROR", "AI caption service is not configured", { missing: envCheck.missing });
   }
 
   let body;
   try {
     body = await readJsonBody(req);
   } catch (error) {
-    return json(res, error.code || 400, { error: error.message });
+    return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
+  }
+
+  const captionValidation = validateCaptionRequest(body);
+  if (!captionValidation.valid) {
+    return errorJson(res, 400, "VALIDATION_ERROR", captionValidation.errors.join("; "), { errors: captionValidation.errors });
   }
 
   const intent = body.intent || "caption";
 
   try {
     if (intent === "story_tips") {
-      if (!Array.isArray(body.board)) {
-        return json(res, 400, { error: "board must be an array" });
-      }
-
       const tips = await generateStoryTips(env, body.board);
       return json(res, 200, { tips });
     }
 
     const platform = typeof body.platform === "string" ? body.platform : "ig_post";
-    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-    if (!prompt) {
-      return json(res, 400, { error: "prompt is required" });
-    }
+    const prompt = body.prompt.trim();
 
     const caption = await generateCaption(env, { platform, prompt });
     return json(res, 200, { caption });
@@ -137,7 +169,9 @@ async function handleCaptionRequest(req, res, env, reqId) {
       error: sanitizeLogValue(error.message),
       intent,
     });
-    return json(res, 502, { error: "Caption generation failed" });
+    const code = /timeout|abort/i.test(error.message) ? "AI_TIMEOUT" : "AI_ERROR";
+    const status = code === "AI_TIMEOUT" ? 504 : 502;
+    return errorJson(res, status, code, "Caption generation failed");
   }
 }
 
@@ -151,12 +185,12 @@ async function handleInstagramStart(req, res, env) {
   }
 
   if (!validateRedirectUri(redirectUri, env.allowedOrigins, requestOrigin)) {
-    return json(res, 400, { error: "redirectUri is not allowed", redirectUri, requestOrigin });
+    return errorJson(res, 400, "VALIDATION_ERROR", "redirectUri is not allowed", { redirectUri, requestOrigin });
   }
 
   const envCheck = ensureEnv(env, ["igAppId", "sessionSecret"]);
   if (!envCheck.ok) {
-    return json(res, 500, { error: "Instagram OAuth is not configured", missing: envCheck.missing });
+    return errorJson(res, 500, "SERVER_ERROR", "Instagram OAuth is not configured", { missing: envCheck.missing });
   }
 
   const state = createRandomState();
@@ -192,14 +226,14 @@ async function handleInstagramStart(req, res, env) {
 async function handleInstagramExchange(req, res, env, reqId) {
   const envCheck = ensureEnv(env, ["igAppId", "igAppSecret", "sessionSecret"]);
   if (!envCheck.ok) {
-    return json(res, 500, { error: "Instagram OAuth is not configured", missing: envCheck.missing });
+    return errorJson(res, 500, "SERVER_ERROR", "Instagram OAuth is not configured", { missing: envCheck.missing });
   }
 
   let body;
   try {
     body = await readJsonBody(req);
   } catch (error) {
-    return json(res, error.code || 400, { error: error.message });
+    return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
   }
 
   const { code, redirectUri, state } = body;
@@ -209,13 +243,13 @@ async function handleInstagramExchange(req, res, env, reqId) {
     return;
   }
   if (!code || typeof code !== "string") {
-    return json(res, 400, { error: "code is required" });
+    return errorJson(res, 400, "VALIDATION_ERROR", "code is required");
   }
   if (!redirectUri || typeof redirectUri !== "string" || !validateRedirectUri(redirectUri, env.allowedOrigins, requestOrigin)) {
-    return json(res, 400, { error: "redirectUri is not allowed", redirectUri, requestOrigin });
+    return errorJson(res, 400, "VALIDATION_ERROR", "redirectUri is not allowed", { redirectUri, requestOrigin });
   }
   if (!state || typeof state !== "string") {
-    return json(res, 400, { error: "state is required" });
+    return errorJson(res, 400, "VALIDATION_ERROR", "state is required");
   }
 
   const cookies = parseCookies(req);
@@ -227,8 +261,11 @@ async function handleInstagramExchange(req, res, env, reqId) {
     oauthState.ownerUserId !== auth.userId ||
     oauthState.expiresAt < Date.now()
   ) {
-    return json(res, 400, { error: "OAuth state validation failed" });
+    return errorJson(res, 400, "VALIDATION_ERROR", "OAuth state validation failed");
   }
+
+  // Delete the OAuth state cookie immediately after validation to prevent replay attacks
+  clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
 
   try {
     const token = await exchangeCodeForLongLivedToken({
@@ -247,7 +284,6 @@ async function handleInstagramExchange(req, res, env, reqId) {
       mediaCount: profile.mediaCount,
       expiresAt: Date.now() + token.expiresIn * 1000,
     });
-    clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
 
     return json(res, 200, {
       account: {
@@ -260,9 +296,12 @@ async function handleInstagramExchange(req, res, env, reqId) {
     logger("error", reqId, "instagram_exchange_failed", {
       error: sanitizeLogValue(error.message),
     });
-    return json(res, 502, { error: "Instagram OAuth exchange failed" });
+    return errorJson(res, 502, "IG_API_ERROR", "Instagram OAuth exchange failed");
   }
 }
+
+const refreshLocks = new Map();
+const REFRESH_LOCK_TTL_MS = 30 * 1000; // 30 seconds max
 
 async function handleInstagramPosts(req, res, env, reqId) {
   const auth = requireRequestAuth(req, res, env);
@@ -272,54 +311,118 @@ async function handleInstagramPosts(req, res, env, reqId) {
 
   const envCheck = ensureEnv(env, ["sessionSecret"]);
   if (!envCheck.ok) {
-    return json(res, 500, { error: "Instagram session handling is not configured" });
+    return errorJson(res, 500, "SERVER_ERROR", "Instagram session handling is not configured");
   }
 
   const session = getSession(req, env);
   if (!session?.accessToken) {
-    return json(res, 401, { error: "Instagram is not connected" });
+    return errorJson(res, 401, "IG_TOKEN_EXPIRED", "Instagram is not connected");
   }
   if (session.ownerUserId && session.ownerUserId !== auth.userId) {
     clearCookie(res, IG_SESSION_COOKIE, env, req);
-    return json(res, 403, { error: "Instagram connection belongs to a different signed-in user" });
+    return errorJson(res, 403, "FORBIDDEN", "Instagram connection belongs to a different signed-in user");
   }
 
   let activeSession = session;
 
-  try {
-    const msLeft = session.expiresAt - Date.now();
-    if (msLeft < 7 * 24 * 60 * 60 * 1000) {
-      const refreshed = await refreshInstagramToken(session.accessToken);
-      activeSession = {
-        ...session,
-        accessToken: refreshed.accessToken,
-        expiresAt: Date.now() + refreshed.expiresIn * 1000,
-      };
-      setInstagramSession(res, req, env, activeSession);
+  const url = getRequestUrl(req);
+  const cursor = url.searchParams.get("cursor") || null;
+
+  // Check dedup cache for non-paginated requests
+  if (!cursor) {
+    const cached = getCachedIgSync(auth.userId);
+    if (cached) {
+      return json(res, 200, cached);
     }
 
-    const [profile, media] = await Promise.all([
-      fetchInstagramProfile(activeSession.accessToken),
-      fetchInstagramMedia(activeSession.accessToken),
-    ]);
+    // Check if another request is already fetching for this user
+    const inflightKey = auth.userId;
+    if (igSyncInflight.has(inflightKey)) {
+      try {
+        const result = await igSyncInflight.get(inflightKey);
+        return json(res, 200, result);
+      } catch {
+        // Fall through to make our own request
+      }
+    }
+  }
 
-    const mergedSession = {
-      ...activeSession,
-      username: profile.username,
-      mediaCount: profile.mediaCount,
-    };
+  try {
+    const msLeft = session.expiresAt - Date.now();
+    const lockKey = `ig_refresh:${auth.userId}`;
 
-    setInstagramSession(res, req, env, mergedSession);
+    if (msLeft < 7 * 24 * 60 * 60 * 1000) {
+      // Cap refresh locks to prevent unbounded growth
+      if (refreshLocks.size > 1000) {
+        refreshLocks.clear();
+      }
 
-    return json(res, 200, {
-      account: {
+      if (refreshLocks.has(lockKey)) {
+        // Another request is already refreshing — wait for it
+        await refreshLocks.get(lockKey);
+      } else {
+        const refreshPromise = (async () => {
+          const refreshed = await refreshInstagramToken(session.accessToken);
+          activeSession = {
+            ...session,
+            accessToken: refreshed.accessToken,
+            expiresAt: Date.now() + refreshed.expiresIn * 1000,
+          };
+          setInstagramSession(res, req, env, activeSession);
+        })();
+        refreshLocks.set(lockKey, refreshPromise);
+        const lockTimer = setTimeout(() => refreshLocks.delete(lockKey), REFRESH_LOCK_TTL_MS);
+        try {
+          await refreshPromise;
+        } finally {
+          clearTimeout(lockTimer);
+          refreshLocks.delete(lockKey);
+        }
+      }
+    }
+
+    // Wrap fetch logic for deduplication on non-paginated requests
+    const fetchData = async () => {
+      const [profile, media] = await Promise.all([
+        fetchInstagramProfile(activeSession.accessToken),
+        fetchInstagramMedia(activeSession.accessToken, { limit: 30, after: cursor }),
+      ]);
+
+      const mergedSession = {
+        ...activeSession,
         username: profile.username,
         mediaCount: profile.mediaCount,
-        expiresAt: mergedSession.expiresAt,
-      },
-      media,
-      syncedAt: Date.now(),
-    });
+      };
+
+      setInstagramSession(res, req, env, mergedSession);
+
+      return {
+        account: {
+          username: profile.username,
+          mediaCount: profile.media_count,
+          expiresAt: mergedSession.expiresAt,
+        },
+        media: { data: media.data, paging: media.paging },
+        syncedAt: new Date().toISOString(),
+      };
+    };
+
+    let result;
+    if (!cursor) {
+      const inflightKey = auth.userId;
+      const fetchPromise = fetchData();
+      igSyncInflight.set(inflightKey, fetchPromise);
+      try {
+        result = await fetchPromise;
+        setCachedIgSync(auth.userId, result);
+      } finally {
+        igSyncInflight.delete(inflightKey);
+      }
+    } else {
+      result = await fetchData();
+    }
+
+    return json(res, 200, result);
   } catch (error) {
     logger("error", reqId, "instagram_sync_failed", {
       error: sanitizeLogValue(error.message),
@@ -327,10 +430,10 @@ async function handleInstagramPosts(req, res, env, reqId) {
 
     if (/expired|invalid/i.test(error.message)) {
       clearCookie(res, IG_SESSION_COOKIE, env, req);
-      return json(res, 401, { error: "Instagram session expired. Please reconnect." });
+      return errorJson(res, 401, "IG_TOKEN_EXPIRED", "Instagram session expired. Please reconnect.");
     }
 
-    return json(res, 502, { error: "Instagram sync failed" });
+    return errorJson(res, 502, "IG_API_ERROR", "Instagram sync failed");
   }
 }
 
@@ -340,7 +443,7 @@ async function handleStudioDocumentGet(req, res, env, reqId) {
     return;
   }
   if (!hasStudioPersistence(env)) {
-    return json(res, 503, { error: "Studio persistence is not configured" });
+    return errorJson(res, 503, "STORAGE_ERROR", "Studio persistence is not configured");
   }
 
   try {
@@ -348,13 +451,16 @@ async function handleStudioDocumentGet(req, res, env, reqId) {
     return json(res, 200, {
       document: record?.document || null,
       updatedAt: record?.updated_at || null,
+      version: record?.version || null,
     });
   } catch (error) {
+    const status = error.__statusCode || 502;
     logger("error", reqId, "studio_document_load_failed", {
       error: sanitizeLogValue(error.message),
+      category: error.__category || "unknown",
       requestUserId: auth.userId,
     });
-    return json(res, 502, { error: "Studio document load failed" });
+    return errorJson(res, status, "STORAGE_ERROR", "Studio document load failed");
   }
 }
 
@@ -364,33 +470,81 @@ async function handleStudioDocumentPut(req, res, env, reqId) {
     return;
   }
   if (!hasStudioPersistence(env)) {
-    return json(res, 503, { error: "Studio persistence is not configured" });
+    return errorJson(res, 503, "STORAGE_ERROR", "Studio persistence is not configured");
   }
 
   let body;
   try {
     body = await readJsonBody(req, 1024 * 1024);
   } catch (error) {
-    return json(res, error.code || 400, { error: error.message });
+    return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
   }
 
   if (!body?.document || typeof body.document !== "object") {
-    return json(res, 400, { error: "document is required" });
+    return errorJson(res, 400, "VALIDATION_ERROR", "document is required");
   }
 
+  const validation = validateDocument(body.document);
+  if (!validation.valid) {
+    return errorJson(res, 400, "VALIDATION_ERROR", validation.error);
+  }
+
+  const expectedVersion = typeof body.version === "number" ? body.version : null;
+
   try {
-    const saved = await saveStudioDocumentRecord(env, auth.userId, body.document);
-    return json(res, 200, { ok: true, updatedAt: saved?.updated_at || null });
+    const saved = await saveStudioDocumentRecord(env, auth.userId, body.document, expectedVersion);
+
+    if (saved?.conflict) {
+      const current = await loadStudioDocumentRecord(env, auth.userId);
+      return errorJson(res, 409, "VERSION_CONFLICT", "Version conflict", {
+        serverVersion: current?.version || null,
+      });
+    }
+
+    return json(res, 200, {
+      ok: true,
+      updatedAt: saved?.updated_at || null,
+      version: saved?.version || null,
+    });
   } catch (error) {
+    const status = error.__statusCode || 502;
     logger("error", reqId, "studio_document_save_failed", {
       error: sanitizeLogValue(error.message),
+      category: error.__category || "unknown",
       requestUserId: auth.userId,
     });
-    return json(res, 502, { error: "Studio document save failed" });
+    return errorJson(res, status, "STORAGE_ERROR", "Studio document save failed");
   }
 }
 
-function serveStaticFile(req, res, staticDir) {
+const MIME_TYPES = {
+  js: "text/javascript",
+  css: "text/css",
+  html: "text/html",
+  svg: "image/svg+xml",
+  png: "image/png",
+  ico: "image/x-icon",
+  webp: "image/webp",
+  json: "application/json",
+};
+
+function streamFile(res, filePath, contentType) {
+  return new Promise((resolve) => {
+    res.writeHead(200, { "Content-Type": contentType });
+    const stream = fs.createReadStream(filePath);
+    stream.on("error", () => {
+      if (!res.headersSent) {
+        res.writeHead(404);
+      }
+      res.end();
+      resolve(false);
+    });
+    stream.on("end", () => resolve(true));
+    stream.pipe(res);
+  });
+}
+
+async function serveStaticFile(req, res, staticDir) {
   if (req.method !== "GET") {
     return false;
   }
@@ -406,65 +560,45 @@ function serveStaticFile(req, res, staticDir) {
     return true;
   }
 
-  try {
-    const content = fs.readFileSync(filePath);
-    const ext = path.extname(filePath).slice(1).toLowerCase();
-    const mime =
-      {
-        js: "text/javascript",
-        css: "text/css",
-        html: "text/html",
-        svg: "image/svg+xml",
-        png: "image/png",
-        ico: "image/x-icon",
-        webp: "image/webp",
-        json: "application/json",
-      }[ext] || "application/octet-stream";
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  const mime = MIME_TYPES[ext] || "application/octet-stream";
 
-    res.statusCode = 200;
-    res.setHeader("Content-Type", mime);
-    res.end(content);
-    return true;
-  } catch {
-    try {
-      const html = fs.readFileSync(safeIndex);
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "text/html");
-      res.end(html);
-      return true;
-    } catch {
-      return false;
-    }
+  if (fs.existsSync(filePath)) {
+    return streamFile(res, filePath, mime);
   }
+
+  if (fs.existsSync(safeIndex)) {
+    return streamFile(res, safeIndex, "text/html");
+  }
+
+  return false;
 }
 
 export async function handleApiRequest(req, res, overrides = {}) {
   const env = { ...loadServerEnv(), ...overrides };
   const reqId = makeReqId();
+  const endTimer = log.startTimer("request");
 
   setSecurityHeaders(res);
   setCorsHeaders(req, res, env.allowedOrigins);
 
-  logger("info", reqId, "request", {
+  log.info("request_start", {
+    reqId,
     method: req.method,
     url: sanitizeLogValue(req.url),
     origin: sanitizeLogValue(getOrigin(req)),
   });
 
   if (req.method === "OPTIONS" && req.url.startsWith("/api/")) {
+    endTimer({ reqId, status: 204 });
     return noContent(res);
   }
 
   const url = getRequestUrl(req);
 
   if (url.pathname === "/api/health") {
-    return json(res, 200, {
-      ok: true,
-      allowedOrigins: Array.from(env.allowedOrigins),
-      hasClerkAuthConfig: Boolean(env.clerkJwtKey),
-      hasInstagramConfig: Boolean(env.igAppId && env.igAppSecret && env.sessionSecret),
-      hasAiConfig: Boolean(env.anthropicApiKey),
-    });
+    endTimer({ reqId, status: 200, route: "/api/health" });
+    return json(res, 200, { ok: true });
   }
 
   if (url.pathname === "/api/captions") {
@@ -472,38 +606,63 @@ export async function handleApiRequest(req, res, overrides = {}) {
       res.statusCode = 405;
       res.setHeader("Allow", "POST, OPTIONS");
       res.end();
+      endTimer({ reqId, status: 405, route: "/api/captions" });
       return;
     }
 
-    return handleCaptionRequest(req, res, env, reqId);
+    const auth = requireRequestAuth(req, res, env);
+    if (!auth) { endTimer({ reqId, status: 401, route: "/api/captions" }); return; }
+    if (!checkRateLimit(res, auth.userId, "captions", { maxRequests: 10, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/captions" }); return; }
+
+    try {
+      return await handleCaptionRequest(req, res, env, reqId);
+    } finally {
+      endTimer({ reqId, route: "/api/captions", status: res.statusCode });
+    }
   }
 
   if (url.pathname === "/api/ig-oauth") {
     if (req.method === "GET") {
-      return handleInstagramStart(req, res, env);
+      try {
+        return await handleInstagramStart(req, res, env);
+      } finally {
+        endTimer({ reqId, route: "/api/ig-oauth", method: "GET", status: res.statusCode });
+      }
     }
 
     if (req.method === "POST") {
-      return handleInstagramExchange(req, res, env, reqId);
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) { endTimer({ reqId, status: 401, route: "/api/ig-oauth" }); return; }
+      if (!checkRateLimit(res, auth.userId, "ig-oauth:POST", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-oauth" }); return; }
+
+      try {
+        return await handleInstagramExchange(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/ig-oauth", method: "POST", status: res.statusCode });
+      }
     }
 
     if (req.method === "DELETE") {
       const auth = requireRequestAuth(req, res, env);
       if (!auth) {
+        endTimer({ reqId, status: 401, route: "/api/ig-oauth" });
         return;
       }
       const session = getSession(req, env);
       if (session?.ownerUserId && session.ownerUserId !== auth.userId) {
-        return json(res, 403, { error: "Instagram connection belongs to a different signed-in user" });
+        endTimer({ reqId, status: 403, route: "/api/ig-oauth" });
+        return errorJson(res, 403, "FORBIDDEN", "Instagram connection belongs to a different signed-in user");
       }
       clearCookie(res, IG_SESSION_COOKIE, env, req);
       clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
+      endTimer({ reqId, status: 204, route: "/api/ig-oauth", method: "DELETE" });
       return noContent(res);
     }
 
     res.statusCode = 405;
     res.setHeader("Allow", "GET, POST, DELETE, OPTIONS");
     res.end();
+    endTimer({ reqId, status: 405, route: "/api/ig-oauth" });
     return;
   }
 
@@ -512,24 +671,50 @@ export async function handleApiRequest(req, res, overrides = {}) {
       res.statusCode = 405;
       res.setHeader("Allow", "GET, OPTIONS");
       res.end();
+      endTimer({ reqId, status: 405, route: "/api/ig-posts" });
       return;
     }
 
-    return handleInstagramPosts(req, res, env, reqId);
+    const auth = requireRequestAuth(req, res, env);
+    if (!auth) { endTimer({ reqId, status: 401, route: "/api/ig-posts" }); return; }
+    if (!checkRateLimit(res, auth.userId, "ig-posts", { maxRequests: 20, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-posts" }); return; }
+
+    try {
+      return await handleInstagramPosts(req, res, env, reqId);
+    } finally {
+      endTimer({ reqId, route: "/api/ig-posts", status: res.statusCode });
+    }
   }
 
   if (url.pathname === "/api/studio-document") {
     if (req.method === "GET") {
-      return handleStudioDocumentGet(req, res, env, reqId);
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) { endTimer({ reqId, status: 401, route: "/api/studio-document" }); return; }
+      if (!checkRateLimit(res, auth.userId, "studio-document:GET", { maxRequests: 60, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/studio-document" }); return; }
+
+      try {
+        return await handleStudioDocumentGet(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/studio-document", method: "GET", status: res.statusCode });
+      }
     }
 
     if (req.method === "PUT") {
-      return handleStudioDocumentPut(req, res, env, reqId);
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) { endTimer({ reqId, status: 401, route: "/api/studio-document" }); return; }
+      if (!checkRateLimit(res, auth.userId, "studio-document:PUT", { maxRequests: 30, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/studio-document" }); return; }
+
+      try {
+        return await handleStudioDocumentPut(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/studio-document", method: "PUT", status: res.statusCode });
+      }
     }
 
     res.statusCode = 405;
     res.setHeader("Allow", "GET, PUT, OPTIONS");
     res.end();
+    endTimer({ reqId, status: 405, route: "/api/studio-document" });
     return;
   }
 
@@ -545,7 +730,7 @@ export function createNodeServer(overrides = {}) {
       return;
     }
 
-    if (serveStaticFile(req, res, staticDir)) {
+    if (await serveStaticFile(req, res, staticDir)) {
       return;
     }
 
