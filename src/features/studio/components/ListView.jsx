@@ -128,7 +128,9 @@ export function ListView() {
               </div>
             )
           }
-          <div className="add-row"><button className="add-btn" onClick={() => add(month)}>+ Add post</button></div>
+          {sorted.length > 0 && (
+            <div className="add-row"><button className="add-btn" onClick={() => add(month)}>+ Add post</button></div>
+          )}
         </>
       ) : (
         /* YEAR VIEW — grouped by month with sticky headers, virtualized */
