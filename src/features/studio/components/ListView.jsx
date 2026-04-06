@@ -79,9 +79,9 @@ export function ListView() {
   return (
     <div className="t-area">
       {timeScale === "month" && (
-        <div style={{ margin: "0 0 14px", padding: "28px 28px 24px" }}>
-          <div className="list-month-title">{MONTHS_FULL[month]}</div>
-          <div className="list-month-year">{year}</div>
+        <div className="list-month-heading">
+          <span className="list-month-title">{MONTHS_FULL[month]}</span>
+          <span className="list-month-year">{year}</span>
         </div>
       )}
 
