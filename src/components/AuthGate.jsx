@@ -5,36 +5,9 @@ import App from "../App.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
 
 const AUTH_STYLES = `
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600,700&display=swap');
 
-@font-face {
-  font-family: 'Oakes Grotesk';
-  src: url('/fonts/OakesGrotesk-Light.otf') format('opentype');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Oakes Grotesk';
-  src: url('/fonts/OakesGrotesk-Regular.otf') format('opentype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Oakes Grotesk';
-  src: url('/fonts/OakesGrotesk-Semi-Bold.otf') format('opentype');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Oakes Grotesk';
-  src: url('/fonts/OakesGrotesk-Bold.otf') format('opentype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
 @font-face {
   font-family: 'Plaak Ney';
   src: url('/fonts/Plaak - 56-Ney-Heavy-205TF.otf') format('opentype');
@@ -97,7 +70,7 @@ const AUTH_STYLES = `
 
 .auth-mark-copy strong{
   display:block;
-  font:600 14px/1.2 "Oakes Grotesk", system-ui, sans-serif;
+  font:600 14px/1.2 "Switzer", system-ui, sans-serif;
   letter-spacing:-0.02em;
 }
 
@@ -149,7 +122,7 @@ const AUTH_STYLES = `
   margin-top:20px;
   max-width:470px;
   color:#5e584f;
-  font:400 17px/1.7 "Oakes Grotesk", system-ui, sans-serif;
+  font:400 17px/1.7 "Switzer", system-ui, sans-serif;
 }
 
 .auth-metrics{
@@ -203,7 +176,7 @@ const AUTH_STYLES = `
   z-index:1;
   max-width:420px;
   color:#8b8377;
-  font:400 12px/1.7 "Oakes Grotesk", system-ui, sans-serif;
+  font:400 12px/1.7 "Switzer", system-ui, sans-serif;
 }
 
 .auth-stage{
@@ -295,7 +268,7 @@ const signInAppearance = {
     colorInputBackground: "#F7F4EE",
     colorInputText: "#181714",
     borderRadius: "18px",
-    fontFamily: '"Oakes Grotesk", system-ui, sans-serif',
+    fontFamily: '"Switzer", system-ui, sans-serif',
   },
   elements: {
     rootBox: {

@@ -16,7 +16,7 @@ const CANVAS_PRESETS = [
 const BRAND_FONTS = [
   { name:"Bricolage Grotesque", label:"Bricolage",  group:"brand" },
   { name:"JetBrains Mono",      label:"Mono",       group:"brand" },
-  { name:"Oakes Grotesk",       label:"Oakes",      group:"brand" },
+  { name:"Switzer",             label:"Switzer",    group:"brand" },
   { name:"Plaak Ney",           label:"Plaak",      group:"brand" },
 ];
 const SYS_FONTS   = [
@@ -994,7 +994,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                     {[
                       { label:"Heading", fontSize:28, fontWeight:700, fontFamily:"Bricolage Grotesque" },
                       { label:"Subheading", fontSize:18, fontWeight:600, fontFamily:"Bricolage Grotesque" },
-                      { label:"Body", fontSize:13, fontWeight:400, fontFamily:"Oakes Grotesk" },
+                      { label:"Body", fontSize:13, fontWeight:400, fontFamily:"Switzer" },
                       { label:"Label", fontSize:10, fontWeight:600, fontFamily:"JetBrains Mono", letterSpacing:2 },
                     ].map(preset => (
                       <button key={preset.label}
