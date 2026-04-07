@@ -56,7 +56,7 @@ export function Sidebar() {
         </button>
 
         <button className="s-lbl s-lbl-toggle" onClick={() => toggleSection("calendar")}>
-          <span>Calendar</span>
+          <span><span className="s-lbl-num">01 /</span> Calendar</span>
           <ChevronDown size={10} className={`s-lbl-chevron${collapsed.calendar ? " collapsed" : ""}`} />
         </button>
 
@@ -88,7 +88,7 @@ export function Sidebar() {
 
       <div className="s-team">
         <button className="s-lbl s-lbl-toggle" onClick={() => toggleSection("team")}>
-          <span>Team</span>
+          <span><span className="s-lbl-num">02 /</span> Team</span>
           <ChevronDown size={10} className={`s-lbl-chevron${collapsed.team ? " collapsed" : ""}`} />
         </button>
         {!collapsed.team && team.map(t => (
@@ -104,7 +104,7 @@ export function Sidebar() {
 
       <div className="s-bottom">
         <button className="s-lbl s-lbl-toggle" onClick={() => toggleSection("connections")}>
-          <span>Connections</span>
+          <span><span className="s-lbl-num">03 /</span> Connections</span>
           <ChevronDown size={10} className={`s-lbl-chevron${collapsed.connections ? " collapsed" : ""}`} />
         </button>
         {!collapsed.connections && (

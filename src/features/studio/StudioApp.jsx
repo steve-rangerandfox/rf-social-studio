@@ -88,6 +88,21 @@ function StudioShell() {
     }
   }, [showSettings, showConn, selectedRowId, setSelectedRowId]);
 
+  // Document title easter egg — when the user tabs away, leave a calm reminder
+  useEffect(() => {
+    const defaultTitle = "RF Social Studio";
+    const awayTitle = "\u2190 still here when you\u2019re ready";
+    const handleVisibility = () => {
+      document.title = document.hidden ? awayTitle : defaultTitle;
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    document.title = defaultTitle;
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      document.title = defaultTitle;
+    };
+  }, []);
+
   return (
     <div className="app">
       <Sidebar />
