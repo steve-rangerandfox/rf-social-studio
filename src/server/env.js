@@ -18,14 +18,25 @@ export function loadServerEnv(source = process.env) {
       : DEFAULT_ALLOWED_ORIGINS,
   );
 
+  // Facebook Login + Instagram Graph API credentials.
+  // FB_APP_ID/FB_APP_SECRET are the canonical names; legacy IG_APP_ID/IG_APP_SECRET
+  // are accepted as fallbacks during migration.
+  const fbAppId = source.FB_APP_ID || source.IG_APP_ID || "";
+  const fbAppSecret = source.FB_APP_SECRET || source.IG_APP_SECRET || "";
+  const fbRedirectUri = source.FB_REDIRECT_URI || "";
+
   return {
     nodeEnv: source.NODE_ENV || "development",
     allowedOrigins,
     clerkJwtKey: source.CLERK_JWT_KEY || "",
     clerkIssuer: source.CLERK_ISSUER || "",
     sessionSecret: source.SESSION_SECRET || "",
-    igAppId: source.IG_APP_ID || "",
-    igAppSecret: source.IG_APP_SECRET || "",
+    fbAppId,
+    fbAppSecret,
+    fbRedirectUri,
+    // Backwards-compatible aliases (still referenced by some legacy code paths)
+    igAppId: fbAppId,
+    igAppSecret: fbAppSecret,
     supabaseUrl: source.SUPABASE_URL || source.VITE_SUPABASE_URL || "",
     supabaseServiceRoleKey: source.SUPABASE_SERVICE_ROLE_KEY || "",
     anthropicApiKey: source.ANTHROPIC_API_KEY || "",

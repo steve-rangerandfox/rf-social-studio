@@ -10,6 +10,7 @@ import {
   decryptCookiePayload,
   encryptCookiePayload,
   IG_OAUTH_STATE_COOKIE,
+  IG_PENDING_PAGES_COOKIE,
   IG_SESSION_COOKIE,
   parseCookies,
   serializeCookie,
@@ -28,13 +29,16 @@ import {
   setSecurityHeaders,
 } from "./http.js";
 import {
-  buildInstagramAuthorizeUrl,
-  exchangeCodeForLongLivedToken,
+  FB_OAUTH_SCOPES,
+  buildFacebookAuthorizeUrl,
+  exchangeCodeForUserToken,
+  fetchFacebookUser,
+  fetchUserPages,
+  fetchInstagramBusinessProfile,
   fetchInstagramMedia,
-  fetchInstagramProfile,
-  refreshInstagramToken,
-  validateRedirectUri,
-} from "./instagram.js";
+  refreshFacebookUserToken,
+  validateCanonicalRedirectUri,
+} from "./meta.js";
 import { createLogger, log, sanitizeLogValue } from "./log.js";
 import { hasStudioPersistence, loadStudioDocumentRecord, saveStudioDocumentRecord } from "./persistence.js";
 import { resolveRequestAuth } from "./auth.js";
@@ -66,16 +70,6 @@ function setCachedIgSync(userId, data) {
     const oldest = [...igSyncCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
     for (let i = 0; i < 1000; i++) igSyncCache.delete(oldest[i][0]);
   }
-}
-
-function getRequestOrigin(req) {
-  const proto = String(req.headers["x-forwarded-proto"] || "http").split(",")[0].trim();
-  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim();
-  if (!host) {
-    return "";
-  }
-
-  return `${proto}://${host}`.toLowerCase();
 }
 
 function requireRequestAuth(req, res, env) {
@@ -175,22 +169,24 @@ async function handleCaptionRequest(req, res, env, reqId) {
   }
 }
 
-async function handleInstagramStart(req, res, env) {
-  const query = getRequestUrl(req).searchParams;
-  const redirectUri = query.get("redirectUri") || "";
-  const requestOrigin = getRequestOrigin(req);
+const IG_PENDING_TTL_MS = 10 * 60 * 1000;
+
+async function handleInstagramStart(req, res, env, reqId) {
   const auth = requireRequestAuth(req, res, env);
   if (!auth) {
     return;
   }
 
-  if (!validateRedirectUri(redirectUri, env.allowedOrigins, requestOrigin)) {
-    return errorJson(res, 400, "VALIDATION_ERROR", "redirectUri is not allowed", { redirectUri, requestOrigin });
+  const envCheck = ensureEnv(env, ["fbAppId", "fbAppSecret", "fbRedirectUri", "sessionSecret"]);
+  if (!envCheck.ok) {
+    return errorJson(res, 500, "SERVER_ERROR", "Facebook OAuth is not configured", { missing: envCheck.missing });
   }
 
-  const envCheck = ensureEnv(env, ["igAppId", "sessionSecret"]);
-  if (!envCheck.ok) {
-    return errorJson(res, 500, "SERVER_ERROR", "Instagram OAuth is not configured", { missing: envCheck.missing });
+  if (!validateCanonicalRedirectUri(env.fbRedirectUri)) {
+    logger("error", reqId, "fb_redirect_uri_invalid", {
+      redirectUri: sanitizeLogValue(env.fbRedirectUri),
+    });
+    return errorJson(res, 500, "SERVER_ERROR", "Facebook redirect URI is invalid");
   }
 
   const state = createRandomState();
@@ -201,9 +197,8 @@ async function handleInstagramStart(req, res, env) {
       encryptCookiePayload(
         {
           state,
-          redirectUri,
           ownerUserId: auth.userId,
-          expiresAt: Date.now() + 10 * 60 * 1000,
+          expiresAt: Date.now() + IG_PENDING_TTL_MS,
         },
         env.sessionSecret,
       ),
@@ -215,18 +210,23 @@ async function handleInstagramStart(req, res, env) {
   );
 
   return json(res, 200, {
-    authorizeUrl: buildInstagramAuthorizeUrl({
-      appId: env.igAppId,
-      redirectUri,
+    authorizeUrl: buildFacebookAuthorizeUrl({
+      appId: env.fbAppId,
+      redirectUri: env.fbRedirectUri,
       state,
     }),
+    scopes: FB_OAUTH_SCOPES,
   });
 }
 
 async function handleInstagramExchange(req, res, env, reqId) {
-  const envCheck = ensureEnv(env, ["igAppId", "igAppSecret", "sessionSecret"]);
+  const envCheck = ensureEnv(env, ["fbAppId", "fbAppSecret", "fbRedirectUri", "sessionSecret"]);
   if (!envCheck.ok) {
-    return errorJson(res, 500, "SERVER_ERROR", "Instagram OAuth is not configured", { missing: envCheck.missing });
+    return errorJson(res, 500, "SERVER_ERROR", "Facebook OAuth is not configured", { missing: envCheck.missing });
+  }
+
+  if (!validateCanonicalRedirectUri(env.fbRedirectUri)) {
+    return errorJson(res, 500, "SERVER_ERROR", "Facebook redirect URI is invalid");
   }
 
   let body;
@@ -236,17 +236,13 @@ async function handleInstagramExchange(req, res, env, reqId) {
     return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
   }
 
-  const { code, redirectUri, state } = body;
-  const requestOrigin = getRequestOrigin(req);
+  const { code, state } = body || {};
   const auth = requireRequestAuth(req, res, env);
   if (!auth) {
     return;
   }
   if (!code || typeof code !== "string") {
     return errorJson(res, 400, "VALIDATION_ERROR", "code is required");
-  }
-  if (!redirectUri || typeof redirectUri !== "string" || !validateRedirectUri(redirectUri, env.allowedOrigins, requestOrigin)) {
-    return errorJson(res, 400, "VALIDATION_ERROR", "redirectUri is not allowed", { redirectUri, requestOrigin });
   }
   if (!state || typeof state !== "string") {
     return errorJson(res, 400, "VALIDATION_ERROR", "state is required");
@@ -257,7 +253,6 @@ async function handleInstagramExchange(req, res, env, reqId) {
   if (
     !oauthState ||
     oauthState.state !== state ||
-    oauthState.redirectUri !== redirectUri ||
     oauthState.ownerUserId !== auth.userId ||
     oauthState.expiresAt < Date.now()
   ) {
@@ -268,35 +263,143 @@ async function handleInstagramExchange(req, res, env, reqId) {
   clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
 
   try {
-    const token = await exchangeCodeForLongLivedToken({
-      appId: env.igAppId,
-      appSecret: env.igAppSecret,
+    const token = await exchangeCodeForUserToken({
+      appId: env.fbAppId,
+      appSecret: env.fbAppSecret,
       code: code.trim(),
-      redirectUri,
+      redirectUri: env.fbRedirectUri,
     });
-    const profile = await fetchInstagramProfile(token.accessToken);
 
-    setInstagramSession(res, req, env, {
-      accessToken: token.accessToken,
-      userId: token.userId,
+    const fbUser = await fetchFacebookUser(token.accessToken);
+    const allPages = await fetchUserPages(token.accessToken);
+    const pages = allPages.filter((p) => p.igBusinessAccountId);
+
+    if (pages.length === 0) {
+      return errorJson(
+        res,
+        400,
+        "IG_NO_BUSINESS_ACCOUNT",
+        "No Instagram Business or Creator account found. Please convert your Instagram to a Business or Creator account and link it to a Facebook Page in your Instagram app settings.",
+      );
+    }
+
+    const expiresAt = Date.now() + token.expiresIn * 1000;
+    const pendingPayload = {
       ownerUserId: auth.userId,
-      username: profile.username,
-      mediaCount: profile.mediaCount,
-      expiresAt: Date.now() + token.expiresIn * 1000,
+      fbUserId: fbUser.id,
+      fbUserName: fbUser.name,
+      fbUserToken: token.accessToken,
+      fbUserTokenExpiresAt: expiresAt,
+      pages,
+      expiresAt: Date.now() + IG_PENDING_TTL_MS,
+    };
+
+    appendResponseCookie(
+      res,
+      serializeCookie(
+        IG_PENDING_PAGES_COOKIE,
+        encryptCookiePayload(pendingPayload, env.sessionSecret),
+        {
+          ...buildSecureCookieOptions(env, req),
+          maxAge: Math.floor(IG_PENDING_TTL_MS / 1000),
+        },
+      ),
+    );
+
+    return json(res, 200, {
+      pages: pages.map((p) => ({
+        pageId: p.pageId,
+        pageName: p.pageName,
+        igUsername: p.igUsername,
+        igAvatarUrl: p.igAvatarUrl,
+      })),
     });
+  } catch (error) {
+    logger("error", reqId, "facebook_exchange_failed", {
+      error: sanitizeLogValue(error.message),
+    });
+    return errorJson(res, 502, "IG_API_ERROR", "Facebook OAuth exchange failed");
+  }
+}
+
+async function handleInstagramSelectPage(req, res, env, reqId) {
+  const envCheck = ensureEnv(env, ["sessionSecret"]);
+  if (!envCheck.ok) {
+    return errorJson(res, 500, "SERVER_ERROR", "Instagram session handling is not configured");
+  }
+
+  const auth = requireRequestAuth(req, res, env);
+  if (!auth) {
+    return;
+  }
+
+  let body;
+  try {
+    body = await readJsonBody(req);
+  } catch (error) {
+    return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
+  }
+
+  const { pageId } = body || {};
+  if (!pageId || typeof pageId !== "string") {
+    return errorJson(res, 400, "VALIDATION_ERROR", "pageId is required");
+  }
+
+  const cookies = parseCookies(req);
+  const pending = decryptCookiePayload(cookies[IG_PENDING_PAGES_COOKIE], env.sessionSecret);
+  if (!pending) {
+    return errorJson(res, 400, "VALIDATION_ERROR", "No pending Instagram connection. Please start the OAuth flow again.");
+  }
+  if (pending.ownerUserId !== auth.userId) {
+    return errorJson(res, 403, "FORBIDDEN", "Pending connection belongs to a different signed-in user");
+  }
+  if (!pending.expiresAt || pending.expiresAt < Date.now()) {
+    clearCookie(res, IG_PENDING_PAGES_COOKIE, env, req);
+    return errorJson(res, 400, "VALIDATION_ERROR", "Pending connection expired. Please start the OAuth flow again.");
+  }
+
+  const page = (pending.pages || []).find((p) => p.pageId === pageId);
+  if (!page) {
+    return errorJson(res, 400, "VALIDATION_ERROR", "Selected page is not in the pending list");
+  }
+
+  try {
+    const profile = await fetchInstagramBusinessProfile(page.igBusinessAccountId, page.pageToken);
+
+    const session = {
+      ownerUserId: auth.userId,
+      fbUserId: pending.fbUserId,
+      fbUserToken: pending.fbUserToken,
+      expiresAt: pending.fbUserTokenExpiresAt,
+      pageId: page.pageId,
+      pageName: page.pageName,
+      pageToken: page.pageToken,
+      igBusinessAccountId: page.igBusinessAccountId,
+      igUsername: profile.username || page.igUsername,
+      connectedAt: Date.now(),
+    };
+
+    setInstagramSession(res, req, env, session);
+    clearCookie(res, IG_PENDING_PAGES_COOKIE, env, req);
 
     return json(res, 200, {
       account: {
-        username: profile.username,
+        username: session.igUsername,
         mediaCount: profile.mediaCount,
-        expiresAt: Date.now() + token.expiresIn * 1000,
+        profilePictureUrl: profile.profilePictureUrl,
+        expiresAt: session.expiresAt,
+        pageName: session.pageName,
       },
     });
   } catch (error) {
-    logger("error", reqId, "instagram_exchange_failed", {
+    logger("error", reqId, "instagram_select_page_failed", {
       error: sanitizeLogValue(error.message),
     });
-    return errorJson(res, 502, "IG_API_ERROR", "Instagram OAuth exchange failed");
+    if (/expired|invalid|OAuth/i.test(error.message)) {
+      clearCookie(res, IG_PENDING_PAGES_COOKIE, env, req);
+      return errorJson(res, 401, "IG_TOKEN_EXPIRED", "Facebook session expired. Please reconnect.");
+    }
+    return errorJson(res, 502, "IG_API_ERROR", "Failed to load Instagram profile");
   }
 }
 
@@ -309,13 +412,13 @@ async function handleInstagramPosts(req, res, env, reqId) {
     return;
   }
 
-  const envCheck = ensureEnv(env, ["sessionSecret"]);
+  const envCheck = ensureEnv(env, ["sessionSecret", "fbAppId", "fbAppSecret"]);
   if (!envCheck.ok) {
-    return errorJson(res, 500, "SERVER_ERROR", "Instagram session handling is not configured");
+    return errorJson(res, 500, "SERVER_ERROR", "Instagram session handling is not configured", { missing: envCheck.missing });
   }
 
   const session = getSession(req, env);
-  if (!session?.accessToken) {
+  if (!session?.fbUserToken || !session?.pageToken || !session?.igBusinessAccountId) {
     return errorJson(res, 401, "IG_TOKEN_EXPIRED", "Instagram is not connected");
   }
   if (session.ownerUserId && session.ownerUserId !== auth.userId) {
@@ -348,9 +451,11 @@ async function handleInstagramPosts(req, res, env, reqId) {
   }
 
   try {
-    const msLeft = session.expiresAt - Date.now();
+    const msLeft = (session.expiresAt || 0) - Date.now();
     const lockKey = `ig_refresh:${auth.userId}`;
 
+    // Page tokens themselves don't expire, but they're invalidated if the
+    // user token expires. Refreshing the user token keeps the page token valid.
     if (msLeft < 7 * 24 * 60 * 60 * 1000) {
       // Cap refresh locks to prevent unbounded growth
       if (refreshLocks.size > 1000) {
@@ -362,10 +467,14 @@ async function handleInstagramPosts(req, res, env, reqId) {
         await refreshLocks.get(lockKey);
       } else {
         const refreshPromise = (async () => {
-          const refreshed = await refreshInstagramToken(session.accessToken);
+          const refreshed = await refreshFacebookUserToken({
+            appId: env.fbAppId,
+            appSecret: env.fbAppSecret,
+            userToken: session.fbUserToken,
+          });
           activeSession = {
             ...session,
-            accessToken: refreshed.accessToken,
+            fbUserToken: refreshed.accessToken,
             expiresAt: Date.now() + refreshed.expiresIn * 1000,
           };
           setInstagramSession(res, req, env, activeSession);
@@ -384,22 +493,23 @@ async function handleInstagramPosts(req, res, env, reqId) {
     // Wrap fetch logic for deduplication on non-paginated requests
     const fetchData = async () => {
       const [profile, media] = await Promise.all([
-        fetchInstagramProfile(activeSession.accessToken),
-        fetchInstagramMedia(activeSession.accessToken, { limit: 30, after: cursor }),
+        fetchInstagramBusinessProfile(activeSession.igBusinessAccountId, activeSession.pageToken),
+        fetchInstagramMedia(activeSession.igBusinessAccountId, activeSession.pageToken, { limit: 30, after: cursor }),
       ]);
 
       const mergedSession = {
         ...activeSession,
-        username: profile.username,
-        mediaCount: profile.mediaCount,
+        igUsername: profile.username || activeSession.igUsername,
       };
 
       setInstagramSession(res, req, env, mergedSession);
 
       return {
         account: {
-          username: profile.username,
-          mediaCount: profile.media_count,
+          username: profile.username || mergedSession.igUsername,
+          mediaCount: profile.mediaCount,
+          profilePictureUrl: profile.profilePictureUrl,
+          pageName: mergedSession.pageName,
           expiresAt: mergedSession.expiresAt,
         },
         media: { data: media.data, paging: media.paging },
@@ -623,8 +733,12 @@ export async function handleApiRequest(req, res, overrides = {}) {
 
   if (url.pathname === "/api/ig-oauth") {
     if (req.method === "GET") {
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) { endTimer({ reqId, status: 401, route: "/api/ig-oauth" }); return; }
+      if (!checkRateLimit(res, auth.userId, "ig-oauth:GET", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-oauth" }); return; }
+
       try {
-        return await handleInstagramStart(req, res, env);
+        return await handleInstagramStart(req, res, env, reqId);
       } finally {
         endTimer({ reqId, route: "/api/ig-oauth", method: "GET", status: res.statusCode });
       }
@@ -655,6 +769,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
       }
       clearCookie(res, IG_SESSION_COOKIE, env, req);
       clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
+      clearCookie(res, IG_PENDING_PAGES_COOKIE, env, req);
       endTimer({ reqId, status: 204, route: "/api/ig-oauth", method: "DELETE" });
       return noContent(res);
     }
@@ -664,6 +779,26 @@ export async function handleApiRequest(req, res, overrides = {}) {
     res.end();
     endTimer({ reqId, status: 405, route: "/api/ig-oauth" });
     return;
+  }
+
+  if (url.pathname === "/api/ig-select-page") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "POST, OPTIONS");
+      res.end();
+      endTimer({ reqId, status: 405, route: "/api/ig-select-page" });
+      return;
+    }
+
+    const auth = requireRequestAuth(req, res, env);
+    if (!auth) { endTimer({ reqId, status: 401, route: "/api/ig-select-page" }); return; }
+    if (!checkRateLimit(res, auth.userId, "ig-select-page:POST", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-select-page" }); return; }
+
+    try {
+      return await handleInstagramSelectPage(req, res, env, reqId);
+    } finally {
+      endTimer({ reqId, route: "/api/ig-select-page", method: "POST", status: res.statusCode });
+    }
   }
 
   if (url.pathname === "/api/ig-posts") {

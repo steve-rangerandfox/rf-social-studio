@@ -80,6 +80,9 @@ function makeClerkToken(claims = {}) {
 const sharedEnv = {
   nodeEnv: "test",
   port: 0,
+  fbAppId: "test_app_id",
+  fbAppSecret: "test_app_secret",
+  fbRedirectUri: "http://localhost:5173/instagram/oauth/callback",
   igAppId: "test_app_id",
   igAppSecret: "test_app_secret",
   sessionSecret: "test_session_secret_123",
@@ -121,19 +124,20 @@ test("GET /api/ig-oauth returns authorize URL and state cookie", async () => {
   const res = await runRequest(
     new MockRequest({
       method: "GET",
-      url: "/api/ig-oauth?redirectUri=http%3A%2F%2Flocalhost%3A5173",
+      url: "/api/ig-oauth",
       headers: verifiedUserHeaders,
     }),
     verifiedEnv,
   );
 
   assert.equal(res.status, 200);
-  assert.ok(res.body.authorizeUrl.includes("api.instagram.com/oauth/authorize"));
+  assert.ok(res.body.authorizeUrl.includes("facebook.com"));
+  assert.ok(res.body.authorizeUrl.includes("dialog/oauth"));
   assert.ok(Array.isArray(res.headers["set-cookie"]));
   assert.ok(res.headers["set-cookie"][0].includes("rf_ig_oauth_state="));
 });
 
-test("POST /api/ig-oauth rejects invalid redirect URIs", async () => {
+test("POST /api/ig-oauth rejects requests with invalid state", async () => {
   const res = await runRequest(
     new MockRequest({
       method: "POST",
@@ -141,7 +145,6 @@ test("POST /api/ig-oauth rejects invalid redirect URIs", async () => {
       headers: verifiedUserHeaders,
       body: {
         code: "abc123",
-        redirectUri: "https://evil.example.com/callback",
         state: "bad-state",
       },
     }),
@@ -149,7 +152,7 @@ test("POST /api/ig-oauth rejects invalid redirect URIs", async () => {
   );
 
   assert.equal(res.status, 400);
-  assert.ok(res.body.error.toLowerCase().includes("redirect"));
+  assert.ok(res.body.error.toLowerCase().includes("state"));
 });
 
 test("GET /api/ig-posts returns 401 when disconnected", async () => {
@@ -191,7 +194,7 @@ test("GET /api/ig-oauth requires a bearer token", async () => {
   const res = await runRequest(
     new MockRequest({
       method: "GET",
-      url: "/api/ig-oauth?redirectUri=http%3A%2F%2Flocalhost%3A5173",
+      url: "/api/ig-oauth",
       headers: { origin: "http://localhost:5173", host: "localhost:3001" },
     }),
     verifiedEnv,
@@ -233,12 +236,12 @@ test("GET /api/ig-oauth accepts a verified Clerk bearer token", async () => {
   const res = await runRequest(
     new MockRequest({
       method: "GET",
-      url: "/api/ig-oauth?redirectUri=http%3A%2F%2Flocalhost%3A5173",
+      url: "/api/ig-oauth",
       headers: verifiedUserHeaders,
     }),
     verifiedEnv,
   );
 
   assert.equal(res.status, 200);
-  assert.ok(res.body.authorizeUrl.includes("api.instagram.com/oauth/authorize"));
+  assert.ok(res.body.authorizeUrl.includes("facebook.com"));
 });

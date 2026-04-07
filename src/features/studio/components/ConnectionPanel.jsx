@@ -4,74 +4,111 @@ import {
   exchangeInstagramCode,
   fetchInstagramFeed,
   getInstagramAuthorizeUrl,
+  selectInstagramPage,
 } from "../../../lib/api-client.js";
 import { T } from "../shared.js";
-
-const IG_OAUTH_CALLBACK_PATH = "/instagram/oauth/callback";
 
 const IG_ICON = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>;
 
 function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) {
-  const [connecting, setConnecting] = useState(false);
-  const [syncing,    setSyncing]    = useState(false);
-  const [error,      setError]      = useState("");
+  const [phase, setPhase] = useState("idle"); // "idle" | "connecting" | "selecting" | "connected"
+  const [pages, setPages] = useState([]);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState("");
 
   const isConnected = !!igConfig?.username;
-  const redirectUri = new URL(IG_OAUTH_CALLBACK_PATH, window.location.origin).toString();
+  const connecting = phase === "connecting";
+
+  const selectPage = async (pageId) => {
+    setPhase("connecting");
+    try {
+      const result = await selectInstagramPage(pageId);
+      onSave(result.account);
+      const feed = await fetchInstagramFeed();
+      onMediaSync(feed);
+      setPhase("connected");
+      setPages([]);
+    } catch (e) {
+      setError(e.message || "Couldn't select that account");
+      setPhase("selecting");
+    }
+  };
 
   const startOAuth = async () => {
-    setError(""); setConnecting(true);
-    let safeRedirectUri;
-    try {
-      safeRedirectUri = new URL(redirectUri).toString();
-    } catch {
-      setError("Invalid page origin — cannot start OAuth flow."); setConnecting(false); return;
-    }
+    setError("");
+    setPhase("connecting");
 
     let authorizeUrl;
     try {
-      const data = await getInstagramAuthorizeUrl(safeRedirectUri);
+      const data = await getInstagramAuthorizeUrl();
       authorizeUrl = data.authorizeUrl;
     } catch (e) {
-      const baseError = e.message || "Instagram OAuth could not start.";
-      setError(
-        baseError === "redirectUri is not allowed"
-          ? `Redirect URI is not allowed. Add ${safeRedirectUri} to your server ALLOWED_ORIGINS and Meta app redirect URIs.`
-          : baseError,
-      );
-      setConnecting(false);
+      setError(e.message || "Couldn't start the connection");
+      setPhase("idle");
       return;
     }
 
-    const popup = window.open(authorizeUrl, "ig_oauth", "width=620,height=720,scrollbars=yes,resizable=yes");
-    if (!popup) { setError("Popup blocked — allow popups for this page and try again."); setConnecting(false); return; }
-    const timer = setInterval(() => {
-      try {
-        if (!popup || popup.closed) { clearInterval(timer); setConnecting(false); return; }
-        const pu = popup.location.href;
-        if (pu.startsWith(safeRedirectUri)) {
-          const params = new URL(pu).searchParams;
-          const code = params.get("code"), err = params.get("error"), state = params.get("state");
-          popup.close(); clearInterval(timer);
-          if (err) { setError("Denied: " + (params.get("error_description") || err)); setConnecting(false); return; }
-          if (code && state) handleCode(code, safeRedirectUri, state);
-        }
-      } catch {
+    const popup = window.open(
+      authorizeUrl,
+      "rf_ig_oauth",
+      "width=620,height=720,scrollbars=yes,resizable=yes",
+    );
+    if (!popup) {
+      setError("Popup blocked — allow popups for this page and try again.");
+      setPhase("idle");
+      return;
+    }
+
+    let popupCheckTimer = null;
+
+    const handleMessage = async (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "rf_ig_oauth") return;
+
+      window.removeEventListener("message", handleMessage);
+      if (popupCheckTimer) clearInterval(popupCheckTimer);
+
+      if (!event.data.ok) {
+        setError(event.data.error || "Connection cancelled");
+        setPhase("idle");
         return;
       }
-    }, 500);
-  };
 
-  const handleCode = async (code, safeRedirectUri, state) => {
-    try {
-      const tokenData = await exchangeInstagramCode({ code, redirectUri: safeRedirectUri, state });
-      onSave(tokenData.account);
-      const feed = await fetchInstagramFeed();
-      onMediaSync(feed);
-    } catch(e) {
-      setError(e.message || "Connection failed. Check the Instagram callback URL and production env settings.");
-    }
-    setConnecting(false);
+      try {
+        const result = await exchangeInstagramCode({
+          code: event.data.code,
+          state: event.data.state,
+        });
+        const pageList = result.pages || [];
+
+        if (pageList.length === 0) {
+          setError("No Instagram Business accounts found on your Facebook Pages.");
+          setPhase("idle");
+          return;
+        }
+
+        if (pageList.length === 1) {
+          await selectPage(pageList[0].pageId);
+        } else {
+          setPages(pageList);
+          setPhase("selecting");
+        }
+      } catch (e) {
+        const msg = e.body?.error || e.message || "Connection failed";
+        setError(msg);
+        setPhase("idle");
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    popupCheckTimer = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(popupCheckTimer);
+        window.removeEventListener("message", handleMessage);
+        setPhase((current) => (current === "connecting" ? "idle" : current));
+      }
+    }, 500);
   };
 
   const syncMedia = async () => {
@@ -85,6 +122,42 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
   const mediaCount = igMedia?.data?.length || 0;
   const syncedAt   = igMedia?._syncedAt ? new Date(igMedia._syncedAt).toLocaleString([], {month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : null;
 
+  if (phase === "selecting") {
+    return (
+      <>
+        <div className="cp-status-row">
+          <div className="cp-status-dot cp-dot-disconnected"/>
+          <span className="cp-status-text">Choose an Instagram account</span>
+        </div>
+        {error && <div className="cp-error">{error}</div>}
+        <div className="cp-page-picker">
+          <div className="cp-section-title">Choose an account</div>
+          <div className="cp-page-list">
+            {pages.map((page) => (
+              <button
+                key={page.pageId}
+                className="cp-page-card"
+                onClick={() => selectPage(page.pageId)}
+              >
+                {page.igAvatarUrl ? (
+                  <img src={page.igAvatarUrl} alt="" className="cp-page-avatar" />
+                ) : (
+                  <div className="cp-page-avatar cp-ig-avatar">
+                    {page.igUsername?.[0]?.toUpperCase() || "I"}
+                  </div>
+                )}
+                <div className="cp-page-meta">
+                  <div className="cp-page-handle">@{page.igUsername}</div>
+                  <div className="cp-page-name">{page.pageName}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  }
+
   if (isConnected) {
     return (
       <>
@@ -94,11 +167,16 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
           <span className="cp-status-ts">{syncedAt ? `Synced ${syncedAt}` : `${mediaCount} posts loaded`}</span>
         </div>
         <div className="cp-account-row">
-          <div className="cp-avatar cp-ig-avatar">
-            {igConfig.username?.[0]?.toUpperCase() || "I"}
-          </div>
+          {igConfig.avatarUrl ? (
+            <img src={igConfig.avatarUrl} alt="" className="cp-avatar" />
+          ) : (
+            <div className="cp-avatar cp-ig-avatar">
+              {igConfig.username?.[0]?.toUpperCase() || "I"}
+            </div>
+          )}
           <div>
             <div className="cp-handle">@{igConfig.username}</div>
+            {igConfig.pageName && <div className="cp-page-name">{igConfig.pageName}</div>}
             <div className="cp-meta">Instagram · {igConfig.mediaCount || mediaCount} posts</div>
           </div>
         </div>
@@ -143,17 +221,25 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
       <div className="cp-status-row">
         <div className="cp-status-dot cp-dot-disconnected"/>
         <span className="cp-status-text cp-text-dim">
-          {connecting ? "Waiting for Instagram…" : "Not connected"}
+          {connecting ? "Waiting for Facebook…" : "Not connected"}
         </span>
       </div>
       <div className="cp-description">
-        Sign in with your Instagram account to sync your real grid and publish posts directly from Social Studio.
+        Connect your Instagram Business or Creator account by authorizing through Facebook. You'll pick which linked Page to use.
+      </div>
+      <div className="cp-requirements">
+        <div className="cp-section-title">Before you connect</div>
+        <ul className="cp-req-list">
+          <li>An Instagram <strong>Business</strong> or <strong>Creator</strong> account</li>
+          <li>Linked to a <strong>Facebook Page</strong> you manage</li>
+          <li>You'll authorize through Facebook</li>
+        </ul>
       </div>
       {error && <div className="cp-error" style={{padding:"0 0 10px"}}>{error}</div>}
       <button className="cp-ig-btn" onClick={startOAuth} disabled={connecting}>
         {connecting
-          ? "Waiting for Instagram…"
-          : <>{IG_ICON} Sign in with Instagram</>
+          ? "Waiting for Facebook…"
+          : <>{IG_ICON} Connect Instagram</>
         }
       </button>
     </>

@@ -113,19 +113,28 @@ export function generateStoryTips(board) {
   }, { timeoutMs: 30000 });
 }
 
-export function getInstagramAuthorizeUrl(redirectUri) {
-  return requestJson(`/api/ig-oauth?redirectUri=${encodeURIComponent(redirectUri)}`, {
-    method: "GET",
-  });
+// OAuth start — no longer takes a redirectUri (server uses canonical env.fbRedirectUri)
+export function getInstagramAuthorizeUrl() {
+  return requestJson("/api/ig-oauth", { method: "GET" });
 }
 
-export function exchangeInstagramCode({ code, redirectUri, state }) {
+// Exchange code for FB token + return pending pages list
+export function exchangeInstagramCode({ code, state }) {
   return requestJson("/api/ig-oauth", {
     method: "POST",
-    body: JSON.stringify({ code, redirectUri, state }),
+    body: JSON.stringify({ code, state }),
   });
 }
 
+// NEW: User selects which Page/IG account to use after OAuth
+export function selectInstagramPage(pageId) {
+  return requestJson("/api/ig-select-page", {
+    method: "POST",
+    body: JSON.stringify({ pageId }),
+  });
+}
+
+// Disconnect (unchanged)
 export function disconnectInstagram() {
   return requestJson("/api/ig-oauth", {
     method: "DELETE",
