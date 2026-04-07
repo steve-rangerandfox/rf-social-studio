@@ -14,7 +14,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, STATUS_ORDER } from "./StatusMachine.js";
-import { CheckCircle2, AlertTriangle, Play, Upload, X, Check } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Play, Upload, X, Check, ChevronDown } from "lucide-react";
 
 export function DetailPanel() {
   const {
@@ -36,12 +36,16 @@ export function DetailPanel() {
   const [mediaWarnings, setMediaWarnings] = useState([]);
   const [showLIPreview, setShowLIPreview] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
 
   const titleInputRef = useRef(null);
   const mediaRef = useRef(null);
   const approvalRef = useRef(null);
   const assigneeRef = useRef(null);
   const bodyRef = useRef(null);
+  const platformDropdownRef = useRef(null);
+  const panelRef = useRef(null);
+  const previousFocusRef = useRef(null);
 
   const hasConnectedAccount = connections.instagram || connections.linkedin;
 
@@ -61,8 +65,57 @@ export function DetailPanel() {
     setMediaWarnings([]);
     setShowLIPreview(false);
     setIsClosing(false);
+    setPlatformDropdownOpen(false);
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
   }, [selectedRowId]);
+
+  // Focus trap: save originating focus, focus first element, restore on unmount
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement;
+    const panel = panelRef.current;
+    if (panel) {
+      const focusables = panel.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length > 0) {
+        focusables[0].focus();
+      }
+    }
+    return () => {
+      if (previousFocusRef.current && document.contains(previousFocusRef.current)) {
+        previousFocusRef.current.focus();
+      }
+    };
+  }, []);
+
+  // Trap Tab key within the panel
+  useEffect(() => {
+    const handleTab = (e) => {
+      if (e.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const focusables = Array.from(panel.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )).filter((el) => !el.hasAttribute('aria-hidden'));
+
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleTab);
+    return () => document.removeEventListener('keydown', handleTab);
+  }, []);
 
   // Escape key to close
   useEffect(() => {
@@ -91,6 +144,15 @@ export function DetailPanel() {
     document.addEventListener("pointerdown", handler);
     return () => document.removeEventListener("pointerdown", handler);
   }, [isAssigneeOpen]);
+
+  useEffect(() => {
+    if (!platformDropdownOpen) return;
+    const handler = (e) => {
+      if (platformDropdownRef.current && !platformDropdownRef.current.contains(e.target)) setPlatformDropdownOpen(false);
+    };
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
+  }, [platformDropdownOpen]);
 
   useEffect(() => {
     if (!isEditingTitle) return;
@@ -164,7 +226,13 @@ export function DetailPanel() {
   return (
     <>
       <div className={`detail-panel-backdrop${isClosing ? " closing" : ""}`} onClick={handleClose} />
-      <div className={`detail-panel${isClosing ? " closing" : ""}`}>
+      <div
+        className={`detail-panel${isClosing ? " closing" : ""}`}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="detail-panel-title"
+      >
         {/* Header */}
         <div className="detail-panel-header">
           <div className="dp-header-left">
@@ -175,6 +243,7 @@ export function DetailPanel() {
             {isEditingTitle ? (
               <input
                 ref={titleInputRef}
+                id="detail-panel-title"
                 className="detail-panel-title-input"
                 value={row.note}
                 placeholder="Post title..."
@@ -183,7 +252,7 @@ export function DetailPanel() {
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setIsEditingTitle(false); }}
               />
             ) : (
-              <div className="detail-panel-title" onClick={() => setIsEditingTitle(true)} title="Click to edit">
+              <div id="detail-panel-title" className="detail-panel-title" onClick={() => setIsEditingTitle(true)} title="Click to edit">
                 {row.note || "Untitled post"}
               </div>
             )}
@@ -218,27 +287,43 @@ export function DetailPanel() {
             </section>
           )}
 
-          {/* Platform selector */}
-          <section className="stage-section">
-            <div className="stage-col-label">Platform</div>
-            <div className="dp-platform-list">
-              {Object.entries(PLATFORMS).map(([key, platform]) => (
-                <button
-                  key={key}
-                  onClick={() => onChange({ platform: key })}
-                  className={`dp-platform-btn${row.platform === key ? " active" : ""}`}
-                  style={row.platform === key ? { background: platform.bg } : undefined}
-                >
-                  <PlatformIcon platform={key} size={16} />
-                  <span>{platform.label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Media upload */}
+          {/* Media upload (with platform dropdown on top) */}
           <section className="stage-section">
             <div className="stage-col-label">Media</div>
+            <div className="dp-platform-section">
+              <div className="dp-platform-anchor" ref={platformDropdownRef}>
+                <button
+                  className="dp-platform-trigger"
+                  onClick={() => setPlatformDropdownOpen((o) => !o)}
+                  aria-haspopup="listbox"
+                  aria-expanded={platformDropdownOpen}
+                >
+                  <PlatformIcon platform={row.platform} size={18} />
+                  <span className="dp-platform-trigger-label">{PLATFORMS[row.platform].short}</span>
+                  <ChevronDown size={12} className="dp-platform-trigger-chevron" />
+                </button>
+                {platformDropdownOpen && (
+                  <div className="dp-platform-popover" role="listbox">
+                    {Object.entries(PLATFORMS).map(([key, platform]) => (
+                      <button
+                        key={key}
+                        role="option"
+                        aria-selected={row.platform === key}
+                        className={`dp-platform-option${row.platform === key ? " active" : ""}`}
+                        onClick={() => {
+                          onChange({ platform: key });
+                          setPlatformDropdownOpen(false);
+                        }}
+                      >
+                        <PlatformIcon platform={key} size={16} />
+                        <span>{platform.short}</span>
+                        {row.platform === key && <Check size={12} className="dp-platform-check" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
             {row.platform === "ig_story" ? (
               <StoryThumbnail elements={storyElements} onClick={() => { setStory(row); setSelectedRowId(null); }} />
             ) : row.platform === "ig_reel" ? (

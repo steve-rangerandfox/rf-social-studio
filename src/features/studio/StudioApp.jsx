@@ -1,5 +1,5 @@
 import "./studio.css";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, lazy, Suspense } from "react";
 
 import { StudioProvider, useStudio } from "./StudioContext.jsx";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts.js";
@@ -14,13 +14,14 @@ import {
 } from "./components/StudioSurfaces.jsx";
 import { AddPostModal } from "./components/AddPostModal.jsx";
 import { Composer } from "./components/Composer.jsx";
-import { StoryDesigner } from "./components/StoryDesigner.jsx";
+const StoryDesigner = lazy(() => import("./components/StoryDesigner.jsx").then(m => ({ default: m.StoryDesigner })));
 import { MonthMiniMap } from "./components/MonthMiniMap.jsx";
 import { Toast } from "./components/Toast.jsx";
 import { TokenExpiryBanner } from "./components/TokenExpiryBanner.jsx";
 import { UndoDeleteToast } from "./components/UndoDeleteToast.jsx";
 import { PublishConfirmModal } from "./components/PublishConfirmModal.jsx";
 import { CommandPalette } from "./components/CommandPalette.jsx";
+import { FirstRunHint } from "./components/FirstRunHint.jsx";
 
 import { Sidebar } from "./components/Sidebar.jsx";
 import { Topbar } from "./components/Topbar.jsx";
@@ -36,7 +37,6 @@ import { PLATFORMS, T } from "./shared.js";
 
 // ─── Inner shell (consumes StudioContext) ─────────────────────────
 function StudioShell() {
-  const [showCommandPalette, setCommandPalette] = useState(false);
   const ctx = useStudio();
   const {
     // State
@@ -52,6 +52,7 @@ function StudioShell() {
     pendingDelete, setPendingDelete,
     tokenBannerDismissed, setTokenBannerDismissed,
     publishConfirm, setPublishConfirm,
+    showCommandPalette, setCommandPalette,
     selectedRowId, setSelectedRowId,
     // Data
     filteredRows, rows, igConfig, igMedia,
@@ -75,7 +76,7 @@ function StudioShell() {
   }, [setComposer, setStory, setAddPostDraft, setPublishConfirm]);
 
   const addForMonth = useCallback(() => view === "list" ? startInlineCreate() : add(month), [view, startInlineCreate, add, month]);
-  const toggleCommandPalette = useCallback(() => setCommandPalette(v => !v), []);
+  const toggleCommandPalette = useCallback(() => setCommandPalette(v => !v), [setCommandPalette]);
   useKeyboardShortcuts({ add: addForMonth, setView, getModals, closeModal, toggleCommandPalette });
 
   return (
@@ -158,11 +159,13 @@ function StudioShell() {
       )}
 
       {story && (
-        <StoryDesigner
-          row={story}
-          onClose={() => setStory(null)}
-          onSave={els => update(story.id, { storyElements: els })}
-        />
+        <Suspense fallback={null}>
+          <StoryDesigner
+            row={story}
+            onClose={() => setStory(null)}
+            onSave={els => update(story.id, { storyElements: els })}
+          />
+        </Suspense>
       )}
 
       {showConn && (
@@ -262,6 +265,9 @@ function StudioShell() {
 
       {/* Command palette */}
       {showCommandPalette && <CommandPalette onClose={() => setCommandPalette(false)} />}
+
+      {/* First-run hint */}
+      <FirstRunHint />
     </div>
   );
 }

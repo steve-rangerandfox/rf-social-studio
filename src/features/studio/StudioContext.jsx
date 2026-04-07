@@ -104,6 +104,7 @@ export function StudioProvider({ children }) {
   const [openComments, setOC] = useState(new Set());
   const [toast, setToast] = useState(null);
   const [publishConfirm, setPublishConfirm] = useState(null);
+  const [showCommandPalette, setCommandPalette] = useState(false);
   const [selectedRowId, setSelectedRowId] = useState(null);
   const [inlineCreateActive, setInlineCreateActive] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -663,6 +664,7 @@ export function StudioProvider({ children }) {
     openComments,
     toast, setToast,
     publishConfirm, setPublishConfirm,
+    showCommandPalette, setCommandPalette,
     selectedRowId, setSelectedRowId,
     inlineCreateActive, startInlineCreate, commitInlineCreate, cancelInlineCreate,
     showToast,

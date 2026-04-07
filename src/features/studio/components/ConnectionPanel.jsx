@@ -229,11 +229,24 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
       </div>
       <div className="cp-requirements">
         <div className="cp-section-title">Before you connect</div>
-        <ul className="cp-req-list">
-          <li>An Instagram <strong>Business</strong> or <strong>Creator</strong> account</li>
-          <li>Linked to a <strong>Facebook Page</strong> you manage</li>
-          <li>You'll authorize through Facebook</li>
-        </ul>
+        <ol className="cp-req-list-numbered">
+          <li>
+            <span className="cp-req-num">1</span>
+            <span>Convert your Instagram to a <strong>Business or Creator</strong> account
+              <a href="https://help.instagram.com/502981923235522" target="_blank" rel="noopener noreferrer" className="cp-req-link">How? {"\u2197"}</a>
+            </span>
+          </li>
+          <li>
+            <span className="cp-req-num">2</span>
+            <span>Link it to a <strong>Facebook Page</strong> you manage
+              <a href="https://www.facebook.com/business/help/connect-instagram-to-page" target="_blank" rel="noopener noreferrer" className="cp-req-link">How? {"\u2197"}</a>
+            </span>
+          </li>
+          <li>
+            <span className="cp-req-num">3</span>
+            <span>Authorize this studio through Facebook</span>
+          </li>
+        </ol>
       </div>
       {error && <div className="cp-error" style={{padding:"0 0 10px"}}>{error}</div>}
       <button className="cp-ig-btn" onClick={startOAuth} disabled={connecting}>
@@ -265,7 +278,7 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
             <div className="m-title">{isIG ? "Instagram" : "LinkedIn"}</div>
             <div className="m-sub">{isIG ? (igConfig?.username ? `@${igConfig.username}` : "Not connected") : (connected ? "@rangerandfox · Company Page" : "Not connected")}</div>
           </div>
-          <button className="m-x" onClick={onClose}><X size={14}/></button>
+          <button className="m-x" onClick={onClose} title="Close" aria-label="Close"><X size={14}/></button>
         </div>
         <div className="m-body">
           {isIG ? (

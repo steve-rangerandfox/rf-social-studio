@@ -10,7 +10,7 @@ import { PlatformIcon } from "./PlatformIcon.jsx";
 import { canTransition, getAvailableTransitions } from "./StatusMachine.js";
 import { AlertTriangle, X, GripVertical } from "lucide-react";
 
-export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, onSelect, isSelected, dragHandlers, hasConnectedAccount = false }) {
+export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, onSelect, isSelected, isFocused, dragHandlers, hasConnectedAccount = false }) {
   const p = PLATFORMS[row.platform], s = STATUSES[row.status];
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -89,7 +89,7 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
   })();
 
   return (
-    <div className={`t-row ${sel ? "sel" : ""} ${isSelected ? "row-selected" : ""} ${dragHandlers.isDragging ? "dragging" : ""} ${dragHandlers.isDragOver ? "drag-over" : ""}`}
+    <div className={`t-row ${sel ? "sel" : ""} ${isSelected ? "row-selected" : ""} ${isFocused ? "row-focused" : ""} ${dragHandlers.isDragging ? "dragging" : ""} ${dragHandlers.isDragOver ? "drag-over" : ""}`}
       style={isMenuOpen || isStatusDropdownOpen || isPlatformOpen ? { zIndex: 20 } : undefined}
       onMouseEnter={dragHandlers.onMouseEnter}
       onClick={() => { if (!isEditingTitle) onSelect(); }}>
@@ -98,6 +98,7 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
         className="drag-handle row-drag-wrap"
         onPointerDown={dragHandlers.onPointerDown}
         onClick={(e) => e.stopPropagation()}
+        title="Drag to reorder"
       >
         <GripVertical size={14} color={T.textDim} />
       </div>
@@ -164,7 +165,7 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
 
       {/* Status pill */}
       <div onClick={(e) => e.stopPropagation()} ref={statusDropdownRef} className="row-dropdown-anchor">
-        <button className="status-pill" onClick={() => setIsStatusDropdownOpen((c) => !c)} title="Change status">
+        <button className="status-pill" onClick={() => setIsStatusDropdownOpen((c) => !c)} title="Click to change status">
           <span className="s-dot" style={{ background: s.dot }} />{s.label}
         </button>
         {isStatusDropdownOpen && (
@@ -190,15 +191,22 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
           </div>
         )}
         {needsAttention && (
-          <AlertTriangle size={13} color={T.amber} className="row-attention-icon" />
+          <span title="Needs attention — missing caption, media, owner, or approval">
+            <AlertTriangle size={13} color={T.amber} className="row-attention-icon" />
+          </span>
         )}
       </div>
 
       <div className="ra" onClick={(e) => e.stopPropagation()}>
         {row.comments?.length > 0 && (
-          <span className="row-comment-count">{row.comments.length}</span>
+          <span
+            className="row-comment-count"
+            title={`${row.comments.length} comment${row.comments.length === 1 ? "" : "s"}`}
+          >
+            {row.comments.length}
+          </span>
         )}
-        <button className="ib d row-action-btn" title="Delete" onClick={onDel}>
+        <button className="ib d row-action-btn" title="Delete post" onClick={onDel}>
           <X size={13} color={T.textDim} />
         </button>
       </div>
@@ -209,6 +217,7 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
     prev.row === next.row &&
     prev.sel === next.sel &&
     prev.isSelected === next.isSelected &&
+    prev.isFocused === next.isFocused &&
     prev.hasConnectedAccount === next.hasConnectedAccount &&
     prev.dragHandlers.isDragging === next.dragHandlers.isDragging &&
     prev.dragHandlers.isDragOver === next.dragHandlers.isDragOver

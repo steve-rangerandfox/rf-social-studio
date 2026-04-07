@@ -92,8 +92,8 @@ export function Sidebar() {
           <ChevronDown size={10} className={`s-lbl-chevron${collapsed.team ? " collapsed" : ""}`} />
         </button>
         {!collapsed.team && team.map(t => (
-          <div key={t.id} className="team-row">
-            <div className="av" style={{ background: t.color + "22", color: t.color }}>{t.initials}</div>
+          <div key={t.id} className="team-row" title={t.name}>
+            <div className="av" style={{ background: t.color + "22", color: t.color }} title={t.name}>{t.initials}</div>
             <span className="team-name">{t.name}</span>
             <div className="online-dot" style={{ background: t.id === "stephen" ? T.mint : T.textDim, boxShadow: t.id === "stephen" ? `0 0 5px ${T.mint}` : undefined }} />
           </div>
@@ -117,7 +117,7 @@ export function Sidebar() {
             ].map(c => {
               const on = connections[c.key];
               return (
-                <div key={c.key} className="conn-row" onClick={() => setShowConn(c.key)}>
+                <div key={c.key} className="conn-row" onClick={() => setShowConn(c.key)} title={`Connect ${c.label}`}>
                   <div className={"conn-dot " + (on ? "on" : "off")} />
                   <span className="conn-name">{c.label}</span>
                   <span className={"conn-st " + (on ? "on" : "off")}>{on ? "Live" : "Setup \u2192"}</span>
@@ -127,7 +127,7 @@ export function Sidebar() {
           </>
         )}
         <div style={{ height: 6 }} />
-        <button className="s-settings-btn" onClick={() => setSettings(true)}>
+        <button className="s-settings-btn" onClick={() => setSettings(true)} title="Settings">
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0, opacity: .6 }}>
             <circle cx="6.5" cy="6.5" r="2" stroke="currentColor" strokeWidth="1.4" />
             <path d="M6.5 1v1.2M6.5 10.8V12M1 6.5h1.2M10.8 6.5H12M2.4 2.4l.85.85M9.75 9.75l.85.85M9.75 3.25l-.85.85M3.25 9.75l-.85.85" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />

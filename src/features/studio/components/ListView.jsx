@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useStudio } from "../StudioContext.jsx";
 import { Row } from "./Row.jsx";
@@ -14,11 +14,12 @@ export function ListView() {
     update, remove, showToast,
     selectedRowId, setSelectedRowId,
     makeDrag, add,
-    monthRefs, maxMonthCount,
+    monthRefs,
     inlineCreateActive,
   } = useStudio();
 
   const parentRef = useRef(null);
+  const [focusedRowIndex, setFocusedRowIndex] = useState(-1);
 
   /* ── Month view virtualizer ── */
   const monthVirtualizer = useVirtualizer({
@@ -28,6 +29,42 @@ export function ListView() {
     overscan: 10,
     enabled: view === "list" && timeScale === "month",
   });
+
+  /* ── J/K/Enter keyboard navigation (month view) ── */
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || document.activeElement?.contentEditable === "true") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (timeScale !== "month") return;
+
+      if (e.key === "j" || e.key === "J") {
+        e.preventDefault();
+        setFocusedRowIndex((prev) => Math.min(prev + 1, sorted.length - 1));
+      } else if (e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        setFocusedRowIndex((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === "Enter" && focusedRowIndex >= 0 && focusedRowIndex < sorted.length) {
+        e.preventDefault();
+        setSelectedRowId(sorted[focusedRowIndex].id);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sorted, focusedRowIndex, timeScale, setSelectedRowId]);
+
+  useEffect(() => {
+    if (focusedRowIndex >= 0 && monthVirtualizer.scrollToIndex) {
+      monthVirtualizer.scrollToIndex(focusedRowIndex, { align: "auto" });
+    }
+  }, [focusedRowIndex, monthVirtualizer]);
+
+  useEffect(() => {
+    if (focusedRowIndex >= sorted.length) {
+      setFocusedRowIndex(sorted.length > 0 ? 0 : -1);
+    }
+  }, [sorted.length, focusedRowIndex]);
 
   /* ── Year view: flatten grouped data ── */
   const flatItems = useMemo(() => {
@@ -61,7 +98,7 @@ export function ListView() {
 
   if (view !== "list") return null;
 
-  const renderRow = (row, idx) => (
+  const renderRow = (row, idx, isFocused = false) => (
     <Row
       key={row.id}
       row={row}
@@ -71,6 +108,7 @@ export function ListView() {
       onDel={() => { remove(row.id); showToast("Post removed", T.red); }}
       onSelect={() => setSelectedRowId(row.id)}
       isSelected={selectedRowId === row.id}
+      isFocused={isFocused}
       hasConnectedAccount={connections.instagram || connections.linkedin}
       dragHandlers={makeDrag(row, idx)}
     />
@@ -121,7 +159,7 @@ export function ListView() {
                         transform: `translateY(${virtualItem.start}px)`,
                       }}
                     >
-                      {renderRow(sorted[virtualItem.index], virtualItem.index)}
+                      {renderRow(sorted[virtualItem.index], virtualItem.index, focusedRowIndex === virtualItem.index)}
                     </div>
                   ))}
                 </div>
@@ -141,9 +179,6 @@ export function ListView() {
 
               if (item.type === "header") {
                 const { mi, mName, rows: mRows } = item.group;
-                const igM = mRows.filter(r => r.platform.startsWith("ig")).length;
-                const liM = mRows.filter(r => r.platform === "linkedin").length;
-                const barH = (n) => Math.max(Math.round((n / maxMonthCount) * 14), 2);
                 return (
                   <div
                     key={`header-${mi}`}
@@ -159,10 +194,6 @@ export function ListView() {
                     <div className="month-anchor-header">
                       <span className="month-anchor-label">{mName} {year}</span>
                       <span className="month-anchor-count">{mRows.length} post{mRows.length !== 1 ? "s" : ""}</span>
-                      <div className="month-sparkline">
-                        {igM > 0 && <div className="month-spark-bar ig fill" style={{ height: barH(igM) }} title={`${igM} IG`} />}
-                        {liM > 0 && <div className="month-spark-bar li fill" style={{ height: barH(liM) }} title={`${liM} LI`} />}
-                      </div>
                     </div>
                   </div>
                 );
