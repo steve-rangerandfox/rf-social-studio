@@ -8,13 +8,20 @@ import { useEffect } from "react";
  * @param {Function} opts.getModals   — returns { composer, story, addPostDraft, publishConfirm }
  * @param {Function} opts.closeModal  — called with the name of the topmost open modal to close it
  */
-export function useKeyboardShortcuts({ add, setView, getModals, closeModal, toggleCommandPalette }) {
+export function useKeyboardShortcuts({ add, setView, getModals, closeModal, toggleCommandPalette, onSavePressed }) {
   useEffect(() => {
     const handleKeyboard = (e) => {
       // Cmd+K / Ctrl+K = toggle command palette (works even in inputs)
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         toggleCommandPalette();
+        return;
+      }
+
+      // Cmd+S / Ctrl+S = acknowledge auto-save (works even in inputs)
+      if ((e.metaKey || e.ctrlKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        if (onSavePressed) onSavePressed();
         return;
       }
 
@@ -46,5 +53,5 @@ export function useKeyboardShortcuts({ add, setView, getModals, closeModal, togg
     };
     window.addEventListener("keydown", handleKeyboard);
     return () => window.removeEventListener("keydown", handleKeyboard);
-  }, [add, setView, getModals, closeModal, toggleCommandPalette]);
+  }, [add, setView, getModals, closeModal, toggleCommandPalette, onSavePressed]);
 }

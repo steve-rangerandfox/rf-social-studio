@@ -121,7 +121,7 @@ function statusLabel(status) {
   const labels = {
     idea: "Idea",
     draft: "Draft",
-    needs_review: "Needs Review",
+    needs_review: "In Review",
     approved: "Approved",
     scheduled: "Scheduled",
     posted: "Posted",

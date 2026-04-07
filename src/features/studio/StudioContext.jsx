@@ -27,8 +27,10 @@ import {
   loadTeam,
   MONTHS_FULL,
   nowPT,
+  PLATFORMS,
   ptPickerToISO,
   saveTeam,
+  STATUSES,
   T,
   uid,
 } from "./shared.js";
@@ -96,10 +98,10 @@ export function StudioProvider({ children }) {
     lastSavedAt: studioDoc.lastSavedAt,
     error: null,
   }));
-  const [documentVersion, _setDocumentVersion] = useState(null);
   const documentVersionRef = useRef(null);
-  const setDocumentVersion = (v) => { documentVersionRef.current = v; _setDocumentVersion(v); };
+  const setDocumentVersion = (v) => { documentVersionRef.current = v; };
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [pendingUndo, setPendingUndo] = useState(null);
   const [tokenBannerDismissed, setTokenBannerDismissed] = useState(false);
   const [openComments, setOC] = useState(new Set());
   const [toast, setToast] = useState(null);
@@ -570,8 +572,47 @@ export function StudioProvider({ children }) {
     setPlatformFilter(next.platform ?? "all");
   };
 
-  // Bulk actions: status, platform, assignee (single document update)
+  // ─── Generic undo system ─────────────────────────────────────────
+  const registerUndo = useCallback((message, undoFn) => {
+    setPendingUndo((current) => {
+      if (current?.timer) clearTimeout(current.timer);
+      return null;
+    });
+    const id = uid();
+    const timer = setTimeout(() => {
+      setPendingUndo((current) => (current?.id === id ? null : current));
+    }, 10000);
+    setPendingUndo({ id, message, undo: undoFn, timer });
+  }, []);
+
+  const triggerUndo = useCallback(() => {
+    setPendingUndo((current) => {
+      if (current) {
+        if (current.timer) clearTimeout(current.timer);
+        try { current.undo(); } catch { /* ignore */ }
+      }
+      return null;
+    });
+  }, []);
+
+  const dismissUndo = useCallback(() => {
+    setPendingUndo((current) => {
+      if (current?.timer) clearTimeout(current.timer);
+      return null;
+    });
+  }, []);
+
+  // Bulk actions: status, platform, assignee (single document update + undo)
   const bulkSetStatus = useCallback((status) => {
+    const selectedIds = [...sel];
+    if (selectedIds.length === 0) return;
+
+    const previousStatuses = new Map();
+    for (const row of studioDoc.rows) {
+      if (sel.has(row.id)) previousStatuses.set(row.id, row.status);
+    }
+
+    const statusLabel = STATUSES[status]?.label || status;
     updateDocument(
       (current) => ({
         ...current,
@@ -579,11 +620,33 @@ export function StudioProvider({ children }) {
           sel.has(row.id) ? applyRowPatch(row, { status }, currentUser) : row
         ),
       }),
-      () => createAuditEntry("post.bulk_updated", currentUser, `Set ${sel.size} posts to ${status}`),
+      () => createAuditEntry("post.bulk_updated", currentUser, `Set ${selectedIds.length} posts to ${statusLabel}`),
     );
-  }, [sel, currentUser, updateDocument]);
+
+    registerUndo(`${selectedIds.length} post${selectedIds.length !== 1 ? "s" : ""} set to ${statusLabel}`, () => {
+      updateDocument(
+        (current) => ({
+          ...current,
+          rows: current.rows.map((row) => {
+            const prev = previousStatuses.get(row.id);
+            return prev !== undefined ? applyRowPatch(row, { status: prev }, currentUser) : row;
+          }),
+        }),
+        () => createAuditEntry("post.bulk_undo", currentUser, "Undid bulk status change"),
+      );
+    });
+  }, [sel, studioDoc.rows, currentUser, updateDocument, registerUndo]);
 
   const bulkSetPlatform = useCallback((platform) => {
+    const selectedIds = [...sel];
+    if (selectedIds.length === 0) return;
+
+    const previousPlatforms = new Map();
+    for (const row of studioDoc.rows) {
+      if (sel.has(row.id)) previousPlatforms.set(row.id, row.platform);
+    }
+
+    const platformLabel = PLATFORMS[platform]?.label || platform;
     updateDocument(
       (current) => ({
         ...current,
@@ -591,11 +654,35 @@ export function StudioProvider({ children }) {
           sel.has(row.id) ? applyRowPatch(row, { platform }, currentUser) : row
         ),
       }),
-      () => createAuditEntry("post.bulk_updated", currentUser, `Set ${sel.size} posts to ${platform}`),
+      () => createAuditEntry("post.bulk_updated", currentUser, `Set ${selectedIds.length} posts to ${platformLabel}`),
     );
-  }, [sel, currentUser, updateDocument]);
+
+    registerUndo(`${selectedIds.length} post${selectedIds.length !== 1 ? "s" : ""} set to ${platformLabel}`, () => {
+      updateDocument(
+        (current) => ({
+          ...current,
+          rows: current.rows.map((row) => {
+            const prev = previousPlatforms.get(row.id);
+            return prev !== undefined ? applyRowPatch(row, { platform: prev }, currentUser) : row;
+          }),
+        }),
+        () => createAuditEntry("post.bulk_undo", currentUser, "Undid bulk channel change"),
+      );
+    });
+  }, [sel, studioDoc.rows, currentUser, updateDocument, registerUndo]);
 
   const bulkSetAssignee = useCallback((assignee) => {
+    const selectedIds = [...sel];
+    if (selectedIds.length === 0) return;
+
+    const previousAssignees = new Map();
+    for (const row of studioDoc.rows) {
+      if (sel.has(row.id)) previousAssignees.set(row.id, row.assignee ?? null);
+    }
+
+    const assigneeLabel = assignee
+      ? team.find((m) => m.id === assignee)?.name || "assignee"
+      : "Unassigned";
     updateDocument(
       (current) => ({
         ...current,
@@ -603,9 +690,23 @@ export function StudioProvider({ children }) {
           sel.has(row.id) ? applyRowPatch(row, { assignee }, currentUser) : row
         ),
       }),
-      () => createAuditEntry("post.bulk_updated", currentUser, `Assigned ${sel.size} posts`),
+      () => createAuditEntry("post.bulk_updated", currentUser, `Assigned ${selectedIds.length} posts to ${assigneeLabel}`),
     );
-  }, [sel, currentUser, updateDocument]);
+
+    registerUndo(`${selectedIds.length} post${selectedIds.length !== 1 ? "s" : ""} assigned to ${assigneeLabel}`, () => {
+      updateDocument(
+        (current) => ({
+          ...current,
+          rows: current.rows.map((row) => {
+            if (!previousAssignees.has(row.id)) return row;
+            const prev = previousAssignees.get(row.id);
+            return applyRowPatch(row, { assignee: prev }, currentUser);
+          }),
+        }),
+        () => createAuditEntry("post.bulk_undo", currentUser, "Undid bulk assignee change"),
+      );
+    });
+  }, [sel, studioDoc.rows, currentUser, updateDocument, registerUndo, team]);
 
   const makeDrag = useCallback((row, idx) => ({
     isDragging: draggingId === row.id,
@@ -660,6 +761,7 @@ export function StudioProvider({ children }) {
     connections, setConns,
     saveState,
     pendingDelete, setPendingDelete,
+    pendingUndo, registerUndo, triggerUndo, dismissUndo,
     tokenBannerDismissed, setTokenBannerDismissed,
     openComments,
     toast, setToast,

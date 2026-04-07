@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, Check, RotateCcw } from "lucide-react";
 import {
   exchangeInstagramCode,
@@ -262,6 +262,65 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
 export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, onClose, igConfig, igMedia, onIGSave, onIGMediaSync }) {
   const isIG = platform === "instagram";
   const [simulating, setSimulating] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const panelRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => onClose(), 200);
+  };
+
+  // Focus trap: save originating focus, focus first element, restore on unmount
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement;
+    const panel = panelRef.current;
+    if (panel) {
+      const focusables = panel.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length > 0) {
+        focusables[0].focus();
+      }
+    }
+    return () => {
+      if (previousFocusRef.current && document.contains(previousFocusRef.current)) {
+        previousFocusRef.current.focus();
+      }
+    };
+  }, []);
+
+  // Trap Tab within the panel
+  useEffect(() => {
+    const handleTab = (e) => {
+      if (e.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusables = Array.from(panel.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )).filter((el) => !el.hasAttribute('aria-hidden'));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleTab);
+    return () => document.removeEventListener('keydown', handleTab);
+  }, []);
+
+  // Escape to close
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") handleClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
 
   const simulate = async (action) => {
     setSimulating(true);
@@ -271,16 +330,23 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal cp-modal" onClick={e => e.stopPropagation()}>
-        <div className="m-head">
+    <>
+      <div className={`connection-panel-backdrop${isClosing ? " closing" : ""}`} onClick={handleClose} />
+      <div
+        className={`connection-panel${isClosing ? " closing" : ""}`}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="connection-panel-title"
+      >
+        <div className="connection-panel-header">
           <div>
-            <div className="m-title">{isIG ? "Instagram" : "LinkedIn"}</div>
-            <div className="m-sub">{isIG ? (igConfig?.username ? `@${igConfig.username}` : "Not connected") : (connected ? "@rangerandfox · Company Page" : "Not connected")}</div>
+            <div id="connection-panel-title" className="connection-panel-title">{isIG ? "Instagram" : "LinkedIn"}</div>
+            <div className="connection-panel-sub">{isIG ? (igConfig?.username ? `@${igConfig.username}` : "Not connected") : (connected ? "@rangerandfox · Company Page" : "Not connected")}</div>
           </div>
-          <button className="m-x" onClick={onClose} title="Close" aria-label="Close"><X size={14}/></button>
+          <button className="m-x" onClick={handleClose} title="Close (Esc)" aria-label="Close"><X size={15}/></button>
         </div>
-        <div className="m-body">
+        <div className="connection-panel-body">
           {isIG ? (
             <IGOAuthPanel
               igConfig={igConfig}
@@ -328,8 +394,8 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
           )}
         </div>
         {!isIG && (
-          <div className="m-foot">
-            <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+          <div className="connection-panel-footer">
+            <button className="btn btn-ghost btn-sm" onClick={handleClose}>Close</button>
             {connected
               ? <button className="btn btn-danger btn-sm" disabled={simulating} onClick={()=>simulate(onDisconnect)}>
                   {simulating ? "Disconnecting…" : "Disconnect"}
@@ -341,11 +407,11 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
           </div>
         )}
         {isIG && (
-          <div className="m-foot">
-            <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+          <div className="connection-panel-footer">
+            <button className="btn btn-ghost btn-sm" onClick={handleClose}>Close</button>
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

@@ -165,7 +165,11 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
 
       {/* Status pill */}
       <div onClick={(e) => e.stopPropagation()} ref={statusDropdownRef} className="row-dropdown-anchor">
-        <button className="status-pill" onClick={() => setIsStatusDropdownOpen((c) => !c)} title="Click to change status">
+        <button
+          className="status-pill"
+          onClick={() => setIsStatusDropdownOpen((c) => !c)}
+          title={`${s.label} — ${s.description}`}
+        >
           <span className="s-dot" style={{ background: s.dot }} />{s.label}
         </button>
         {isStatusDropdownOpen && (
@@ -179,8 +183,13 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
                 onClick={() => handleStatusTransition(item.status)}
               >
                 <span className="row-option-content">
-                  <span className="s-dot" style={{ background: item.dot, marginRight: 0 }} />
-                  {item.label}
+                  <span className="s-dot" style={{ background: item.dot }} />
+                  <span className="row-option-text">
+                    <span className="row-option-label">{item.label}</span>
+                    {STATUSES[item.status]?.description && (
+                      <span className="row-option-desc">{STATUSES[item.status].description}</span>
+                    )}
+                  </span>
                 </span>
                 {item.isCurrent ? <span className="ops-option-mark">Current</span> : null}
                 {!item.isCurrent && !item.allowed ? (

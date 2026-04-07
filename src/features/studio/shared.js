@@ -37,12 +37,42 @@ export const PLATFORMS = {
 };
 
 export const STATUSES = {
-  idea: { label: "Idea", dot: "#B5ADA0", next: "draft" },
-  draft: { label: "Draft", dot: "#5B7FA6", next: "needs_review" },
-  needs_review: { label: "Needs Review", dot: "#E56A0B", next: "approved" },
-  approved: { label: "Approved", dot: "#3D8C5C", next: "scheduled" },
-  scheduled: { label: "Scheduled", dot: "#5BA8B5", next: "posted" },
-  posted: { label: "Posted", dot: "#181714", next: "idea" },
+  idea: {
+    label: "Idea",
+    dot: "#B5ADA0",
+    next: "draft",
+    description: "A spark — captured but not yet developed. Move to Draft when you start writing.",
+  },
+  draft: {
+    label: "Draft",
+    dot: "#5B7FA6",
+    next: "needs_review",
+    description: "In progress — caption being written, media being attached. Move to Needs Review when ready for a teammate to look.",
+  },
+  needs_review: {
+    label: "In Review",
+    dot: "#E56A0B",
+    next: "approved",
+    description: "Waiting on a teammate to approve. Move to Approved when someone signs off (or approve it yourself if you're solo).",
+  },
+  approved: {
+    label: "Approved",
+    dot: "#3D8C5C",
+    next: "scheduled",
+    description: "Ready to publish. Set a schedule date or hit Post Now to push it live.",
+  },
+  scheduled: {
+    label: "Scheduled",
+    dot: "#5BA8B5",
+    next: "posted",
+    description: "Queued for a future date. Will publish automatically (when scheduled posting is wired up).",
+  },
+  posted: {
+    label: "Posted",
+    dot: "#181714",
+    next: "idea",
+    description: "Live on the platform. Done.",
+  },
 };
 
 export const DEFAULT_TEAM = [
@@ -57,7 +87,7 @@ export function loadTeam() {
   try {
     const stored = JSON.parse(localStorage.getItem(TEAM_STORAGE_KEY) || "null");
     if (Array.isArray(stored) && stored.length > 0) return stored;
-  } catch {}
+  } catch { /* localStorage unavailable */ }
   return DEFAULT_TEAM;
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, Plus } from "lucide-react";
 import {
   PLATFORMS,
@@ -9,11 +9,70 @@ import {
 
 const SETTINGS_TABS = ["General","Team"];
 
-export function SettingsModal({ onClose, onExport, team = TEAM, onTeamUpdate }) {
+export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate }) {
   const [tab, setTab] = useState("General");
   const [showInvite, setShowInvite] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState("");
+  const [isClosing, setIsClosing] = useState(false);
+
+  const panelRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => onClose(), 200);
+  };
+
+  // Focus trap: save originating focus, focus first element, restore on unmount
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement;
+    const panel = panelRef.current;
+    if (panel) {
+      const focusables = panel.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length > 0) {
+        focusables[0].focus();
+      }
+    }
+    return () => {
+      if (previousFocusRef.current && document.contains(previousFocusRef.current)) {
+        previousFocusRef.current.focus();
+      }
+    };
+  }, []);
+
+  // Trap Tab within the panel
+  useEffect(() => {
+    const handleTab = (e) => {
+      if (e.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusables = Array.from(panel.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )).filter((el) => !el.hasAttribute('aria-hidden'));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleTab);
+    return () => document.removeEventListener('keydown', handleTab);
+  }, []);
+
+  // Escape to close
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape") handleClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
 
   const handleInviteSubmit = () => {
     const trimmed = inviteName.trim();
@@ -25,13 +84,25 @@ export function SettingsModal({ onClose, onExport, team = TEAM, onTeamUpdate }) 
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal settings-modal" onClick={e=>e.stopPropagation()}>
-        <div className="m-head">
-          <div><div className="m-title">Settings</div><div className="m-sub">Social Studio preferences</div></div>
-          <button className="m-x" onClick={onClose}><X size={14}/></button>
+    <>
+      <div className={`settings-panel-backdrop${isClosing ? " closing" : ""}`} onClick={handleClose} />
+      <div
+        className={`settings-panel${isClosing ? " closing" : ""}`}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-panel-title"
+      >
+        <div className="settings-panel-header">
+          <div>
+            <div id="settings-panel-title" className="settings-panel-title">Settings</div>
+            <div className="settings-panel-sub">Social Studio preferences</div>
+          </div>
+          <button className="m-x" onClick={handleClose} title="Close (Esc)" aria-label="Close">
+            <X size={15}/>
+          </button>
         </div>
-        <div className="m-body settings-body-flush">
+        <div className="settings-panel-body">
           <div className="settings-tabs">
             {SETTINGS_TABS.map(t=>(
               <button key={t} className={"settings-tab "+(tab===t?"on":"")} onClick={()=>setTab(t)}>{t}</button>
@@ -108,13 +179,12 @@ export function SettingsModal({ onClose, onExport, team = TEAM, onTeamUpdate }) 
               )}
             </div>
           )}
-
         </div>
-        <div className="m-foot">
-          <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
-          <button className="btn btn-primary btn-sm" onClick={onClose}>Save Changes</button>
+        <div className="settings-panel-footer">
+          <button className="btn btn-ghost btn-sm" onClick={handleClose}>Close</button>
+          <button className="btn btn-primary btn-sm" onClick={handleClose}>Save Changes</button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

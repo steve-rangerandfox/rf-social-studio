@@ -1,5 +1,5 @@
 import "./studio.css";
-import React, { useCallback, lazy, Suspense } from "react";
+import React, { useCallback, useEffect, lazy, Suspense } from "react";
 
 import { StudioProvider, useStudio } from "./StudioContext.jsx";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts.js";
@@ -10,7 +10,7 @@ import {
   ConnectionPanel,
   IGGridView,
   Analytics,
-  SettingsModal,
+  SettingsPanel,
 } from "./components/StudioSurfaces.jsx";
 import { AddPostModal } from "./components/AddPostModal.jsx";
 import { Composer } from "./components/Composer.jsx";
@@ -19,6 +19,7 @@ import { MonthMiniMap } from "./components/MonthMiniMap.jsx";
 import { Toast } from "./components/Toast.jsx";
 import { TokenExpiryBanner } from "./components/TokenExpiryBanner.jsx";
 import { UndoDeleteToast } from "./components/UndoDeleteToast.jsx";
+import { UndoToast } from "./components/UndoToast.jsx";
 import { PublishConfirmModal } from "./components/PublishConfirmModal.jsx";
 import { CommandPalette } from "./components/CommandPalette.jsx";
 import { FirstRunHint } from "./components/FirstRunHint.jsx";
@@ -77,7 +78,15 @@ function StudioShell() {
 
   const addForMonth = useCallback(() => view === "list" ? startInlineCreate() : add(month), [view, startInlineCreate, add, month]);
   const toggleCommandPalette = useCallback(() => setCommandPalette(v => !v), [setCommandPalette]);
-  useKeyboardShortcuts({ add: addForMonth, setView, getModals, closeModal, toggleCommandPalette });
+  const onSavePressed = useCallback(() => showToast("Already saved · changes auto-sync", T.mint), [showToast]);
+  useKeyboardShortcuts({ add: addForMonth, setView, getModals, closeModal, toggleCommandPalette, onSavePressed });
+
+  // Only one right-side panel open at a time: opening settings/connection closes detail panel
+  useEffect(() => {
+    if ((showSettings || showConn) && selectedRowId) {
+      setSelectedRowId(null);
+    }
+  }, [showSettings, showConn, selectedRowId, setSelectedRowId]);
 
   return (
     <div className="app">
@@ -221,7 +230,7 @@ function StudioShell() {
       )}
 
       {showSettings && (
-        <SettingsModal
+        <SettingsPanel
           onClose={() => setSettings(false)}
           onExport={exportData}
           team={team}
@@ -240,6 +249,8 @@ function StudioShell() {
           onDone={() => setPendingDelete(null)}
         />
       )}
+
+      <UndoToast />
 
       {/* Instagram token expiry warning banner */}
       {!tokenBannerDismissed && (
