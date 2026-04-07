@@ -1,18 +1,18 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { X, Upload, Check } from "lucide-react";
 import { T, PLATFORMS, toPTDisplay } from "../shared.js";
-import { generateCaption } from "../../../lib/api-client.js";
+import { publishToInstagram } from "../../../lib/api-client.js";
+import { uploadAsset } from "../../../lib/supabase.js";
 import { CaptionEditor } from "./CaptionEditor.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 
 export function Composer({ row, onClose, onPosted, postNow }) {
-  const publishApiUrl = import.meta.env.VITE_PUBLISH_API_URL || "";
   const [plat,    setPlat]    = useState(row?.platform==="ig_story"?"ig_post":row?.platform||"ig_post");
   const [caption, setCaption] = useState(row?.caption||"");
   const [files,   setFiles]   = useState([]);
   const [fileUrls,setFileUrls]= useState([]);
   const [drag,    setDrag]    = useState(false);
-  const [st,      setSt]      = useState(postNow?"posting":"idle");
+  const [st,      setSt]      = useState(postNow?"uploading":"idle");
   const [errMsg,  setErrMsg]  = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const fRef = useRef(null);
@@ -44,17 +44,43 @@ export function Composer({ row, onClose, onPosted, postNow }) {
   };
 
   const doPost = useCallback(async () => {
-    setSt("posting"); setErrMsg("");
+    setSt("uploading");
+    setErrMsg("");
+
     try {
-      if (!publishApiUrl) {
-        throw new Error("Publishing is not configured yet. Add VITE_PUBLISH_API_URL when the server-side publish endpoint is ready.");
+      if (files.length === 0) {
+        throw new Error("Add media before publishing");
       }
-      const res = await fetch(publishApiUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({platform:plat,caption,mediaUrls:fileUrls})});
-      const data = await res.json();
-      if(!data.success) throw new Error(data.error||"Unknown error");
-      setSt("done"); onPosted?.();
-    } catch(err){ setSt("error"); setErrMsg(err.message); }
-  }, [caption, fileUrls, onPosted, plat, publishApiUrl]);
+
+      // Step 1: Upload to Supabase Storage to get a public HTTPS URL
+      const file = files[0]; // IG only supports single file (carousel is a future feature)
+      const isVideo = file.type.startsWith("video/");
+      const publicUrl = await uploadAsset(file);
+
+      // Step 2: Determine media type for Instagram
+      let mediaType = "IMAGE";
+      if (plat === "ig_story") mediaType = "STORIES";
+      else if (plat === "ig_reel") mediaType = "REELS";
+      else if (isVideo) mediaType = "VIDEO";
+
+      // Step 3: Publish via the server
+      setSt("publishing");
+      const result = await publishToInstagram({
+        caption: caption.trim(),
+        mediaUrl: !isVideo ? publicUrl : undefined,
+        videoUrl: isVideo ? publicUrl : undefined,
+        mediaType,
+        rowId: row?.id,
+      });
+
+      setSt("done");
+      onPosted?.({ mediaId: result.mediaId, mediaUrl: publicUrl });
+    } catch (err) {
+      setSt("error");
+      const msg = err.body?.error || err.message || "Publishing failed";
+      setErrMsg(msg);
+    }
+  }, [caption, files, onPosted, plat, row]);
 
   // If postNow, fire immediately on mount
   useEffect(() => { if(postNow) doPost(); }, [doPost, postNow]);
@@ -116,21 +142,32 @@ export function Composer({ row, onClose, onPosted, postNow }) {
             </div>
             <CaptionEditor value={caption} onChange={setCaption} platform={plat} note={row?.note}/>
           </>}
-          {postNow && st==="posting" && (
+          {postNow && (st==="uploading" || st==="publishing") && (
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:"32px 0"}}>
               <div className="pd" style={{width:12,height:12}}/>
-              <div style={{fontSize:14,color:T.textSub}}>Publishing to {p.label}...</div>
+              <div style={{fontSize:14,color:T.textSub}}>
+                {st==="uploading" ? "Uploading media\u2026" : `Publishing to ${p.label}\u2026`}
+              </div>
+            </div>
+          )}
+          {postNow && st==="error" && (
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,padding:"32px 0"}}>
+              <div style={{fontSize:14,color:T.red}}><X size={14} style={{display:"inline",verticalAlign:"middle"}}/> {errMsg}</div>
             </div>
           )}
         </div>
         <div className="m-foot">
-          {st==="posting"&&!postNow&&<div className="pr"><div className="pd"/><span className="pt">Publishing to {p.label}...</span></div>}
+          {(st==="uploading"||st==="publishing")&&!postNow&&(
+            <div className="pr"><div className="pd"/><span className="pt">
+              {st==="uploading" ? "Uploading media\u2026" : `Publishing to ${p.label}\u2026`}
+            </span></div>
+          )}
           {st==="done"&&<div className="sr"><div className="si"><Check size={12}/></div><span className="st2">Live on {p.label}</span></div>}
-          {st==="error"&&<span className="er2"><X size={12} style={{display:"inline",verticalAlign:"middle"}}/> {errMsg}</span>}
+          {st==="error"&&!postNow&&<span className="er2"><X size={12} style={{display:"inline",verticalAlign:"middle"}}/> {errMsg}</span>}
           {st!=="done"&&!postNow&&<button className="btn btn-ghost" onClick={onClose}>Cancel</button>}
           {st==="done"?<button className="btn btn-ghost" onClick={onClose}>Close</button>
-            :!postNow&&<button className="btn btn-primary" onClick={doPost} disabled={st==="posting"}>
-              {st==="posting"?"Working...":"Publish Now"}
+            :!postNow&&st!=="error"&&<button className="btn btn-primary" onClick={doPost} disabled={st==="uploading"||st==="publishing"}>
+              {(st==="uploading"||st==="publishing")?"Working...":"Publish Now"}
             </button>}
           {st==="error"&&<button className="btn btn-primary" onClick={doPost}>Retry</button>}
         </div>

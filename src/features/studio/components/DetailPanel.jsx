@@ -14,7 +14,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, STATUS_ORDER } from "./StatusMachine.js";
-import { CheckCircle2, AlertTriangle, Play, Upload, X } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Play, Upload, X, Check } from "lucide-react";
 
 export function DetailPanel() {
   const {
@@ -195,6 +195,28 @@ export function DetailPanel() {
 
         {/* Body */}
         <div className="detail-panel-body" ref={bodyRef}>
+
+          {row.status === "posted" && (row.igMediaId || row.igPublishedUrl) && (
+            <section className="dp-published-banner">
+              <div className="dp-published-icon">
+                <Check size={14} />
+              </div>
+              <div className="dp-published-info">
+                <div className="dp-published-title">Published to Instagram</div>
+                <div className="dp-published-meta">
+                  {row.postedAt && `Posted ${formatRelativeStamp(row.postedAt)}`}
+                  {row.igPermalink && (
+                    <>
+                      {" \u00B7 "}
+                      <a href={row.igPermalink} target="_blank" rel="noopener noreferrer" className="dp-published-link">
+                        View on Instagram ↗
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Platform selector */}
           <section className="stage-section">

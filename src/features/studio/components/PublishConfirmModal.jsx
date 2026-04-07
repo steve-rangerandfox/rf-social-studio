@@ -12,9 +12,12 @@ export function PublishConfirmModal({ row, platform, mediaUrls, onConfirm, onCan
     ? caption.slice(0, CAPTION_PREVIEW_LIMIT) + "\u2026"
     : caption;
   const scheduleParts = toPTDisplay(row.scheduledAt);
-  const checks = getReadinessChecks(row, mediaUrls && mediaUrls.length > 0);
+  const hasMedia = !!(mediaUrls && mediaUrls.length > 0);
+  const checks = getReadinessChecks(row, hasMedia);
   const allPassing = checks.every((c) => c.pass);
-  const hasWarnings = checks.some((c) => c.warn);
+  const mediaCheck = checks.find((c) => c.label === "Media");
+  const mediaBlocking = mediaCheck ? !mediaCheck.pass : false;
+  const canConfirm = !mediaBlocking;
 
   return (
     <div className="overlay" onClick={onCancel}>
@@ -188,8 +191,9 @@ export function PublishConfirmModal({ row, platform, mediaUrls, onConfirm, onCan
           <button
             className="btn btn-primary"
             onClick={onConfirm}
-            disabled={isPublishing}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            disabled={isPublishing || !canConfirm}
+            title={mediaBlocking ? "Add media in the composer before publishing" : undefined}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, opacity: canConfirm ? 1 : 0.6, cursor: canConfirm ? "pointer" : "not-allowed" }}
           >
             {isPublishing ? (
               <>

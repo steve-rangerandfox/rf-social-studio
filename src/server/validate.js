@@ -39,6 +39,18 @@ export function validateDocument(document) {
       if (row.comments && row.comments.length > MAX_COMMENTS_PER_ROW) {
         return { valid: false, error: `Too many comments on row ${row.id}` };
       }
+      if (row.postedAt != null && typeof row.postedAt !== "string") {
+        return { valid: false, error: `Invalid postedAt on row ${row.id}` };
+      }
+      if (row.igMediaId != null && typeof row.igMediaId !== "string") {
+        return { valid: false, error: `Invalid igMediaId on row ${row.id}` };
+      }
+      if (row.igPublishedUrl != null && typeof row.igPublishedUrl !== "string") {
+        return { valid: false, error: `Invalid igPublishedUrl on row ${row.id}` };
+      }
+      if (row.igPermalink != null && typeof row.igPermalink !== "string") {
+        return { valid: false, error: `Invalid igPermalink on row ${row.id}` };
+      }
     }
   }
 

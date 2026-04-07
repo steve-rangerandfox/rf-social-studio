@@ -136,9 +136,15 @@ function StudioShell() {
           row={composer.row}
           postNow={composer.postNow}
           onClose={() => setComposer(null)}
-          onPosted={() => {
-            update(composer.row.id, { status: "posted" });
+          onPosted={({ mediaId, mediaUrl } = {}) => {
+            update(composer.row.id, {
+              status: "posted",
+              postedAt: new Date().toISOString(),
+              igMediaId: mediaId ?? null,
+              igPublishedUrl: mediaUrl ?? null,
+            });
             showToast(`Posted to ${PLATFORMS[composer.row.platform === "ig_story" ? "ig_post" : composer.row.platform].label}`, T.mint);
+            setComposer(null);
           }}
         />
       )}

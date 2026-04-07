@@ -103,6 +103,13 @@ export function generateCaption({ platform, prompt }) {
   }, { timeoutMs: 30000 });
 }
 
+export function publishToInstagram({ caption, mediaUrl, videoUrl, mediaType, rowId }) {
+  return requestJson("/api/ig-publish", {
+    method: "POST",
+    body: JSON.stringify({ caption, mediaUrl, videoUrl, mediaType, rowId }),
+  }, { timeoutMs: 60000 });
+}
+
 export function generateStoryTips(board) {
   return requestJson("/api/captions", {
     method: "POST",

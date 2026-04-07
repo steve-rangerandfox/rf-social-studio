@@ -102,6 +102,10 @@ export function normalizeRow(row, actor = "system") {
     updatedBy: row.updatedBy || actor,
     deletedAt: row.deletedAt || null,
     deletedBy: row.deletedBy || null,
+    postedAt: row.postedAt ?? null,
+    igMediaId: row.igMediaId ?? null,
+    igPublishedUrl: row.igPublishedUrl ?? null,
+    igPermalink: row.igPermalink ?? null,
     version: Number.isFinite(row.version) ? row.version : 1,
   };
 }
@@ -256,6 +260,10 @@ export function createNewRow(overrides, actor, order) {
       assignee: overrides.assignee ?? null,
       comments: overrides.comments || [],
       storyElements: overrides.storyElements || null,
+      postedAt: overrides.postedAt ?? null,
+      igMediaId: overrides.igMediaId ?? null,
+      igPublishedUrl: overrides.igPublishedUrl ?? null,
+      igPermalink: overrides.igPermalink ?? null,
       order,
       version: 1,
     },

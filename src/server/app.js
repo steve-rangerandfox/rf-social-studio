@@ -36,6 +36,7 @@ import {
   fetchUserPages,
   fetchInstagramBusinessProfile,
   fetchInstagramMedia,
+  publishInstagramPost,
   refreshFacebookUserToken,
   validateCanonicalRedirectUri,
 } from "./meta.js";
@@ -547,6 +548,111 @@ async function handleInstagramPosts(req, res, env, reqId) {
   }
 }
 
+function isHttpsUrl(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+const IG_PUBLISH_MEDIA_TYPES = ["IMAGE", "VIDEO", "REELS", "STORIES"];
+const IG_PUBLISH_MAX_CAPTION = 2200;
+
+async function handleInstagramPublish(req, res, env, reqId, auth) {
+  const envCheck = ensureEnv(env, ["sessionSecret"]);
+  if (!envCheck.ok) {
+    return errorJson(res, 500, "SERVER_ERROR", "Instagram session handling is not configured", { missing: envCheck.missing });
+  }
+
+  let body;
+  try {
+    body = await readJsonBody(req);
+  } catch (error) {
+    return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
+  }
+
+  const { caption, mediaUrl, videoUrl, mediaType, rowId } = body || {};
+  const errors = [];
+
+  if (!mediaType || !IG_PUBLISH_MEDIA_TYPES.includes(mediaType)) {
+    errors.push(`mediaType must be one of: ${IG_PUBLISH_MEDIA_TYPES.join(", ")}`);
+  }
+
+  if (mediaType === "IMAGE") {
+    if (!mediaUrl) {
+      errors.push("mediaUrl is required for IMAGE posts");
+    } else if (!isHttpsUrl(mediaUrl)) {
+      errors.push("mediaUrl must be a valid public HTTPS URL");
+    }
+  } else if (mediaType === "VIDEO" || mediaType === "REELS" || mediaType === "STORIES") {
+    if (!videoUrl) {
+      errors.push(`videoUrl is required for ${mediaType} posts`);
+    } else if (!isHttpsUrl(videoUrl)) {
+      errors.push("videoUrl must be a valid public HTTPS URL");
+    }
+  }
+
+  if (caption != null) {
+    if (typeof caption !== "string") {
+      errors.push("caption must be a string");
+    } else if (caption.length > IG_PUBLISH_MAX_CAPTION) {
+      errors.push(`caption exceeds ${IG_PUBLISH_MAX_CAPTION} character limit`);
+    }
+  }
+
+  if (errors.length > 0) {
+    return errorJson(res, 400, "VALIDATION_ERROR", errors.join("; "), { errors });
+  }
+
+  const session = getSession(req, env);
+  if (!session?.igBusinessAccountId || !session?.pageToken) {
+    return errorJson(res, 401, "IG_TOKEN_EXPIRED", "Instagram is not connected");
+  }
+  if (session.ownerUserId && session.ownerUserId !== auth.userId) {
+    clearCookie(res, IG_SESSION_COOKIE, env, req);
+    return errorJson(res, 403, "FORBIDDEN", "Instagram connection belongs to a different signed-in user");
+  }
+
+  try {
+    const result = await publishInstagramPost({
+      igBusinessAccountId: session.igBusinessAccountId,
+      pageToken: session.pageToken,
+      imageUrl: mediaType === "IMAGE" ? mediaUrl : undefined,
+      videoUrl: mediaType !== "IMAGE" ? videoUrl : undefined,
+      caption,
+      mediaType,
+    });
+
+    logger("info", reqId, "instagram_published", {
+      mediaId: result.mediaId,
+      rowId: sanitizeLogValue(rowId),
+      mediaType,
+    });
+
+    return json(res, 200, {
+      ok: true,
+      mediaId: result.mediaId,
+      permalink: null,
+    });
+  } catch (error) {
+    logger("error", reqId, "instagram_publish_failed", {
+      error: sanitizeLogValue(error.message),
+      rowId: sanitizeLogValue(rowId),
+      mediaType,
+    });
+
+    if (/expired|invalid|OAuth/i.test(error.message)) {
+      clearCookie(res, IG_SESSION_COOKIE, env, req);
+      return errorJson(res, 401, "IG_TOKEN_EXPIRED", "Instagram session expired. Please reconnect.");
+    }
+
+    return errorJson(res, 502, "IG_PUBLISH_FAILED", error.message || "Instagram publish failed");
+  }
+}
+
 async function handleStudioDocumentGet(req, res, env, reqId) {
   const auth = requireRequestAuth(req, res, env);
   if (!auth) {
@@ -818,6 +924,26 @@ export async function handleApiRequest(req, res, overrides = {}) {
       return await handleInstagramPosts(req, res, env, reqId);
     } finally {
       endTimer({ reqId, route: "/api/ig-posts", status: res.statusCode });
+    }
+  }
+
+  if (url.pathname === "/api/ig-publish") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "POST, OPTIONS");
+      res.end();
+      endTimer({ reqId, status: 405, route: "/api/ig-publish" });
+      return;
+    }
+
+    const auth = requireRequestAuth(req, res, env);
+    if (!auth) { endTimer({ reqId, status: 401, route: "/api/ig-publish" }); return; }
+    if (!checkRateLimit(res, auth.userId, "ig-publish:POST", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-publish" }); return; }
+
+    try {
+      return await handleInstagramPublish(req, res, env, reqId, auth);
+    } finally {
+      endTimer({ reqId, route: "/api/ig-publish", method: "POST", status: res.statusCode });
     }
   }
 
