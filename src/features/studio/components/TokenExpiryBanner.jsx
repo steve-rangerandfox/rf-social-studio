@@ -19,7 +19,7 @@ export function TokenExpiryBanner({ igConfig, onRefresh, onDismiss }) {
       background: bg, color:'#fff',
       padding:'8px 20px', fontSize:12.5, fontWeight:500,
       display:'flex', alignItems:'center', gap:12,
-      fontFamily:"'Inter',sans-serif",
+      fontFamily:'"Oakes Grotesk", system-ui, sans-serif',
     }}>
       <span style={{flex:1}}>{msg}</span>
       {!expired && (

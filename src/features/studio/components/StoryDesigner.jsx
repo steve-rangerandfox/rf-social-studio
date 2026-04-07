@@ -994,7 +994,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                     {[
                       { label:"Heading", fontSize:28, fontWeight:700, fontFamily:"Bricolage Grotesque" },
                       { label:"Subheading", fontSize:18, fontWeight:600, fontFamily:"Bricolage Grotesque" },
-                      { label:"Body", fontSize:13, fontWeight:400, fontFamily:"Inter" },
+                      { label:"Body", fontSize:13, fontWeight:400, fontFamily:"Oakes Grotesk" },
                       { label:"Label", fontSize:10, fontWeight:600, fontFamily:"JetBrains Mono", letterSpacing:2 },
                     ].map(preset => (
                       <button key={preset.label}
