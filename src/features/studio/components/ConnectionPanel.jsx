@@ -10,11 +10,23 @@ import { T } from "../shared.js";
 
 const IG_ICON = <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>;
 
+// Friendly labels for missing env vars in setup errors
+const ENV_LABELS = {
+  fbAppId: "FB_APP_ID",
+  fbAppSecret: "FB_APP_SECRET",
+  fbRedirectUri: "FB_REDIRECT_URI",
+  sessionSecret: "SESSION_SECRET",
+  sessionExpiresAt: "SESSION_SECRET",
+  igAppId: "FB_APP_ID",
+  igAppSecret: "FB_APP_SECRET",
+};
+
 function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) {
   const [phase, setPhase] = useState("idle"); // "idle" | "connecting" | "selecting" | "connected"
   const [pages, setPages] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
+  const [setupDetails, setSetupDetails] = useState(null); // { missing: [...], reason: string }
 
   const isConnected = !!igConfig?.username;
   const connecting = phase === "connecting";
@@ -36,6 +48,7 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
 
   const startOAuth = async () => {
     setError("");
+    setSetupDetails(null);
     setPhase("connecting");
 
     let authorizeUrl;
@@ -43,7 +56,22 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
       const data = await getInstagramAuthorizeUrl();
       authorizeUrl = data.authorizeUrl;
     } catch (e) {
-      setError(e.message || "Couldn't start the connection");
+      // Surface server-side configuration issues clearly so the user can self-diagnose
+      const code = e.body?.code || "";
+      const missing = e.body?.missing || [];
+      if (code === "SERVER_ERROR" && missing.length > 0) {
+        const labels = [...new Set(missing.map((k) => ENV_LABELS[k] || k))];
+        setSetupDetails({ missing: labels, reason: e.message });
+        setError("");
+      } else if (code === "SERVER_ERROR" && /redirect/i.test(e.message || "")) {
+        setSetupDetails({
+          missing: ["FB_REDIRECT_URI"],
+          reason: e.message,
+        });
+        setError("");
+      } else {
+        setError(e.message || "Couldn't start the connection");
+      }
       setPhase("idle");
       return;
     }
@@ -248,6 +276,22 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
           </li>
         </ol>
       </div>
+      {setupDetails && (
+        <div className="cp-setup-error" role="alert">
+          <div className="cp-setup-error-title">Server isn't configured yet</div>
+          <div className="cp-setup-error-body">
+            Your Vercel deployment is missing {setupDetails.missing.length === 1 ? "this environment variable" : "these environment variables"}:
+          </div>
+          <ul className="cp-setup-error-list">
+            {setupDetails.missing.map((name) => (
+              <li key={name}><code>{name}</code></li>
+            ))}
+          </ul>
+          <div className="cp-setup-error-help">
+            Set them in <strong>Vercel → Settings → Environment Variables</strong>, then redeploy. See <code>.env.example</code> for the full setup guide.
+          </div>
+        </div>
+      )}
       {error && <div className="cp-error" style={{padding:"0 0 10px"}}>{error}</div>}
       <button className="cp-ig-btn" onClick={startOAuth} disabled={connecting}>
         {connecting
