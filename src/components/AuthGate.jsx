@@ -58,8 +58,8 @@ const AUTH_STYLES = `
   width:38px;
   height:38px;
   border-radius:50%;
-  background:linear-gradient(135deg, #111111 0%, #ff7a00 30%, #f0b24d 52%, #d99bff 76%, #82c7ff 100%);
-  color:#181714;
+  background:#181714;
+  color:#FBFAF6;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -107,7 +107,7 @@ const AUTH_STYLES = `
   width:6px;
   height:6px;
   border-radius:50%;
-  background:linear-gradient(135deg, #ff7a00, #82c7ff);
+  background:#FF7A00;
 }
 
 .auth-title{
@@ -125,50 +125,42 @@ const AUTH_STYLES = `
   font:400 17px/1.7 "Switzer", system-ui, sans-serif;
 }
 
-.auth-metrics{
+.auth-features{
+  margin-top:32px;
+  max-width:480px;
+}
+
+.auth-features-list{
+  list-style:none;
+  padding:0;
+  margin:0;
   display:flex;
-  gap:12px;
-  flex-wrap:wrap;
-  margin-top:28px;
+  flex-direction:column;
+  gap:16px;
 }
 
-.auth-metric{
-  min-width:132px;
-  padding:14px 16px;
-  border:1px solid rgba(24,23,20,0.1);
-  border-radius:18px;
-  background:linear-gradient(180deg, rgba(255,255,255,0.84), rgba(251,250,246,0.76));
-  backdrop-filter:blur(12px);
-  box-shadow:0 10px 24px rgba(24,23,20,0.05);
+.auth-features-list li{
+  font:400 15px/1.6 "Switzer", system-ui, sans-serif;
+  color:#5e584f;
+  padding-left:20px;
   position:relative;
-  overflow:hidden;
 }
 
-.auth-metric::before{
+.auth-features-list li::before{
   content:"";
   position:absolute;
-  left:14px;
-  right:14px;
-  top:0;
-  height:3px;
-  border-radius:999px;
-  background:linear-gradient(90deg, rgba(255,122,0,0.82), rgba(240,178,77,0.7), rgba(217,155,255,0.62), rgba(130,199,255,0.7));
+  left:0;
+  top:11px;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#181714;
 }
 
-.auth-metric strong{
-  display:block;
-  font:800 25px/0.96 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.05em;
-  color:#111111;
-}
-
-.auth-metric span{
-  display:block;
-  margin-top:7px;
-  color:#8b8377;
-  font:500 10px/1.4 "JetBrains Mono", monospace;
-  letter-spacing:0.12em;
-  text-transform:uppercase;
+.auth-features-list li strong{
+  color:#181714;
+  font-weight:600;
+  font-family:"Switzer", system-ui, sans-serif;
 }
 
 .auth-footnote{
@@ -195,8 +187,7 @@ const AUTH_STYLES = `
   background:
     linear-gradient(135deg, rgba(255,255,255,0.7), rgba(240,234,225,0.72)),
     radial-gradient(circle at 16% 12%, rgba(255,122,0,0.14), transparent 24%),
-    radial-gradient(circle at 88% 14%, rgba(130,199,255,0.18), transparent 22%),
-    repeating-linear-gradient(-45deg, rgba(24,23,20,0.02) 0, rgba(24,23,20,0.02) 10px, transparent 10px, transparent 20px);
+    radial-gradient(circle at 88% 14%, rgba(130,199,255,0.18), transparent 22%);
   border:1px solid rgba(24,23,20,0.06);
   box-shadow:0 24px 80px rgba(24,23,20,0.08);
 }
@@ -205,17 +196,6 @@ const AUTH_STYLES = `
   position:relative;
   z-index:1;
   width:min(100%, 460px);
-}
-
-.auth-card-wrap::before{
-  content:"";
-  position:absolute;
-  inset:-16px;
-  border-radius:32px;
-  background:linear-gradient(135deg, rgba(255,122,0,0.12), rgba(240,178,77,0.08), rgba(217,155,255,0.08), rgba(130,199,255,0.12));
-  filter:blur(18px);
-  z-index:-1;
-  pointer-events:none;
 }
 
 @media (max-width: 980px){
@@ -425,19 +405,12 @@ export function AuthGate() {
                 Review the queue, shape story assets, and keep approvals moving in a workspace that feels
                 considered from the first screen to the final post.
               </p>
-              <div className="auth-metrics">
-                <div className="auth-metric">
-                  <strong>One place</strong>
-                  <span>Calendar, grid, assets</span>
-                </div>
-                <div className="auth-metric">
-                  <strong>Low-noise</strong>
-                  <span>Editorial rhythm</span>
-                </div>
-                <div className="auth-metric">
-                  <strong>Team ready</strong>
-                  <span>Comments, status, ownership</span>
-                </div>
+              <div className="auth-features">
+                <ul className="auth-features-list">
+                  <li><strong>One workspace.</strong> Calendar, grid, story design, asset library.</li>
+                  <li><strong>Low-noise UX.</strong> Editorial rhythm — calm by default, dense when you need it.</li>
+                  <li><strong>Team ready.</strong> Comments, approval flow, ownership tracking.</li>
+                </ul>
               </div>
             </div>
 

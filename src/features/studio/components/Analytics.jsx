@@ -21,7 +21,6 @@ export function Analytics({ rows }) {
   const now = new Date();
   const activeRows = rows.filter((row) => !row.deletedAt);
   const total = activeRows.length;
-  const posted = activeRows.filter((row) => row.status === "posted").length;
   const ready = activeRows.filter((row) => row.status === "approved" || row.status === "scheduled").length;
   const needsAttention = activeRows.filter((row) => isRowNeedingAttention(row)).length;
   const approvalQueue = activeRows
@@ -32,7 +31,15 @@ export function Analytics({ rows }) {
     .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
   const recentActivity = [...activeRows]
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
-    .slice(0, 6);
+    .slice(0, 8);
+
+  const upcomingCoverageDays = new Set(
+    upcoming
+      .slice(0, 14)
+      .map((row) => row.scheduledAt && new Date(row.scheduledAt).toISOString().slice(0, 10))
+      .filter(Boolean),
+  ).size;
+
   const monthSeries = Array.from({ length: 6 }, (_, offset) => {
     const cursor = new Date(now.getFullYear(), now.getMonth() - (5 - offset), 1);
     const label = MONTHS_SHORT[cursor.getMonth()];
@@ -51,143 +58,88 @@ export function Analytics({ rows }) {
     };
   });
   const maxBar = Math.max(...monthSeries.map((point) => point.ig + point.li), 1);
-  const upcomingCoverageDays = new Set(
-    upcoming
-      .slice(0, 14)
-      .map((row) => row.scheduledAt && new Date(row.scheduledAt).toISOString().slice(0, 10))
-      .filter(Boolean),
-  ).size;
-  const platformMix = [
-    { key: "Instagram", value: activeRows.filter((row) => row.platform.startsWith("ig")).length },
-    { key: "LinkedIn", value: activeRows.filter((row) => row.platform === "linkedin").length },
-  ];
-  const maxPlatform = Math.max(...platformMix.map((item) => item.value), 1);
-  const statusMix = Object.entries(STATUSES).map(([status, meta]) => ({
-    key: meta.label,
-    value: activeRows.filter((row) => row.status === status).length,
-    color: meta.dot,
-  }));
-  const maxStatus = Math.max(...statusMix.map((item) => item.value), 1);
 
   return (
     <div className="analytics-area">
-      <div className="analytics-grid">
-        <div className="an-card">
-          <div className="an-title">Workflow Health</div>
-          <div className="an-big">{total}</div>
-          <div className="an-sub">Posts in the active planning system</div>
-          <div className="an-inline-stats">
-            {[["Ready", ready], ["Needs attention", needsAttention], ["Posted", posted]].map(([label, value]) => (
-              <div key={label} className="an-inline-stat">
-                <span>{label}</span>
-                <strong>{value}</strong>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="analytics-hero">
+        <h2 className="analytics-hero-title">
+          {total} {total === 1 ? "post" : "posts"} in the queue.
+        </h2>
+        <p className="analytics-hero-sub">
+          {ready} ready to ship. {needsAttention > 0 && <>{needsAttention} need attention. </>}
+          Schedule covers {upcomingCoverageDays} of the next 14 days.
+        </p>
+      </div>
 
-        <div className="an-card">
-          <div className="an-title">Schedule Coverage</div>
-          <div className="an-big">{upcomingCoverageDays}/14</div>
-          <div className="an-sub">Days covered in the next two weeks</div>
-          <div className="an-inline-stats">
-            <div className="an-inline-stat">
-              <span>Upcoming posts</span>
-              <strong>{upcoming.length}</strong>
-            </div>
-            <div className="an-inline-stat">
-              <span>Approved or scheduled</span>
-              <strong>{ready}</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="an-card">
-          <div className="an-title">Trust Signal</div>
-          <div className="an-big" style={{ fontSize: 22, lineHeight: 1.15 }}>Operational only</div>
-          <div className="an-sub">
-            Performance analytics stay intentionally quiet until real platform reporting is connected.
-          </div>
-        </div>
-
-        <div className="an-card wide">
-          <div className="an-title">Publishing Volume</div>
-          <div className="chart-bars">{monthSeries.map((point, i) => (
-            <div key={i} className="chart-bar-wrap">
-              <div style={{display:"flex",flexDirection:"column",justifyContent:"flex-end",gap:1,flex:1,width:"100%"}}>
-                <div className="chart-bar" style={{height:`${(point.li/maxBar)*100}%`,background:T.blue,minHeight:3}}/>
-                <div className="chart-bar" style={{height:`${(point.ig/maxBar)*100}%`,background:T.pink,minHeight:3}}/>
+      <section className="analytics-section">
+        <h3 className="analytics-section-title">Publishing volume</h3>
+        <div className="analytics-chart">
+          {monthSeries.map((point, i) => (
+            <div key={i} className="analytics-chart-col">
+              <div className="analytics-chart-bars">
+                {point.li > 0 && (
+                  <div
+                    className="analytics-chart-bar analytics-chart-bar-li"
+                    style={{ height: `${(point.li / maxBar) * 100}%` }}
+                    title={`${point.li} LinkedIn posts`}
+                  />
+                )}
+                {point.ig > 0 && (
+                  <div
+                    className="analytics-chart-bar analytics-chart-bar-ig"
+                    style={{ height: `${(point.ig / maxBar) * 100}%` }}
+                    title={`${point.ig} Instagram posts`}
+                  />
+                )}
               </div>
-              <div className="chart-bar-label">{point.label}</div>
-            </div>
-          ))}</div>
-          <div style={{display:"flex",gap:14,marginTop:10}}>{[{c:T.pink,l:"Instagram"},{c:T.blue,l:"LinkedIn"}].map(x=><div key={x.l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSub}}><div style={{width:8,height:8,borderRadius:2,background:x.c}}/>{x.l}</div>)}</div>
-        </div>
-
-        <div className="an-card">
-          <div className="an-title">Platform Mix</div>
-          {platformMix.map((item) => (
-            <div key={item.key} className="bar-row">
-              <span className="bar-label">{item.key}</span>
-              <div className="bar-track">
-                <div className="bar-fill" style={{ width: `${(item.value / maxPlatform) * 100}%`, background: item.key === "Instagram" ? T.pink : T.blue }} />
-              </div>
-              <span className="bar-val">{item.value}</span>
-            </div>
-          ))}
-          <div style={{height:12}} />
-          <div className="an-title">Status Mix</div>
-          {statusMix.map((item) => (
-            <div key={item.key} className="bar-row">
-              <span className="bar-label">{item.key}</span>
-              <div className="bar-track">
-                <div className="bar-fill" style={{ width: `${(item.value / maxStatus) * 100}%`, background: item.color }} />
-              </div>
-              <span className="bar-val">{item.value}</span>
+              <div className="analytics-chart-label">{point.label}</div>
             </div>
           ))}
         </div>
+        <div className="analytics-chart-legend">
+          <span><span className="analytics-chart-dot" style={{ background: T.pink }} /> Instagram</span>
+          <span><span className="analytics-chart-dot" style={{ background: T.blue }} /> LinkedIn</span>
+        </div>
+      </section>
 
-        <div className="an-card">
-          <div className="an-title">Needs Approval</div>
-          <div className="an-list">
-            {approvalQueue.length === 0 && <div className="an-empty-note">No posts are waiting for approval right now.</div>}
+      <section className="analytics-section">
+        <h3 className="analytics-section-title">Awaiting approval</h3>
+        {approvalQueue.length === 0 ? (
+          <p className="analytics-empty">Nothing waiting for approval.</p>
+        ) : (
+          <ul className="analytics-list">
             {approvalQueue.slice(0, 6).map((row) => (
-              <div key={row.id} className="an-list-row">
-                <div>
-                  <div className="perf-note">{row.note || "Untitled post"}</div>
-                  <div className="an-list-meta">{STATUSES[row.status]?.label} • {formatRelativeStamp(row.updatedAt)}</div>
-                </div>
-                <span className="perf-plat" style={{ background: PLATFORMS[row.platform].bg, color: PLATFORMS[row.platform].color }}>
+              <li key={row.id} className="analytics-list-item">
+                <span className="analytics-list-title">{row.note || "Untitled post"}</span>
+                <span className="analytics-list-meta">
+                  {STATUSES[row.status]?.label} · {formatRelativeStamp(row.updatedAt)}
+                </span>
+                <span className="analytics-list-platform" style={{ background: PLATFORMS[row.platform].bg, color: PLATFORMS[row.platform].color }}>
                   {PLATFORMS[row.platform].short}
                 </span>
-              </div>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        )}
+      </section>
 
-        <div className="an-card full">
-          <div className="an-title">Recent Activity</div>
-          <div className="an-list">
-            {recentActivity.map((row) => (
-              <div key={row.id} className="an-list-row">
-                <div>
-                  <div className="perf-note">{row.note || "Untitled post"}</div>
-                  <div className="an-list-meta">
-                    Updated {formatRelativeStamp(row.updatedAt)} • v{row.version || 1} • {TEAM.find((member) => member.id === row.updatedBy)?.name || row.updatedBy || "Studio"}
-                  </div>
-                </div>
-                <div className="an-list-trailing">
-                  <span className="perf-plat" style={{ background: PLATFORMS[row.platform].bg, color: PLATFORMS[row.platform].color }}>
-                    {PLATFORMS[row.platform].short}
-                  </span>
-                  <span className="an-status-text">{STATUSES[row.status]?.label}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <section className="analytics-section">
+        <h3 className="analytics-section-title">Recent activity</h3>
+        <ul className="analytics-list">
+          {recentActivity.map((row) => (
+            <li key={row.id} className="analytics-list-item">
+              <span className="analytics-list-title">{row.note || "Untitled post"}</span>
+              <span className="analytics-list-meta">
+                Updated {formatRelativeStamp(row.updatedAt)} · v{row.version || 1} · {TEAM.find((member) => member.id === row.updatedBy)?.name || row.updatedBy || "Studio"}
+              </span>
+              <span className="analytics-list-platform" style={{ background: PLATFORMS[row.platform].bg, color: PLATFORMS[row.platform].color }}>
+                {PLATFORMS[row.platform].short}
+              </span>
+              <span className="analytics-list-status">{STATUSES[row.status]?.label}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }
