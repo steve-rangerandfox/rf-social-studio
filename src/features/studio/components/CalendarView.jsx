@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useStudio } from "../StudioContext.jsx";
 import {
   MONTHS_FULL,
   PLATFORMS,
@@ -9,12 +10,14 @@ import {
 } from "../shared.js";
 
 export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay, onSelectRow }) {
+  const { createPostForDate } = useStudio();
   const [calMonth, setCalMonth] = useState(initMonth);
   const [calYear,  setCalYear]  = useState(initYear);
   const [selectedDay, setSelectedDay] = useState(() => {
     const today = new Date();
     return today.getMonth() === initMonth && today.getFullYear() === initYear ? today.getDate() : 1;
   });
+  const [inlineDay, setInlineDay] = useState(null);
 
   const prevMonth = () => { if(calMonth===0){setCalMonth(11);setCalYear(y=>y-1);}else setCalMonth(m=>m-1); };
   const nextMonth = () => { if(calMonth===11){setCalMonth(0);setCalYear(y=>y+1);}else setCalMonth(m=>m+1); };
@@ -100,7 +103,16 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
                       })}
                       {count > 4 && <div className="cal-more">+{count - 4} more</div>}
                     </div>
-                    <div className="cal-add"><button className="cal-add-btn" onClick={(event)=>{event.stopPropagation();setSelectedDay(d);onAddDay(d, calMonth, calYear);}}><Plus size={12}/></button></div>
+                    {inlineDay?.day === d && inlineDay?.month === calMonth && inlineDay?.year === calYear && (
+                      <CalInlineCreate
+                        onCommit={(title) => {
+                          createPostForDate(new Date(calYear, calMonth, d, 9, 0), title);
+                          setInlineDay(null);
+                        }}
+                        onCancel={() => setInlineDay(null)}
+                      />
+                    )}
+                    <div className="cal-add"><button className="cal-add-btn" onClick={(event)=>{event.stopPropagation();setSelectedDay(d);setInlineDay({ day: d, month: calMonth, year: calYear });}}><Plus size={12}/></button></div>
                   </>}
                 </div>
               );
@@ -142,6 +154,42 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+function CalInlineCreate({ onCommit, onCancel }) {
+  const inputRef = useRef(null);
+  useEffect(() => {
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      const value = inputRef.current?.value || "";
+      if (value.trim()) onCommit(value);
+      else onCancel();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onCancel();
+    }
+  };
+
+  return (
+    <div className="cal-inline-create" onClick={(e) => e.stopPropagation()}>
+      <input
+        ref={inputRef}
+        className="cal-inline-create-input"
+        placeholder="What are you planning?"
+        onKeyDown={handleKeyDown}
+        onBlur={(e) => {
+          if (!e.target.value.trim()) onCancel();
+        }}
+      />
     </div>
   );
 }

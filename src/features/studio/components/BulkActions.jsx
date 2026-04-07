@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useStudio } from "../StudioContext.jsx";
 import { PLATFORMS, STATUSES } from "../shared.js";
 
@@ -12,10 +12,35 @@ export function BulkActions() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const cancelTimerRef = useRef(null);
+
+  // Auto-cancel confirm after 5 seconds
+  useEffect(() => {
+    if (!confirmingDelete) return;
+    cancelTimerRef.current = setTimeout(() => setConfirmingDelete(false), 5000);
+    return () => clearTimeout(cancelTimerRef.current);
+  }, [confirmingDelete]);
+
+  // Reset confirm state if selection changes
+  useEffect(() => { setConfirmingDelete(false); }, [sel.size]);
 
   if (sel.size === 0) return null;
 
   const closeAll = () => { setStatusOpen(false); setPlatformOpen(false); setAssigneeOpen(false); };
+
+  const handleDeleteClick = () => {
+    if (sel.size > 5) {
+      setConfirmingDelete(true);
+    } else {
+      bulkDel();
+    }
+  };
+
+  const handleConfirm = () => {
+    setConfirmingDelete(false);
+    bulkDel();
+  };
 
   return (
     <div className="bulk">
@@ -99,7 +124,21 @@ export function BulkActions() {
       </div>
 
       <button className="btn btn-ghost bulk-action-btn" onClick={() => setSel(new Set())}>Deselect</button>
-      <button className="btn btn-danger bulk-action-btn" onClick={bulkDel}>Delete</button>
+      {confirmingDelete ? (
+        <div className="bulk-confirm-inline" role="alert">
+          <span className="bulk-confirm-text">Delete {sel.size} posts?</span>
+          <button className="btn btn-danger bulk-action-btn" onClick={handleConfirm}>
+            Confirm
+          </button>
+          <button className="btn btn-ghost bulk-action-btn" onClick={() => setConfirmingDelete(false)}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button className="btn btn-danger bulk-action-btn" onClick={handleDeleteClick}>
+          Delete
+        </button>
+      )}
     </div>
   );
 }

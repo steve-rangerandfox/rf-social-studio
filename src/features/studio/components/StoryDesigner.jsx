@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, Check, Plus, Minus, RotateCcw, RotateCw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, Image as ImageIcon, Film, Wallpaper, Layers, LayoutTemplate, Sparkles, PanelLeftClose, Sliders, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, Download } from "lucide-react";
 import { CanvasElement, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
+import { StoryDesignerTour } from "./StoryDesignerTour.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
 
@@ -1420,6 +1421,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
 
           </div>
         </div>
+        <StoryDesignerTour />
       </div>
     </div>
   );

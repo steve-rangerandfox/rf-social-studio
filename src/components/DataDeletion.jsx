@@ -4,7 +4,7 @@ export function DataDeletion() {
   return (
     <div style={{
       maxWidth: 720, margin: "0 auto", padding: "48px 24px",
-      fontFamily: '"Switzer", system-ui, sans-serif', color: "#181714",
+      fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif', color: "#181714",
       lineHeight: 1.7, fontSize: 15,
     }}>
       <h1 style={{

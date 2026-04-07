@@ -471,6 +471,22 @@ export function StudioProvider({ children }) {
     setPendingDelete(null);
   }, [currentUser, pendingDelete, updateDocument]);
 
+  const createPostForDate = useCallback((dateObj, title) => {
+    const trimmed = (title || "").trim();
+    if (!trimmed) return;
+    const targetYear = dateObj.getFullYear();
+    const targetMonth = dateObj.getMonth();
+    const day = dateObj.getDate();
+    const iso = ptPickerToISO(targetYear, targetMonth, day, 9, 0);
+    updateDocument(
+      (current) => ({
+        ...current,
+        rows: [...current.rows, createNewRow({ scheduledAt: iso, note: trimmed, platform: "ig_post" }, currentUser, current.rows.length)],
+      }),
+      () => createAuditEntry("post.created", currentUser, "Created a post on a calendar day", { scheduledAt: iso, title: trimmed }),
+    );
+  }, [currentUser, updateDocument]);
+
   const createPostDraft = ({ title, dateValue, timeValue, platform }) => {
     const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
     const [hour, minute] = timeValue.split(":").map(Number);
@@ -784,7 +800,7 @@ export function StudioProvider({ children }) {
     toggleSel, toggleAll, bulkDel,
     bulkSetStatus, bulkSetPlatform, bulkSetAssignee,
     toggleOC, addComment,
-    createPostDraft, add,
+    createPostDraft, createPostForDate, add,
     commitReorder, jumpToMonth, jumpToStatsFilter,
     handleTokenRefresh,
     makeDrag,

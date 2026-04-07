@@ -70,7 +70,7 @@ const AUTH_STYLES = `
 
 .auth-mark-copy strong{
   display:block;
-  font:600 14px/1.2 "Switzer", system-ui, sans-serif;
+  font:600 14px/1.2 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
   letter-spacing:-0.02em;
 }
 
@@ -122,7 +122,7 @@ const AUTH_STYLES = `
   margin-top:20px;
   max-width:470px;
   color:#5e584f;
-  font:400 17px/1.7 "Switzer", system-ui, sans-serif;
+  font:400 17px/1.7 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
 .auth-features{
@@ -140,7 +140,7 @@ const AUTH_STYLES = `
 }
 
 .auth-features-list li{
-  font:400 15px/1.6 "Switzer", system-ui, sans-serif;
+  font:400 15px/1.6 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
   color:#5e584f;
   padding-left:20px;
   position:relative;
@@ -160,7 +160,7 @@ const AUTH_STYLES = `
 .auth-features-list li strong{
   color:#181714;
   font-weight:600;
-  font-family:"Switzer", system-ui, sans-serif;
+  font-family:"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
 .auth-footnote{
@@ -168,7 +168,7 @@ const AUTH_STYLES = `
   z-index:1;
   max-width:420px;
   color:#8b8377;
-  font:400 12px/1.7 "Switzer", system-ui, sans-serif;
+  font:400 12px/1.7 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
 .auth-stage{
@@ -248,7 +248,7 @@ const signInAppearance = {
     colorInputBackground: "#F7F4EE",
     colorInputText: "#181714",
     borderRadius: "18px",
-    fontFamily: '"Switzer", system-ui, sans-serif',
+    fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif',
   },
   elements: {
     rootBox: {

@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component {
           height: "100vh",
           gap: 16,
           padding: 32,
-          fontFamily: '"Switzer", system-ui, sans-serif',
+          fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif',
           background: "#F7F8FA",
           color: "#111318",
         }}
