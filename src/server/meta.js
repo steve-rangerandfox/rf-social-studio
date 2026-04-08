@@ -5,12 +5,17 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 // Permissions required for the Instagram Graph API integration.
 // User must approve all of these for publishing to work.
+//
+// Note: business_management was removed because Meta no longer accepts it
+// as a standalone scope in the OAuth dialog — it's been folded into
+// pages_show_list / pages_read_engagement and the business asset management
+// permissions in the Business Login flow. Requesting it now causes the
+// authorize call to fail with "Invalid Scopes".
 export const FB_OAUTH_SCOPES = [
   "instagram_basic",
   "instagram_content_publish",
   "pages_show_list",
   "pages_read_engagement",
-  "business_management",
 ].join(",");
 
 // Build the Facebook OAuth authorize URL.
