@@ -3,33 +3,18 @@ import crypto from "node:crypto";
 export const IG_SESSION_COOKIE = "rf_ig_session";
 export const IG_OAUTH_STATE_COOKIE = "rf_ig_oauth_state";
 
-// Cookie name for storing the temporary list of Pages the user can choose from
-// during the multi-step Page selection flow (after OAuth, before final commit).
-export const IG_PENDING_PAGES_COOKIE = "rf_ig_pending_pages";
-
-// Schema documentation for IG_SESSION_COOKIE payload after Graph API migration:
+// Schema documentation for IG_SESSION_COOKIE payload (Instagram Login flow):
 //
 // {
-//   ownerUserId: string,         // Clerk user ID — for ownership check
-//   fbUserId: string,            // Facebook user ID
-//   fbUserToken: string,         // Long-lived Facebook user token (60 days)
-//   pageId: string,              // Selected Facebook Page ID
-//   pageName: string,            // Page display name
-//   pageToken: string,           // Page-scoped token (does not expire)
-//   igBusinessAccountId: string, // Instagram Business Account ID
-//   igUsername: string,          // Instagram handle (no @)
-//   expiresAt: number,           // FB user token expiry (ms epoch)
-//   connectedAt: number,         // When the connection was first established
-// }
-//
-// Schema for IG_PENDING_PAGES_COOKIE payload (short-lived, 10 min):
-//
-// {
-//   ownerUserId: string,         // Clerk user ID
-//   fbUserId: string,
-//   fbUserToken: string,
-//   pages: Array<{ pageId, pageName, pageToken, igBusinessAccountId, igUsername }>,
-//   expiresAt: number,
+//   ownerUserId: string,          // Clerk user ID — for ownership check
+//   igUserId: string,             // Instagram user ID
+//   igUserToken: string,          // Long-lived Instagram user token (60 days)
+//   igUsername: string,           // Instagram handle (no @)
+//   igAccountType: string,        // "BUSINESS" | "MEDIA_CREATOR"
+//   igProfilePictureUrl: string,  // Profile picture URL
+//   igMediaCount: number,         // Post count at time of connection
+//   expiresAt: number,            // IG user token expiry (ms epoch)
+//   connectedAt: number,          // When the connection was first established
 // }
 
 function base64UrlEncode(buffer) {

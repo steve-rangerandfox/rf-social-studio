@@ -18,12 +18,15 @@ export function loadServerEnv(source = process.env) {
       : DEFAULT_ALLOWED_ORIGINS,
   );
 
-  // Facebook Login + Instagram Graph API credentials.
-  // FB_APP_ID/FB_APP_SECRET are the canonical names; legacy IG_APP_ID/IG_APP_SECRET
-  // are accepted as fallbacks during migration.
+  // Instagram API with Instagram Login credentials.
+  // FB_APP_ID/FB_APP_SECRET hold the Instagram App ID and Secret from the
+  // "Instagram API with Instagram Login" product in Meta's app dashboard
+  // (NOT the main Meta App credentials — use the ones under that product config).
+  // Legacy IG_APP_ID/IG_APP_SECRET are accepted as fallbacks.
   const fbAppId = source.FB_APP_ID || source.IG_APP_ID || "";
   const fbAppSecret = source.FB_APP_SECRET || source.IG_APP_SECRET || "";
-  const fbRedirectUri = source.FB_REDIRECT_URI || "";
+  // FB_REDIRECT_URI / IG_REDIRECT_URI both map to the same canonical redirect URL.
+  const fbRedirectUri = source.FB_REDIRECT_URI || source.IG_REDIRECT_URI || "";
 
   return {
     nodeEnv: source.NODE_ENV || "development",

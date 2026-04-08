@@ -4,7 +4,6 @@ import {
   exchangeInstagramCode,
   fetchInstagramFeed,
   getInstagramAuthorizeUrl,
-  selectInstagramPage,
 } from "../../../lib/api-client.js";
 import { T } from "../shared.js";
 
@@ -22,29 +21,13 @@ const ENV_LABELS = {
 };
 
 function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) {
-  const [phase, setPhase] = useState("idle"); // "idle" | "connecting" | "selecting" | "connected"
-  const [pages, setPages] = useState([]);
+  const [phase, setPhase] = useState("idle"); // "idle" | "connecting" | "connected"
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
   const [setupDetails, setSetupDetails] = useState(null); // { missing: [...], reason: string }
 
   const isConnected = !!igConfig?.username;
   const connecting = phase === "connecting";
-
-  const selectPage = async (pageId) => {
-    setPhase("connecting");
-    try {
-      const result = await selectInstagramPage(pageId);
-      onSave(result.account);
-      const feed = await fetchInstagramFeed();
-      onMediaSync(feed);
-      setPhase("connected");
-      setPages([]);
-    } catch (e) {
-      setError(e.message || "Couldn't select that account");
-      setPhase("selecting");
-    }
-  };
 
   const startOAuth = async () => {
     setError("");
@@ -107,20 +90,10 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
           code: event.data.code,
           state: event.data.state,
         });
-        const pageList = result.pages || [];
-
-        if (pageList.length === 0) {
-          setError("No Instagram Business accounts found on your Facebook Pages.");
-          setPhase("idle");
-          return;
-        }
-
-        if (pageList.length === 1) {
-          await selectPage(pageList[0].pageId);
-        } else {
-          setPages(pageList);
-          setPhase("selecting");
-        }
+        onSave(result.account);
+        const feed = await fetchInstagramFeed();
+        onMediaSync(feed);
+        setPhase("connected");
       } catch (e) {
         const msg = e.body?.error || e.message || "Connection failed";
         setError(msg);
@@ -150,42 +123,6 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
   const mediaCount = igMedia?.data?.length || 0;
   const syncedAt   = igMedia?._syncedAt ? new Date(igMedia._syncedAt).toLocaleString([], {month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : null;
 
-  if (phase === "selecting") {
-    return (
-      <>
-        <div className="cp-status-row">
-          <div className="cp-status-dot cp-dot-disconnected"/>
-          <span className="cp-status-text">Choose an Instagram account</span>
-        </div>
-        {error && <div className="cp-error">{error}</div>}
-        <div className="cp-page-picker">
-          <div className="cp-section-title">Choose an account</div>
-          <div className="cp-page-list">
-            {pages.map((page) => (
-              <button
-                key={page.pageId}
-                className="cp-page-card"
-                onClick={() => selectPage(page.pageId)}
-              >
-                {page.igAvatarUrl ? (
-                  <img src={page.igAvatarUrl} alt="" className="cp-page-avatar" />
-                ) : (
-                  <div className="cp-page-avatar cp-ig-avatar">
-                    {page.igUsername?.[0]?.toUpperCase() || "I"}
-                  </div>
-                )}
-                <div className="cp-page-meta">
-                  <div className="cp-page-handle">@{page.igUsername}</div>
-                  <div className="cp-page-name">{page.pageName}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </>
-    );
-  }
-
   if (isConnected) {
     return (
       <>
@@ -204,7 +141,6 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
           )}
           <div>
             <div className="cp-handle">@{igConfig.username}</div>
-            {igConfig.pageName && <div className="cp-page-name">{igConfig.pageName}</div>}
             <div className="cp-meta">Instagram · {igConfig.mediaCount || mediaCount} posts</div>
           </div>
         </div>
@@ -249,11 +185,11 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
       <div className="cp-status-row">
         <div className="cp-status-dot cp-dot-disconnected"/>
         <span className="cp-status-text cp-text-dim">
-          {connecting ? "Waiting for Facebook…" : "Not connected"}
+          {connecting ? "Waiting for Instagram…" : "Not connected"}
         </span>
       </div>
       <div className="cp-description">
-        Connect your Instagram Business or Creator account by authorizing through Facebook. You'll pick which linked Page to use.
+        Connect your Instagram Business or Creator account directly with Instagram Login.
       </div>
       <div className="cp-requirements">
         <div className="cp-section-title">Before you connect</div>
@@ -266,13 +202,7 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
           </li>
           <li>
             <span className="cp-req-num">2</span>
-            <span>Link it to a <strong>Facebook Page</strong> you manage
-              <a href="https://www.facebook.com/business/help/connect-instagram-to-page" target="_blank" rel="noopener noreferrer" className="cp-req-link">How? {"\u2197"}</a>
-            </span>
-          </li>
-          <li>
-            <span className="cp-req-num">3</span>
-            <span>Authorize this studio through Facebook</span>
+            <span>Authorize this studio with your Instagram credentials</span>
           </li>
         </ol>
       </div>
@@ -295,7 +225,7 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
       {error && <div className="cp-error" style={{padding:"0 0 10px"}}>{error}</div>}
       <button className="cp-ig-btn" onClick={startOAuth} disabled={connecting}>
         {connecting
-          ? "Waiting for Facebook…"
+          ? "Waiting for Instagram…"
           : <>{IG_ICON} Connect Instagram</>
         }
       </button>

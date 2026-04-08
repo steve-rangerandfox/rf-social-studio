@@ -131,8 +131,8 @@ test("GET /api/ig-oauth returns authorize URL and state cookie", async () => {
   );
 
   assert.equal(res.status, 200);
-  assert.ok(res.body.authorizeUrl.includes("facebook.com"));
-  assert.ok(res.body.authorizeUrl.includes("dialog/oauth"));
+  assert.ok(res.body.authorizeUrl.includes("api.instagram.com/oauth/authorize"));
+  assert.ok(res.body.scopes.includes("instagram_business_basic"));
   assert.ok(Array.isArray(res.headers["set-cookie"]));
   assert.ok(res.headers["set-cookie"][0].includes("rf_ig_oauth_state="));
 });
@@ -243,5 +243,5 @@ test("GET /api/ig-oauth accepts a verified Clerk bearer token", async () => {
   );
 
   assert.equal(res.status, 200);
-  assert.ok(res.body.authorizeUrl.includes("facebook.com"));
+  assert.ok(res.body.authorizeUrl.includes("api.instagram.com/oauth/authorize"));
 });

@@ -125,19 +125,11 @@ export function getInstagramAuthorizeUrl() {
   return requestJson("/api/ig-oauth", { method: "GET" });
 }
 
-// Exchange code for FB token + return pending pages list
+// Exchange code for IG token + return account directly (no page selection step)
 export function exchangeInstagramCode({ code, state }) {
   return requestJson("/api/ig-oauth", {
     method: "POST",
     body: JSON.stringify({ code, state }),
-  });
-}
-
-// NEW: User selects which Page/IG account to use after OAuth
-export function selectInstagramPage(pageId) {
-  return requestJson("/api/ig-select-page", {
-    method: "POST",
-    body: JSON.stringify({ pageId }),
   });
 }
 
