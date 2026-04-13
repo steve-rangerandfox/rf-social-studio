@@ -82,7 +82,7 @@ export const publishScheduledPosts = inngest.createFunction(
   {
     id: "publish-scheduled-posts",
     name: "Publish Scheduled Posts",
-    triggers: [{ cron: "*/5 * * * *" }],
+    triggers: { cron: "*/5 * * * *" },
     // Prevent multiple concurrent runs of this cron from overlapping.
     concurrency: { limit: 1, key: "event/data.cron" },
   },
