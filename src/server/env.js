@@ -44,6 +44,12 @@ export function loadServerEnv(source = process.env) {
     supabaseServiceRoleKey: source.SUPABASE_SERVICE_ROLE_KEY || "",
     anthropicApiKey: source.ANTHROPIC_API_KEY || "",
     anthropicModel: source.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
+    // Upstash Redis — rate limiting (cross-instance, required in production)
+    upstashRedisRestUrl: source.UPSTASH_REDIS_REST_URL || "",
+    upstashRedisRestToken: source.UPSTASH_REDIS_REST_TOKEN || "",
+    // Inngest — scheduled publishing background worker
+    inngestEventKey: source.INNGEST_EVENT_KEY || "",
+    inngestSigningKey: source.INNGEST_SIGNING_KEY || "",
     port: Number.parseInt(source.PORT || "3001", 10),
   };
 }

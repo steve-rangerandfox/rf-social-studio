@@ -39,6 +39,8 @@ import {
 } from "./meta.js";
 import { createLogger, log, sanitizeLogValue } from "./log.js";
 import { hasStudioPersistence, loadStudioDocumentRecord, saveStudioDocumentRecord } from "./persistence.js";
+import { saveIGToken, deleteIGToken } from "./ig-token-store.js";
+import { inngestHandler } from "./inngest-handler.js";
 import { resolveRequestAuth } from "./auth.js";
 import { rateLimit } from "./rate-limit.js";
 import { validateCaptionRequest, validateDocument } from "./validate.js";
@@ -81,8 +83,8 @@ function requireRequestAuth(req, res, env) {
   return auth;
 }
 
-function checkRateLimit(res, userId, endpoint, limits) {
-  const result = rateLimit(userId, endpoint, limits);
+async function checkRateLimit(res, userId, endpoint, limits) {
+  const result = await rateLimit(userId, endpoint, limits);
   if (!result.allowed) {
     res.setHeader("Retry-After", String(result.retryAfter));
     errorJson(res, 429, "RATE_LIMITED", "Rate limit exceeded", { retryAfter: result.retryAfter });
@@ -294,6 +296,18 @@ async function handleInstagramExchange(req, res, env, reqId) {
 
     setInstagramSession(res, req, env, session);
 
+    // Persist the token for the scheduled publishing worker (fire-and-forget).
+    // The worker has no session cookie — it reads the token from this table.
+    saveIGToken(env, {
+      ownerUserId: auth.userId,
+      igUserId: token.userId,
+      igUserToken: token.accessToken,
+      igUsername: profile.username,
+      expiresAt,
+    }).catch((err) =>
+      logger("warn", reqId, "ig_token_store_failed", { error: sanitizeLogValue(err.message) })
+    );
+
     return json(res, 200, {
       account: {
         username: profile.username,
@@ -381,6 +395,16 @@ async function handleInstagramPosts(req, res, env, reqId) {
             expiresAt: Date.now() + refreshed.expiresIn * 1000,
           };
           setInstagramSession(res, req, env, activeSession);
+          // Persist refreshed token so the scheduled worker stays current
+          saveIGToken(env, {
+            ownerUserId: auth.userId,
+            igUserId: activeSession.igUserId,
+            igUserToken: activeSession.igUserToken,
+            igUsername: activeSession.igUsername,
+            expiresAt: activeSession.expiresAt,
+          }).catch((err) =>
+            logger("warn", reqId, "ig_token_refresh_persist_failed", { error: sanitizeLogValue(err.message) })
+          );
         })();
         refreshLocks.set(lockKey, refreshPromise);
         const lockTimer = setTimeout(() => refreshLocks.delete(lockKey), REFRESH_LOCK_TTL_MS);
@@ -728,7 +752,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
 
     const auth = requireRequestAuth(req, res, env);
     if (!auth) { endTimer({ reqId, status: 401, route: "/api/captions" }); return; }
-    if (!checkRateLimit(res, auth.userId, "captions", { maxRequests: 10, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/captions" }); return; }
+    if (!await checkRateLimit(res, auth.userId, "captions", { maxRequests: 10, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/captions" }); return; }
 
     try {
       return await handleCaptionRequest(req, res, env, reqId);
@@ -741,7 +765,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
     if (req.method === "GET") {
       const auth = requireRequestAuth(req, res, env);
       if (!auth) { endTimer({ reqId, status: 401, route: "/api/ig-oauth" }); return; }
-      if (!checkRateLimit(res, auth.userId, "ig-oauth:GET", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-oauth" }); return; }
+      if (!await checkRateLimit(res, auth.userId, "ig-oauth:GET", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-oauth" }); return; }
 
       try {
         return await handleInstagramStart(req, res, env, reqId);
@@ -753,7 +777,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
     if (req.method === "POST") {
       const auth = requireRequestAuth(req, res, env);
       if (!auth) { endTimer({ reqId, status: 401, route: "/api/ig-oauth" }); return; }
-      if (!checkRateLimit(res, auth.userId, "ig-oauth:POST", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-oauth" }); return; }
+      if (!await checkRateLimit(res, auth.userId, "ig-oauth:POST", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-oauth" }); return; }
 
       try {
         return await handleInstagramExchange(req, res, env, reqId);
@@ -775,6 +799,9 @@ export async function handleApiRequest(req, res, overrides = {}) {
       }
       clearCookie(res, IG_SESSION_COOKIE, env, req);
       clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
+      deleteIGToken(env, auth.userId).catch((err) =>
+        logger("warn", reqId, "ig_token_delete_failed", { error: sanitizeLogValue(err.message) })
+      );
       endTimer({ reqId, status: 204, route: "/api/ig-oauth", method: "DELETE" });
       return noContent(res);
     }
@@ -797,7 +824,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
 
     const auth = requireRequestAuth(req, res, env);
     if (!auth) { endTimer({ reqId, status: 401, route: "/api/ig-posts" }); return; }
-    if (!checkRateLimit(res, auth.userId, "ig-posts", { maxRequests: 20, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-posts" }); return; }
+    if (!await checkRateLimit(res, auth.userId, "ig-posts", { maxRequests: 20, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-posts" }); return; }
 
     try {
       return await handleInstagramPosts(req, res, env, reqId);
@@ -817,7 +844,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
 
     const auth = requireRequestAuth(req, res, env);
     if (!auth) { endTimer({ reqId, status: 401, route: "/api/ig-publish" }); return; }
-    if (!checkRateLimit(res, auth.userId, "ig-publish:POST", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-publish" }); return; }
+    if (!await checkRateLimit(res, auth.userId, "ig-publish:POST", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/ig-publish" }); return; }
 
     try {
       return await handleInstagramPublish(req, res, env, reqId, auth);
@@ -830,7 +857,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
     if (req.method === "GET") {
       const auth = requireRequestAuth(req, res, env);
       if (!auth) { endTimer({ reqId, status: 401, route: "/api/studio-document" }); return; }
-      if (!checkRateLimit(res, auth.userId, "studio-document:GET", { maxRequests: 60, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/studio-document" }); return; }
+      if (!await checkRateLimit(res, auth.userId, "studio-document:GET", { maxRequests: 60, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/studio-document" }); return; }
 
       try {
         return await handleStudioDocumentGet(req, res, env, reqId);
@@ -842,7 +869,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
     if (req.method === "PUT") {
       const auth = requireRequestAuth(req, res, env);
       if (!auth) { endTimer({ reqId, status: 401, route: "/api/studio-document" }); return; }
-      if (!checkRateLimit(res, auth.userId, "studio-document:PUT", { maxRequests: 30, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/studio-document" }); return; }
+      if (!await checkRateLimit(res, auth.userId, "studio-document:PUT", { maxRequests: 30, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/studio-document" }); return; }
 
       try {
         return await handleStudioDocumentPut(req, res, env, reqId);
@@ -856,6 +883,10 @@ export async function handleApiRequest(req, res, overrides = {}) {
     res.end();
     endTimer({ reqId, status: 405, route: "/api/studio-document" });
     return;
+  }
+
+  if (url.pathname.startsWith("/api/inngest")) {
+    return inngestHandler(req, res);
   }
 
   return false;

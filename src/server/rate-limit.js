@@ -1,22 +1,32 @@
-// Hardened in-memory rate limiter with LRU eviction
-// Configurable per-endpoint limits
-// Returns { allowed: boolean, retryAfter: number }
+// Rate limiter with Upstash Redis backend + in-memory fallback.
+//
+// When UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set, all limits
+// are enforced across every serverless function instance (the only correct
+// behavior on Vercel). When those env vars are absent, falls back to the
+// in-memory implementation — fine for local dev, NOT for production.
+//
+// Usage (same API as before, now async):
+//   const result = await rateLimit(userId, endpoint, { maxRequests, windowMs });
+
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+// ─── In-memory fallback ────────────────────────────────────────────
+// Used in dev / CI when no Upstash credentials are configured.
+// Resets on every cold start — not safe for production abuse prevention.
 
 const buckets = new Map();
-const MAX_BUCKETS = 10000;
+const MAX_BUCKETS = 10_000;
 
-// Clean up stale buckets every 60 seconds
 const cleanup = setInterval(() => {
   const now = Date.now();
   for (const [key, bucket] of buckets) {
-    if (now - bucket.windowStart > 120000) { // 2 min stale
-      buckets.delete(key);
-    }
+    if (now - bucket.windowStart > 120_000) buckets.delete(key);
   }
 }, 60 * 1000);
 if (cleanup.unref) cleanup.unref();
 
-export function rateLimit(userId, endpoint, { maxRequests, windowMs }) {
+function inMemoryRateLimit(userId, endpoint, { maxRequests, windowMs }) {
   const key = `${userId}:${endpoint}`;
   const now = Date.now();
 
@@ -28,15 +38,11 @@ export function rateLimit(userId, endpoint, { maxRequests, windowMs }) {
 
   bucket.count++;
 
-  // LRU eviction if too many buckets
   if (buckets.size > MAX_BUCKETS) {
     let oldest = null;
     let oldestTime = Infinity;
     for (const [k, b] of buckets) {
-      if (b.windowStart < oldestTime) {
-        oldest = k;
-        oldestTime = b.windowStart;
-      }
+      if (b.windowStart < oldestTime) { oldest = k; oldestTime = b.windowStart; }
     }
     if (oldest) buckets.delete(oldest);
   }
@@ -47,4 +53,64 @@ export function rateLimit(userId, endpoint, { maxRequests, windowMs }) {
   }
 
   return { allowed: true, retryAfter: 0 };
+}
+
+// ─── Upstash Redis backend ─────────────────────────────────────────
+// Lazy-initialized. Cached at module level so warm serverless instances
+// reuse the same connection and limiter instances.
+
+let _redisClient = null;
+let _redisConfigKey = "";
+const _limiterCache = new Map();
+
+function getUpstashLimiter(maxRequests, windowMs) {
+  const url = process.env.UPSTASH_REDIS_REST_URL || "";
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || "";
+  if (!url || !token) return null;
+
+  const configKey = `${url}::${token}`;
+
+  // Re-initialize if credentials changed (shouldn't happen in production,
+  // but handles env var rotation without redeployment in some setups).
+  if (_redisClient && _redisConfigKey !== configKey) {
+    _redisClient = null;
+    _limiterCache.clear();
+  }
+
+  if (!_redisClient) {
+    _redisClient = new Redis({ url, token });
+    _redisConfigKey = configKey;
+  }
+
+  const limiterKey = `${maxRequests}:${windowMs}`;
+  if (!_limiterCache.has(limiterKey)) {
+    _limiterCache.set(limiterKey, new Ratelimit({
+      redis: _redisClient,
+      limiter: Ratelimit.slidingWindow(maxRequests, `${Math.ceil(windowMs / 1000)} s`),
+      prefix: "rf_rl",
+      analytics: false,
+    }));
+  }
+
+  return _limiterCache.get(limiterKey);
+}
+
+// ─── Public API ────────────────────────────────────────────────────
+
+export async function rateLimit(userId, endpoint, { maxRequests, windowMs }) {
+  const limiter = getUpstashLimiter(maxRequests, windowMs);
+
+  if (limiter) {
+    try {
+      const { success, reset } = await limiter.limit(`${userId}:${endpoint}`);
+      const retryAfter = success ? 0 : Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+      return { allowed: success, retryAfter };
+    } catch (err) {
+      // Upstash unavailable — degrade gracefully to in-memory rather than
+      // blocking all requests. Log so this doesn't go unnoticed.
+      console.error("[rate-limit] Upstash error, falling back to in-memory:", err.message);
+    }
+  }
+
+  return inMemoryRateLimit(userId, endpoint, { maxRequests, windowMs });
 }
