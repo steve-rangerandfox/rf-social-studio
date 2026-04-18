@@ -32,7 +32,42 @@ function lsGet(key) {
   }
 }
 
+// Coalesce IndexedDB writes so a burst of keystrokes results in a single
+// transaction. localStorage stays synchronous — it's what callers read
+// the return value for, and it's fast enough for per-keystroke writes
+// in practice. IDB is the slower of the two; debouncing only that side
+// captures the latency win without changing the observable API.
+const IDB_WRITE_DEBOUNCE_MS = 400;
+const pendingIdbWrites = new Map(); // scope -> { timer, document }
+
+function scheduleIdbWrite(scope, document) {
+  const pending = pendingIdbWrites.get(scope);
+  if (pending?.timer) clearTimeout(pending.timer);
+
+  const timer = setTimeout(() => {
+    const slot = pendingIdbWrites.get(scope);
+    pendingIdbWrites.delete(scope);
+    if (!slot) return;
+    idbSave(scope, slot.document).catch(() => {});
+  }, IDB_WRITE_DEBOUNCE_MS);
+
+  pendingIdbWrites.set(scope, { timer, document });
+}
+
+/**
+ * Flush any pending IndexedDB writes immediately. Use from beforeunload
+ * handlers or explicit "Save now" UI actions.
+ */
+export function flushStudioPersist() {
+  for (const [scope, slot] of pendingIdbWrites) {
+    if (slot.timer) clearTimeout(slot.timer);
+    idbSave(scope, slot.document).catch(() => {});
+  }
+  pendingIdbWrites.clear();
+}
+
 export function persistStudioDocument(document, scope = "anonymous") {
+  const normalized = normalizeScope(scope);
   let lsSaved = false;
   try {
     localStorage.setItem(getDocumentStorageKey(scope), JSON.stringify(document));
@@ -40,8 +75,7 @@ export function persistStudioDocument(document, scope = "anonymous") {
   } catch {
     // localStorage full — IndexedDB is the fallback
   }
-  // Also save to IndexedDB (fire and forget — it's async but we don't block on it)
-  idbSave(normalizeScope(scope), document).catch(() => {});
+  scheduleIdbWrite(normalized, document);
   return lsSaved;
 }
 
