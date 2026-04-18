@@ -63,8 +63,12 @@ export async function loadIGToken(env, ownerUserId) {
 
   if (error || !data) return null;
 
-  // Token expired — no point decrypting
-  if (new Date(data.expires_at) <= new Date()) return null;
+  // Treat the token as expired 60s before actual expiry so we don't hand
+  // back a credential that is about to die mid-request. Avoids flicker at
+  // the expiry boundary and the "token was valid when we checked but
+  // expired by the time Instagram saw it" race.
+  const EXPIRY_GRACE_MS = 60 * 1000;
+  if (new Date(data.expires_at).getTime() - EXPIRY_GRACE_MS <= Date.now()) return null;
 
   const payload = decryptCookiePayload(data.ig_user_token_enc, env.sessionSecret);
   if (!payload?.igUserToken) return null;

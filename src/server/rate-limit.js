@@ -10,6 +10,9 @@
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { log } from "./log.js";
+
+const IS_PROD = process.env.NODE_ENV === "production";
 
 // ─── In-memory fallback ────────────────────────────────────────────
 // Used in dev / CI when no Upstash credentials are configured.
@@ -106,10 +109,20 @@ export async function rateLimit(userId, endpoint, { maxRequests, windowMs }) {
       const retryAfter = success ? 0 : Math.max(1, Math.ceil((reset - Date.now()) / 1000));
       return { allowed: success, retryAfter };
     } catch (err) {
-      // Upstash unavailable — degrade gracefully to in-memory rather than
-      // blocking all requests. Log so this doesn't go unnoticed.
-      console.error("[rate-limit] Upstash error, falling back to in-memory:", err.message);
+      // Upstash transiently unreachable despite configured creds. Log and
+      // degrade to in-memory for this request rather than blocking all
+      // traffic. Operators should page on repeated occurrences of this log.
+      log.error("rate_limit_upstash_error", { endpoint, err: err.message });
     }
+    return inMemoryRateLimit(userId, endpoint, { maxRequests, windowMs });
+  }
+
+  // No Upstash creds configured. In production this is a misconfiguration;
+  // fail closed (refuse the request) rather than silently allowing abuse
+  // via per-instance in-memory buckets that reset on every cold start.
+  if (IS_PROD) {
+    log.error("rate_limit_unconfigured_in_prod", { endpoint });
+    return { allowed: false, retryAfter: 60 };
   }
 
   return inMemoryRateLimit(userId, endpoint, { maxRequests, windowMs });
