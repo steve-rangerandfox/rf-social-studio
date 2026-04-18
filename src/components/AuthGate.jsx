@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 
 import App from "../App.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
+import { LoadingShell } from "./LoadingShell.jsx";
 
 const AUTH_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -378,7 +379,7 @@ export function AuthGate() {
   const { isSignedIn, isLoaded } = useAuth();
 
   if (!isLoaded) {
-    return null;
+    return <LoadingShell label="Signing you in" />;
   }
 
   if (!isSignedIn) {

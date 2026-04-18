@@ -3,6 +3,50 @@ import React, { useCallback, useEffect, lazy, Suspense } from "react";
 
 import { StudioProvider, useStudio } from "./StudioContext.jsx";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts.js";
+import { LoadingShell } from "../../components/LoadingShell.jsx";
+import { ErrorBoundary } from "../../components/ErrorBoundary.jsx";
+
+// Compact per-view fallback so a single view throwing doesn't take over
+// the entire app — chrome (sidebar, topbar) stays usable.
+function viewFallback(scope) {
+  return ({ reset }) => (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 40,
+        gap: 12,
+        color: "#5E574C",
+        fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif',
+      }}
+    >
+      <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontSize: 22, fontWeight: 700, color: "#181714" }}>
+        {scope} hit a snag
+      </div>
+      <div style={{ fontSize: 14, maxWidth: 360, textAlign: "center", lineHeight: 1.6 }}>
+        The {scope.toLowerCase()} view failed to render. Your drafts are untouched — try reloading just this view.
+      </div>
+      <button
+        style={{
+          padding: "7px 16px",
+          background: "#181714",
+          color: "#FEFCF8",
+          border: "none",
+          borderRadius: 999,
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+        onClick={reset}
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
 
 import {
   AssetLibrary,
@@ -113,27 +157,37 @@ function StudioShell() {
         <Toolbar />
 
         {/* List view */}
-        <ListView />
+        <ErrorBoundary scope="List" fallback={viewFallback("List")}>
+          <ListView />
+        </ErrorBoundary>
 
         {/* Calendar view */}
         {view === "calendar" && (
-          <CalendarView
-            rows={filteredRows} month={month} year={year}
-            onSelectRow={(id) => setSelectedRowId(id)}
-            onAddDay={(d, targetMonth = month, targetYear = year) => { add(targetMonth, d, targetYear); }}
-          />
+          <ErrorBoundary scope="Calendar" fallback={viewFallback("Calendar")}>
+            <CalendarView
+              rows={filteredRows} month={month} year={year}
+              onSelectRow={(id) => setSelectedRowId(id)}
+              onAddDay={(d, targetMonth = month, targetYear = year) => { add(targetMonth, d, targetYear); }}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Grid view */}
         {view === "grid" && (
-          <IGGridView
-            rows={filteredRows} igMedia={igMedia} igAccount={igConfig}
-            onOpen={r => r.platform === "ig_story" ? setStory(r) : setComposer({ row: r, postNow: false })}
-          />
+          <ErrorBoundary scope="Grid" fallback={viewFallback("Grid")}>
+            <IGGridView
+              rows={filteredRows} igMedia={igMedia} igAccount={igConfig}
+              onOpen={r => r.platform === "ig_story" ? setStory(r) : setComposer({ row: r, postNow: false })}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Analytics view */}
-        {view === "analytics" && <Analytics rows={rows} />}
+        {view === "analytics" && (
+          <ErrorBoundary scope="Analytics" fallback={viewFallback("Analytics")}>
+            <Analytics rows={rows} />
+          </ErrorBoundary>
+        )}
       </main>
 
       {/* Mini-map — only in year list view */}
@@ -183,7 +237,7 @@ function StudioShell() {
       )}
 
       {story && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<LoadingShell variant="overlay" label="Loading designer" />}>
           <StoryDesigner
             row={story}
             onClose={() => setStory(null)}
