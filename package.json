@@ -12,7 +12,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --test tests/validation.test.js tests/server.test.js",
+    "test": "npm run test:node && npm run test:unit",
+    "test:node": "node --test tests/validation.test.js tests/server.test.js",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
     "test:validation": "node --test tests/validation.test.js",
     "test:server": "node --test tests/server.test.js"
   },
@@ -30,6 +33,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.3",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
@@ -37,6 +42,8 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
-    "vite": "^7.3.1"
+    "jsdom": "^29.0.2",
+    "vite": "^7.3.1",
+    "vitest": "^4.1.4"
   }
 }

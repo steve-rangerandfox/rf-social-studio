@@ -45,6 +45,9 @@ async function getSupabaseClient(env) {
   });
 }
 
+// Exported for unit tests only — treat as module-internal in app code.
+export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows };
+
 /** Map platform identifier → Instagram mediaType string. */
 function platformToMediaType(platform) {
   if (platform === "ig_reel") return "REELS";
