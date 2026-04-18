@@ -5,6 +5,7 @@ import { Row } from "./Row.jsx";
 import { InlineCreateRow } from "./InlineCreateRow.jsx";
 import { EmptyState } from "./EmptyState.jsx";
 import { MONTHS_FULL, PLATFORMS, T } from "../shared.js";
+import { TOAST } from "../copy.js";
 
 export function ListView() {
   const {
@@ -105,7 +106,7 @@ export function ListView() {
       sel={sel.has(row.id)}
       onSel={v => toggleSel(row.id, v)}
       onChange={p => update(row.id, p)}
-      onDel={() => { remove(row.id); showToast("Post removed", T.red); }}
+      onDel={() => { remove(row.id); showToast(TOAST.POST_REMOVED, T.red); }}
       onSelect={() => setSelectedRowId(row.id)}
       isSelected={selectedRowId === row.id}
       isFocused={isFocused}

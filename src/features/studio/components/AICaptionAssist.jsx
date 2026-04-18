@@ -43,7 +43,7 @@ export function AICaptionAssist({ platform, note, caption, onAccept, variant = "
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           onKeyDown={e => e.key === "Enter" && generate()}
-          placeholder="Describe what to write..."
+          placeholder="Describe what to write\u2026"
           style={{
             flex:1,background:"rgba(255,255,255,0.72)",border:`1px solid ${T.border}`,
             borderRadius:8,fontSize:11,padding:"7px 10px",outline:"none",color:T.text,

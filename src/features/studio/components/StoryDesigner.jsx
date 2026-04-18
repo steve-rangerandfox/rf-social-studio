@@ -1076,7 +1076,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                     {showTmplSave ? (
                       <div style={{display:"flex",gap:4}}>
                         <input className="s-inp" style={{flex:1,fontSize:11}} value={tmplName} onChange={e=>setTmplName(e.target.value)}
-                          onKeyDown={e=>e.key==="Enter"&&saveTemplate()} placeholder="Name..." autoFocus/>
+                          onKeyDown={e=>e.key==="Enter"&&saveTemplate()} placeholder="Name\u2026" autoFocus/>
                         <button className="btn btn-primary btn-sm" onClick={saveTemplate}>Save</button>
                         <button onClick={()=>setShowTmplSave(false)} style={{background:"transparent",border:"none",cursor:"pointer",color:T.textDim}}><X size={12}/></button>
                       </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   T,
   PLATFORMS,
@@ -8,6 +8,7 @@ import {
 import { DateTimeCell } from "./DateTimeCell.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { canTransition, getAvailableTransitions } from "./StatusMachine.js";
+import { useOutsideClick } from "../useOutsideClick.js";
 import { AlertTriangle, X, GripVertical } from "lucide-react";
 
 export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, onSelect, isSelected, isFocused, dragHandlers, hasConnectedAccount = false }) {
@@ -31,32 +32,13 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
     titleInputRef.current?.select();
   }, [isEditingTitle]);
 
-  useEffect(() => {
-    if (!isMenuOpen) return undefined;
-    const handlePointerDown = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) setIsMenuOpen(false);
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [isMenuOpen]);
-
-  useEffect(() => {
-    if (!isPlatformOpen) return undefined;
-    const handlePointerDown = (event) => {
-      if (platformRef.current && !platformRef.current.contains(event.target)) setIsPlatformOpen(false);
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [isPlatformOpen]);
-
-  useEffect(() => {
-    if (!isStatusDropdownOpen) return undefined;
-    const handlePointerDown = (event) => {
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) setIsStatusDropdownOpen(false);
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [isStatusDropdownOpen]);
+  useOutsideClick(menuRef, isMenuOpen, useCallback(() => setIsMenuOpen(false), []));
+  useOutsideClick(platformRef, isPlatformOpen, useCallback(() => setIsPlatformOpen(false), []));
+  useOutsideClick(
+    statusDropdownRef,
+    isStatusDropdownOpen,
+    useCallback(() => setIsStatusDropdownOpen(false), []),
+  );
 
   const handleStatusTransition = (toStatus) => {
     const check = canTransition(row.status, toStatus, row, hasConnectedAccount);
@@ -113,7 +95,7 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
             ref={titleInputRef}
             className="note-in"
             value={row.note}
-            placeholder="Post title..."
+            placeholder="Post title\u2026"
             onChange={e => onChange({ note: e.target.value })}
             onBlur={() => setIsEditingTitle(false)}
             onKeyDown={(e) => { if (e.key === "Enter") setIsEditingTitle(false); if (e.key === "Escape") setIsEditingTitle(false); }}

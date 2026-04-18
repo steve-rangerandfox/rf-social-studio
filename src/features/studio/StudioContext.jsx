@@ -256,7 +256,7 @@ export function StudioProvider({ children }) {
             return;
           }
           if (error?.message === "Version conflict") {
-            showToast("Your changes conflict with a newer version. Refreshing...", T.red);
+            showToast("Your changes conflict with a newer version. Refreshing\u2026", T.red);
             fetchStudioDocument()
               .then((payload) => {
                 if (payload?.document) {

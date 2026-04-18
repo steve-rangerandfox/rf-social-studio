@@ -8,6 +8,7 @@ import {
   getReadinessChecks,
   formatRelativeStamp,
 } from "../shared.js";
+import { TOAST } from "../copy.js";
 import { useStudio } from "../StudioContext.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { StoryThumbnail } from "./StoryThumbnail.jsx";
@@ -207,7 +208,7 @@ export function DetailPanel() {
 
   const handleDelete = () => {
     remove(row.id);
-    showToast("Post removed", T.red);
+    showToast(TOAST.POST_REMOVED, T.red);
     setSelectedRowId(null);
   };
 
@@ -246,7 +247,7 @@ export function DetailPanel() {
                 id="detail-panel-title"
                 className="detail-panel-title-input"
                 value={row.note}
-                placeholder="Post title..."
+                placeholder="Post title\u2026"
                 onChange={(e) => onChange({ note: e.target.value })}
                 onBlur={() => setIsEditingTitle(false)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setIsEditingTitle(false); }}
@@ -485,7 +486,7 @@ export function DetailPanel() {
               );
             })}
             <div className="dp-comment-row">
-              <input className="comment-input" placeholder="Add a comment..." value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submitComment()} />
+              <input className="comment-input" placeholder="Add a comment\u2026" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submitComment()} />
               <button className="btn btn-ghost" onClick={submitComment}>Send</button>
             </div>
           </section>

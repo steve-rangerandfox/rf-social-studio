@@ -128,7 +128,7 @@ export function CommandPalette({ onClose }) {
           ref={inputRef}
           className="cmd-palette-input"
           type="text"
-          placeholder="Type a command..."
+          placeholder="Type a command\u2026"
           value={query}
           onChange={e => setQ(e.target.value)}
           onKeyDown={handleKeyDown}

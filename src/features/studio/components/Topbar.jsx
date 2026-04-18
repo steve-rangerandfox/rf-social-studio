@@ -26,10 +26,10 @@ export function Topbar() {
         <kbd>{"\u2318"}</kbd>K
       </button>
       <div className="view-toggle">
-        {[["list", "List", "1"], ["calendar", "Calendar", "2"], ["grid", "Grid", "3"], ["analytics", "Stats", "4"]].map(([v, l, key]) => (
+        {[["list", "List", "1"], ["calendar", "Calendar", "2"], ["grid", "Grid", "3"], ["analytics", "Analytics", "4"]].map(([v, l, key]) => (
           <button key={v} className={"vt-btn " + (view === v ? "on" : "")} onClick={() => setView(v)} title={`${l} (${key})`}>
             <span className="vt-btn-num">0{key}</span>
-            <span className="vt-btn-label">{l === "Calendar" ? "Cal" : l}</span>
+            <span className="vt-btn-label">{l}</span>
           </button>
         ))}
       </div>
