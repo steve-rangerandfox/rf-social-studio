@@ -37,3 +37,7 @@ dist-ssr
 *.sw?
 .env
 .env.local
+
+# claude-flow runtime artifacts
+.claude-flow/
+.swarm/
