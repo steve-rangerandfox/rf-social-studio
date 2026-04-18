@@ -1,3 +1,11 @@
+// Palette mirror of studio.css :root. Prefer the CSS variables when
+// styling DOM nodes; reach for T only when passing colors through JS
+// APIs (e.g. canvas/SVG fills).
+//
+// Naming note: `mint`, `pink`, and `purple` are legacy. Their values
+// are ink-black, brown, and brown-grey respectively — not the colors
+// the names suggest. New code should use the canonical keys added
+// below them (ink / neutralWarm / textSub) where possible.
 export const T = {
   bg: "#F3EEE5",
   surface: "#FEFCF8",
@@ -6,7 +14,9 @@ export const T = {
   border: "#D8CABA",
   border2: "#BAAA96",
   ink: "#181714",
+  inkHover: "#2E2C28",
   inkFog: "rgba(24,23,20,0.05)",
+  // @deprecated legacy aliases — resolve to ink, not mint. Prefer T.ink.
   mint: "#181714",
   mintDim: "#11100E",
   mintFog: "rgba(24,23,20,0.05)",
@@ -18,13 +28,21 @@ export const T = {
   red: "#DC2626",
   amber: "#C96A12",
   blue: "#3F5963",
+  // @deprecated — value is a brand brown, not pink. Used for the IG
+  // analytics bar. Prefer a future `--chart-ig` or `--platform-ig`.
   pink: "#6D5C55",
   orange: "#E56A0B",
   orangeBright: "#FF7A00",
   gold: "#F0B24D",
   lilac: "#D99BFF",
   cyan: "#82C7FF",
+  // @deprecated — value is a brown-grey, not purple. Prefer --text-sub.
   purple: "#5E554E",
+  // Canonical semantic values (prefer these in new code).
+  success: "#3D8C5C",
+  warning: "#C96A12",
+  danger: "#DC2626",
+  info: "#5BA8B5",
   posterGrad: "linear-gradient(135deg, #FF7A00 0%, #F0B24D 24%, #D99BFF 58%, #82C7FF 100%)",
   posterGradSoft: "linear-gradient(135deg, rgba(255,122,0,0.18) 0%, rgba(240,178,77,0.14) 24%, rgba(217,155,255,0.12) 58%, rgba(130,199,255,0.16) 100%)",
 };
