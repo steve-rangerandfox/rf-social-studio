@@ -22,6 +22,7 @@ import {
   restoreDeletedRow,
 } from "./document-store.js";
 import { addToSyncQueue, getSyncQueue, clearSyncQueue } from "../../lib/idb-store.js";
+import { useToast } from "../../components/Toaster.jsx";
 import {
   isRowNeedingAttention,
   loadTeam,
@@ -104,13 +105,21 @@ export function StudioProvider({ children }) {
   const [pendingUndo, setPendingUndo] = useState(null);
   const [tokenBannerDismissed, setTokenBannerDismissed] = useState(false);
   const [openComments, setOC] = useState(new Set());
-  const [toast, setToast] = useState(null);
   const [publishConfirm, setPublishConfirm] = useState(null);
   const [showCommandPalette, setCommandPalette] = useState(false);
   const [selectedRowId, setSelectedRowId] = useState(null);
   const [inlineCreateActive, setInlineCreateActive] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
-  const showToast = useCallback((msg, color) => setToast({ msg, color, id: uid() }), []);
+  const toastApi = useToast();
+  // Back-compat shim for the legacy (msg, color) signature. New call-sites
+  // should use toastApi.success/error/etc directly via useToast().
+  const showToast = useCallback((msg, color) => {
+    if (color === T.red) {
+      toastApi.error(msg);
+    } else {
+      toastApi.success(msg);
+    }
+  }, [toastApi]);
   const dragIdx = useRef(null);
   const dragOverIdx = useRef(null);
   const [dragOverId, setDragOverId] = useState(null);
@@ -780,7 +789,6 @@ export function StudioProvider({ children }) {
     pendingUndo, registerUndo, triggerUndo, dismissUndo,
     tokenBannerDismissed, setTokenBannerDismissed,
     openComments,
-    toast, setToast,
     publishConfirm, setPublishConfirm,
     showCommandPalette, setCommandPalette,
     selectedRowId, setSelectedRowId,
