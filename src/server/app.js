@@ -3,20 +3,12 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { generateCaption, generateStoryTips } from "./ai.js";
 import {
-  buildSecureCookieOptions,
-  createRandomState,
-  decryptCookiePayload,
-  encryptCookiePayload,
   IG_OAUTH_STATE_COOKIE,
   IG_SESSION_COOKIE,
-  parseCookies,
-  serializeCookie,
 } from "./cookies.js";
 import { ensureEnv, loadServerEnv } from "./env.js";
 import {
-  appendResponseCookie,
   errorJson,
   getOrigin,
   getRequestUrl,
@@ -28,25 +20,31 @@ import {
   setSecurityHeaders,
 } from "./http.js";
 import {
-  IG_OAUTH_SCOPES,
-  buildInstagramAuthorizeUrl,
-  exchangeCodeForInstagramToken,
-  fetchInstagramProfile,
   fetchInstagramMedia,
+  fetchInstagramProfile,
   publishInstagramPost,
   refreshInstagramToken,
-  validateCanonicalRedirectUri,
 } from "./meta.js";
 import { createLogger, log, sanitizeLogValue } from "./log.js";
-import { hasStudioPersistence, loadStudioDocumentRecord, saveStudioDocumentRecord } from "./persistence.js";
 import { saveIGToken, deleteIGToken } from "./ig-token-store.js";
 import { inngestHandler } from "./inngest-handler.js";
-import { resolveRequestAuth } from "./auth.js";
-import { rateLimit } from "./rate-limit.js";
-import { validateCaptionRequest, validateDocument } from "./validate.js";
+import {
+  clearCookie,
+  getInstagramSession,
+  setInstagramSession,
+} from "./instagram-session.js";
+import { requireRequestAuth, checkRateLimit } from "./middleware.js";
+import { handleCaptionRequest } from "./handlers/captions.js";
+import {
+  handleStudioDocumentGet,
+  handleStudioDocumentPut,
+} from "./handlers/studio-document.js";
+import {
+  handleInstagramStart,
+  handleInstagramExchange,
+} from "./handlers/instagram-auth.js";
 import {
   IG_CACHE_TTL_MS,
-  IG_PENDING_TTL_MS,
   REFRESH_LOCK_TTL_MS,
   IG_PUBLISH_MEDIA_TYPES,
   IG_PUBLISH_MAX_CAPTION,
@@ -79,259 +77,11 @@ function setCachedIgSync(userId, data) {
   }
 }
 
-function requireRequestAuth(req, res, env) {
-  const auth = resolveRequestAuth(req, env);
-  if (!auth.ok) {
-    const code = /expired/i.test(auth.error) ? "AUTH_EXPIRED" : "AUTH_REQUIRED";
-    errorJson(res, auth.status, code, auth.error);
-    return null;
-  }
+// getSession is an alias for getInstagramSession — kept because the IG
+// posts / publish handlers further down still reference it by the short
+// name.
+const getSession = getInstagramSession;
 
-  return auth;
-}
-
-async function checkRateLimit(res, userId, endpoint, limits) {
-  const result = await rateLimit(userId, endpoint, limits);
-  if (!result.allowed) {
-    res.setHeader("Retry-After", String(result.retryAfter));
-    errorJson(res, 429, "RATE_LIMITED", "Rate limit exceeded", { retryAfter: result.retryAfter });
-    return false;
-  }
-  return true;
-}
-
-function clearCookie(res, name, env, req) {
-  appendResponseCookie(
-    res,
-    serializeCookie(name, "", {
-      ...buildSecureCookieOptions(env, req),
-      maxAge: 0,
-    }),
-  );
-}
-
-function getSession(req, env) {
-  if (!env.sessionSecret) {
-    return null;
-  }
-
-  const cookies = parseCookies(req);
-  return decryptCookiePayload(cookies[IG_SESSION_COOKIE], env.sessionSecret);
-}
-
-function setInstagramSession(res, req, env, session) {
-  const maxAge = Math.max(60, Math.floor((session.expiresAt - Date.now()) / 1000));
-  appendResponseCookie(
-    res,
-    serializeCookie(
-      IG_SESSION_COOKIE,
-      encryptCookiePayload(session, env.sessionSecret),
-      {
-        ...buildSecureCookieOptions(env, req),
-        maxAge,
-      },
-    ),
-  );
-}
-
-async function handleCaptionRequest(req, res, env, reqId) {
-  const envCheck = ensureEnv(env, ["anthropicApiKey"]);
-  if (!envCheck.ok) {
-    return errorJson(res, 503, "SERVER_ERROR", "AI caption service is not configured", { missing: envCheck.missing });
-  }
-
-  let body;
-  try {
-    body = await readJsonBody(req);
-  } catch (error) {
-    return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
-  }
-
-  const captionValidation = validateCaptionRequest(body);
-  if (!captionValidation.valid) {
-    return errorJson(res, 400, "VALIDATION_ERROR", captionValidation.errors.join("; "), { errors: captionValidation.errors });
-  }
-
-  const intent = body.intent || "caption";
-
-  try {
-    if (intent === "story_tips") {
-      const tips = await generateStoryTips(env, body.board);
-      return json(res, 200, { tips });
-    }
-
-    const platform = typeof body.platform === "string" ? body.platform : "ig_post";
-    const prompt = body.prompt.trim();
-
-    const caption = await generateCaption(env, { platform, prompt });
-    return json(res, 200, { caption });
-  } catch (error) {
-    logger("error", reqId, "caption_generation_failed", {
-      error: sanitizeLogValue(error.message),
-      intent,
-    });
-    const code = /timeout|abort/i.test(error.message) ? "AI_TIMEOUT" : "AI_ERROR";
-    const status = code === "AI_TIMEOUT" ? 504 : 502;
-    return errorJson(res, status, code, "Caption generation failed");
-  }
-}
-
-
-async function handleInstagramStart(req, res, env, reqId) {
-  const auth = requireRequestAuth(req, res, env);
-  if (!auth) {
-    return;
-  }
-
-  const envCheck = ensureEnv(env, ["fbAppId", "fbAppSecret", "fbRedirectUri", "sessionSecret"]);
-  if (!envCheck.ok) {
-    return errorJson(res, 500, "SERVER_ERROR", "Instagram OAuth is not configured", { missing: envCheck.missing });
-  }
-
-  if (!validateCanonicalRedirectUri(env.fbRedirectUri)) {
-    logger("error", reqId, "ig_redirect_uri_invalid", {
-      redirectUri: sanitizeLogValue(env.fbRedirectUri),
-    });
-    return errorJson(res, 500, "SERVER_ERROR", "Instagram redirect URI is invalid");
-  }
-
-  const state = createRandomState();
-  appendResponseCookie(
-    res,
-    serializeCookie(
-      IG_OAUTH_STATE_COOKIE,
-      encryptCookiePayload(
-        {
-          state,
-          ownerUserId: auth.userId,
-          expiresAt: Date.now() + IG_PENDING_TTL_MS,
-        },
-        env.sessionSecret,
-      ),
-      {
-        ...buildSecureCookieOptions(env, req),
-        maxAge: 10 * 60,
-      },
-    ),
-  );
-
-  return json(res, 200, {
-    authorizeUrl: buildInstagramAuthorizeUrl({
-      appId: env.fbAppId,
-      redirectUri: env.fbRedirectUri,
-      state,
-    }),
-    scopes: IG_OAUTH_SCOPES,
-  });
-}
-
-async function handleInstagramExchange(req, res, env, reqId) {
-  const envCheck = ensureEnv(env, ["fbAppId", "fbAppSecret", "fbRedirectUri", "sessionSecret"]);
-  if (!envCheck.ok) {
-    return errorJson(res, 500, "SERVER_ERROR", "Instagram OAuth is not configured", { missing: envCheck.missing });
-  }
-
-  if (!validateCanonicalRedirectUri(env.fbRedirectUri)) {
-    return errorJson(res, 500, "SERVER_ERROR", "Instagram redirect URI is invalid");
-  }
-
-  let body;
-  try {
-    body = await readJsonBody(req);
-  } catch (error) {
-    return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
-  }
-
-  const { code, state } = body || {};
-  const auth = requireRequestAuth(req, res, env);
-  if (!auth) {
-    return;
-  }
-  if (!code || typeof code !== "string") {
-    return errorJson(res, 400, "VALIDATION_ERROR", "code is required");
-  }
-  if (!state || typeof state !== "string") {
-    return errorJson(res, 400, "VALIDATION_ERROR", "state is required");
-  }
-
-  const cookies = parseCookies(req);
-  const oauthState = decryptCookiePayload(cookies[IG_OAUTH_STATE_COOKIE], env.sessionSecret);
-  if (
-    !oauthState ||
-    oauthState.state !== state ||
-    oauthState.ownerUserId !== auth.userId ||
-    oauthState.expiresAt < Date.now()
-  ) {
-    // Clear the stale/invalid state cookie so a later replay can't succeed.
-    clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
-    return errorJson(res, 400, "VALIDATION_ERROR", "OAuth state validation failed");
-  }
-
-  // Delete the OAuth state cookie immediately after validation to prevent replay attacks
-  clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
-
-  try {
-    const token = await exchangeCodeForInstagramToken({
-      appId: env.fbAppId,
-      appSecret: env.fbAppSecret,
-      code: code.trim(),
-      redirectUri: env.fbRedirectUri,
-    });
-
-    const profile = await fetchInstagramProfile(token.accessToken);
-
-    if (profile.accountType !== "BUSINESS" && profile.accountType !== "MEDIA_CREATOR") {
-      return errorJson(
-        res,
-        400,
-        "IG_NO_BUSINESS_ACCOUNT",
-        "Your Instagram account must be a Business or Creator account. Please convert it in the Instagram app settings and try again.",
-      );
-    }
-
-    const expiresAt = Date.now() + token.expiresIn * 1000;
-    const session = {
-      ownerUserId: auth.userId,
-      igUserId: token.userId,
-      igUserToken: token.accessToken,
-      igUsername: profile.username,
-      igAccountType: profile.accountType,
-      igProfilePictureUrl: profile.profilePictureUrl,
-      igMediaCount: profile.mediaCount,
-      expiresAt,
-      connectedAt: Date.now(),
-    };
-
-    setInstagramSession(res, req, env, session);
-
-    // Persist the token for the scheduled publishing worker (fire-and-forget).
-    // The worker has no session cookie — it reads the token from this table.
-    saveIGToken(env, {
-      ownerUserId: auth.userId,
-      igUserId: token.userId,
-      igUserToken: token.accessToken,
-      igUsername: profile.username,
-      expiresAt,
-    }).catch((err) =>
-      logger("warn", reqId, "ig_token_store_failed", { error: sanitizeLogValue(err.message) })
-    );
-
-    return json(res, 200, {
-      account: {
-        username: profile.username,
-        mediaCount: profile.mediaCount,
-        profilePictureUrl: profile.profilePictureUrl,
-        accountType: profile.accountType,
-        expiresAt,
-      },
-    });
-  } catch (error) {
-    logger("error", reqId, "instagram_exchange_failed", {
-      error: sanitizeLogValue(error.message),
-    });
-    return errorJson(res, 502, "IG_API_ERROR", "Instagram OAuth exchange failed");
-  }
-}
 
 const refreshLocks = new Map();
 
@@ -582,85 +332,6 @@ async function handleInstagramPublish(req, res, env, reqId, auth) {
   }
 }
 
-async function handleStudioDocumentGet(req, res, env, reqId) {
-  const auth = requireRequestAuth(req, res, env);
-  if (!auth) {
-    return;
-  }
-  if (!hasStudioPersistence(env)) {
-    return errorJson(res, 503, "STORAGE_ERROR", "Studio persistence is not configured");
-  }
-
-  try {
-    const record = await loadStudioDocumentRecord(env, auth.userId);
-    return json(res, 200, {
-      document: record?.document || null,
-      updatedAt: record?.updated_at || null,
-      version: record?.version || null,
-    });
-  } catch (error) {
-    const status = error.__statusCode || 502;
-    logger("error", reqId, "studio_document_load_failed", {
-      error: sanitizeLogValue(error.message),
-      category: error.__category || "unknown",
-      requestUserId: auth.userId,
-    });
-    return errorJson(res, status, "STORAGE_ERROR", "Studio document load failed");
-  }
-}
-
-async function handleStudioDocumentPut(req, res, env, reqId) {
-  const auth = requireRequestAuth(req, res, env);
-  if (!auth) {
-    return;
-  }
-  if (!hasStudioPersistence(env)) {
-    return errorJson(res, 503, "STORAGE_ERROR", "Studio persistence is not configured");
-  }
-
-  let body;
-  try {
-    body = await readJsonBody(req, 1024 * 1024);
-  } catch (error) {
-    return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
-  }
-
-  if (!body?.document || typeof body.document !== "object") {
-    return errorJson(res, 400, "VALIDATION_ERROR", "document is required");
-  }
-
-  const validation = validateDocument(body.document);
-  if (!validation.valid) {
-    return errorJson(res, 400, "VALIDATION_ERROR", validation.error);
-  }
-
-  const expectedVersion = typeof body.version === "number" ? body.version : null;
-
-  try {
-    const saved = await saveStudioDocumentRecord(env, auth.userId, body.document, expectedVersion);
-
-    if (saved?.conflict) {
-      const current = await loadStudioDocumentRecord(env, auth.userId);
-      return errorJson(res, 409, "VERSION_CONFLICT", "Version conflict", {
-        serverVersion: current?.version || null,
-      });
-    }
-
-    return json(res, 200, {
-      ok: true,
-      updatedAt: saved?.updated_at || null,
-      version: saved?.version || null,
-    });
-  } catch (error) {
-    const status = error.__statusCode || 502;
-    logger("error", reqId, "studio_document_save_failed", {
-      error: sanitizeLogValue(error.message),
-      category: error.__category || "unknown",
-      requestUserId: auth.userId,
-    });
-    return errorJson(res, status, "STORAGE_ERROR", "Studio document save failed");
-  }
-}
 
 const MIME_TYPES = {
   js: "text/javascript",
