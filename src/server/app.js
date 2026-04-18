@@ -44,6 +44,15 @@ import { inngestHandler } from "./inngest-handler.js";
 import { resolveRequestAuth } from "./auth.js";
 import { rateLimit } from "./rate-limit.js";
 import { validateCaptionRequest, validateDocument } from "./validate.js";
+import {
+  IG_CACHE_TTL_MS,
+  IG_PENDING_TTL_MS,
+  REFRESH_LOCK_TTL_MS,
+  IG_PUBLISH_MEDIA_TYPES,
+  IG_PUBLISH_MAX_CAPTION,
+  IG_SYNC_CACHE_MAX,
+  IG_SYNC_CACHE_EVICT_BATCH,
+} from "./config.js";
 
 const logger = createLogger("rf-social-studio-api");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -52,7 +61,6 @@ const DEFAULT_STATIC_DIR = path.resolve(__dirname, "../../dist");
 // Instagram sync deduplication — concurrent requests share one API call
 const igSyncInflight = new Map();
 const igSyncCache = new Map();
-const IG_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 function getCachedIgSync(userId) {
   const cached = igSyncCache.get(userId);
@@ -65,10 +73,9 @@ function getCachedIgSync(userId) {
 
 function setCachedIgSync(userId, data) {
   igSyncCache.set(userId, { data, timestamp: Date.now() });
-  // Cap cache size
-  if (igSyncCache.size > 5000) {
+  if (igSyncCache.size > IG_SYNC_CACHE_MAX) {
     const oldest = [...igSyncCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-    for (let i = 0; i < 1000; i++) igSyncCache.delete(oldest[i][0]);
+    for (let i = 0; i < IG_SYNC_CACHE_EVICT_BATCH; i++) igSyncCache.delete(oldest[i][0]);
   }
 }
 
@@ -169,7 +176,6 @@ async function handleCaptionRequest(req, res, env, reqId) {
   }
 }
 
-const IG_PENDING_TTL_MS = 10 * 60 * 1000;
 
 async function handleInstagramStart(req, res, env, reqId) {
   const auth = requireRequestAuth(req, res, env);
@@ -256,6 +262,8 @@ async function handleInstagramExchange(req, res, env, reqId) {
     oauthState.ownerUserId !== auth.userId ||
     oauthState.expiresAt < Date.now()
   ) {
+    // Clear the stale/invalid state cookie so a later replay can't succeed.
+    clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
     return errorJson(res, 400, "VALIDATION_ERROR", "OAuth state validation failed");
   }
 
@@ -326,7 +334,6 @@ async function handleInstagramExchange(req, res, env, reqId) {
 }
 
 const refreshLocks = new Map();
-const REFRESH_LOCK_TTL_MS = 30 * 1000; // 30 seconds max
 
 async function handleInstagramPosts(req, res, env, reqId) {
   const auth = requireRequestAuth(req, res, env);
@@ -483,8 +490,6 @@ function isHttpsUrl(value) {
   }
 }
 
-const IG_PUBLISH_MEDIA_TYPES = ["IMAGE", "VIDEO", "REELS", "STORIES"];
-const IG_PUBLISH_MAX_CAPTION = 2200;
 
 async function handleInstagramPublish(req, res, env, reqId, auth) {
   const envCheck = ensureEnv(env, ["sessionSecret"]);

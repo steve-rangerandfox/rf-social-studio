@@ -1,3 +1,5 @@
+import { log } from "./log.js";
+
 let cachedClient = null;
 let cachedKey = "";
 let cachedAt = 0;
@@ -97,7 +99,7 @@ function categorizeError(error) {
     return { category: "transient", statusCode: 503, retryable: true };
   }
   if (isAuthError(error)) {
-    console.error("[security] Auth error from Supabase:", error.message || error);
+    log.error("persistence_auth_error", { err: error.message || String(error) });
     return { category: "auth", statusCode: 401, retryable: false };
   }
   if (isRlsViolation(error)) {
@@ -106,7 +108,15 @@ function categorizeError(error) {
   if (isConstraintViolation(error)) {
     return { category: "constraint", statusCode: 400, retryable: false };
   }
-  // Unknown errors are not retryable by default
+  // Unknown errors default to 500/non-retryable. Log the full error so we
+  // can notice new Supabase/Postgres failure modes before they pile up as
+  // silent 500s to users.
+  log.warn("persistence_unknown_error", {
+    err: error?.message || String(error),
+    code: error?.code || null,
+    details: error?.details || null,
+    hint: error?.hint || null,
+  });
   return { category: "unknown", statusCode: 500, retryable: false };
 }
 
@@ -211,8 +221,20 @@ export async function saveStudioDocumentRecord(env, ownerUserId, document, expec
       );
 
       if (error?.code === "PGRST116" || !data) {
-        // No rows updated = version mismatch (not an error to retry)
-        return { conflict: true };
+        // Zero-row update. Could be either (a) version mismatch, or
+        // (b) row was deleted. Probe to let the client tell the two
+        // apart (404 vs 409) — different recovery UX each way.
+        const { data: current } = await withTimeout(
+          cl
+            .from("studio_documents")
+            .select("version")
+            .eq("owner_user_id", ownerUserId)
+            .maybeSingle(),
+        );
+        if (!current) {
+          return { notFound: true };
+        }
+        return { conflict: true, serverVersion: current.version };
       }
       if (error) {
         const meta = categorizeError(error);
