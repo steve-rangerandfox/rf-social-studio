@@ -12,7 +12,9 @@ export const T = {
   mintFog: "rgba(24,23,20,0.05)",
   text: "#181714",
   textSub: "#4E473E",
-  textDim: "#746B5E",
+  // Single source of truth — matches --t-text-dim in studio.css. Prior
+  // value #746B5E drifted and rendered thinner (AA edge) on warm bg.
+  textDim: "#5E574C",
   red: "#DC2626",
   amber: "#C96A12",
   blue: "#3F5963",
