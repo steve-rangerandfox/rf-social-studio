@@ -1,3 +1,8 @@
+/* eslint-disable react-refresh/only-export-components */
+// This file exports a handful of snap-alignment constants + helpers
+// alongside the CanvasElement component. Splitting for fast-refresh
+// purity would fragment tight-knit canvas code; disabling the rule
+// here is the better trade.
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 

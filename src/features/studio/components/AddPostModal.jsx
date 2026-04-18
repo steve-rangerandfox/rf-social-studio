@@ -22,7 +22,6 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
 
   const canCreate = title.trim() && dateValue && timeValue;
   const previewDate = dateValue && timeValue ? new Date(`${dateValue}T${timeValue}:00`) : null;
-  const platMeta = PLATFORMS[platform];
 
   const handleSubmit = (event) => {
     event.preventDefault();

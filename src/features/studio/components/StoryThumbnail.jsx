@@ -34,7 +34,6 @@ export function StoryThumbnail({ elements, onClick }) {
             left: `${(el.x / CW) * 100}%`,
             top: `${(el.y / CH) * 100}%`,
             fontSize: (el.fontSize || 14) * s,
-            color: el.color || '#fff',
             fontFamily: `'${el.fontFamily || 'Bricolage Grotesque'}', sans-serif`,
             fontWeight: el.fontWeight || 600,
             fontStyle: el.italic ? 'italic' : 'normal',

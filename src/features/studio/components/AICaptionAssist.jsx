@@ -3,7 +3,7 @@ import { Sparkles } from "lucide-react";
 import { generateCaption } from "../../../lib/api-client.js";
 import { T } from "../shared.js";
 
-export function AICaptionAssist({ platform, note, caption, onAccept, variant = "panel" }) {
+export function AICaptionAssist({ platform, note, onAccept, variant = "panel" }) {
   const isInline = variant === "inline";
   const [prompt, setPrompt] = useState(note || "");
   const [loading, setLoading] = useState(false);
