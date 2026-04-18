@@ -1,9 +1,10 @@
 import React from "react";
+import { Menu } from "lucide-react";
 import { useStudio } from "../StudioContext.jsx";
 import { SaveStatusBadge } from "../../../components/SaveStatusBadge.jsx";
 import { MONTHS_FULL } from "../shared.js";
 
-export function Topbar() {
+export function Topbar({ onOpenNav }) {
   const {
     timeScale, month, year, view, setView,
     saveState, showAssets, setAssets, isOnline, setCommandPalette,
@@ -11,6 +12,17 @@ export function Topbar() {
 
   return (
     <div className="topbar">
+      {onOpenNav && (
+        <button
+          type="button"
+          className="nav-drawer-trigger"
+          onClick={onOpenNav}
+          aria-label="Open navigation"
+          title="Menu"
+        >
+          <Menu size={16} />
+        </button>
+      )}
       {timeScale === "year"
         ? <><span className="tb-month">Year View</span><span className="tb-year">{year}</span></>
         : <><span className="tb-month">{MONTHS_FULL[month]}</span><span className="tb-year">{year}</span></>

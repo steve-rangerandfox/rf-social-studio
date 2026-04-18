@@ -116,6 +116,34 @@
   --platform-fb:  #1877F2;
   --platform-li:  #4B5F66;
   --platform-tt:  #1A1A2E;
+
+  /* ─── Canonical semantic names (prefer these in new code) ────────
+     Existing --t-* tokens stay as legacy aliases — no call-site
+     renames in this pass to avoid churn + visual drift. New styles
+     should reach for the names below. */
+  --ink:           var(--t-ink);
+  --ink-hover:     var(--t-ink-hover);
+  --surface-0:     var(--t-bg);
+  --surface-1:     var(--t-s2);
+  --surface-2:     var(--t-s3);
+  --surface-3:     var(--t-surface);
+  --border:        var(--t-border);
+  --border-strong: var(--t-border2);
+  --divider:       rgba(24,23,20,0.08);
+  --tint-ink:      var(--t-ink-fog);
+
+  --text:          var(--t-text);
+  --text-sub:      var(--t-text-sub);
+  --text-dim:      var(--t-text-dim);
+
+  /* Map semantic "success" to the approved-status green so "did a good
+     thing" and "this is in the approved state" read as the same color.
+     The older --t-success: #10B981 is kept for back-compat but is not
+     referenced anywhere. */
+  --success: var(--status-approved);
+  --warning: var(--t-amber);
+  --danger:  var(--t-red);
+  --info:    var(--status-scheduled);
 }
 
 /* ─── Selection highlight (Herman-inspired warm gold) ─── */
@@ -459,10 +487,30 @@ var(--t-bg)}
 .e-icon{font-size:var(--text-xl);opacity:0.18;margin-bottom:2px}
 .e-t{font-size:var(--text-lg);font-weight:600;color:var(--t-text)}.e-s{font-size:var(--text-base);color:var(--t-text-dim);font-weight:400;line-height:1.6;max-width:320px;text-align:center}
 
-/* TOAST */
+/* TOAST — legacy single-slot (kept for UndoToast / UndoDeleteToast) */
 .toast{position:fixed;bottom:24px;right:24px;z-index:var(--z-toast);background:var(--t-surface);border:1px solid rgba(24,23,20,0.08);border-radius:var(--radius-md);padding:12px 16px;font-size:var(--text-base);color:var(--t-text);font-weight:400;box-shadow:0 20px 50px rgba(24,23,20,0.08);animation:tIn 0.18s cubic-bezier(0.34,1.2,0.64,1);display:flex;align-items:center;gap:8px;max-width:360px}
 @keyframes tIn{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
 .t-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* ─── Toaster (variant-aware, stacked) ──────────────────────────── */
+.rf-toaster{position:fixed;bottom:var(--space-6);right:var(--space-6);z-index:var(--z-toast);display:flex;flex-direction:column-reverse;gap:var(--space-2);max-width:min(420px,calc(100vw - var(--space-8)));pointer-events:none}
+.rf-toast{pointer-events:auto;display:grid;grid-template-columns:10px 1fr auto auto;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);background:var(--t-surface);border:1px solid rgba(24,23,20,0.08);box-shadow:var(--shadow-lg);animation:rfToastIn var(--duration-slow) var(--ease-overshoot-md);color:var(--t-text);font-size:var(--text-base);line-height:1.4}
+@keyframes rfToastIn{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.rf-toast-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.rf-toast-dot-success{background:var(--success,#3D8C5C)}
+.rf-toast-dot-error{background:var(--t-red)}
+.rf-toast-dot-warning{background:var(--t-amber)}
+.rf-toast-dot-info{background:var(--status-scheduled,#5BA8B5)}
+.rf-toast-dot-neutral{background:var(--t-ink)}
+.rf-toast-success{border-color:rgba(61,140,92,0.18);background:linear-gradient(rgba(61,140,92,0.04),rgba(61,140,92,0.02)),var(--t-surface)}
+.rf-toast-error{border-color:rgba(220,38,38,0.22);background:linear-gradient(rgba(220,38,38,0.04),rgba(220,38,38,0.02)),var(--t-surface)}
+.rf-toast-warning{border-color:rgba(201,106,18,0.22);background:linear-gradient(rgba(201,106,18,0.04),rgba(201,106,18,0.02)),var(--t-surface)}
+.rf-toast-info{border-color:rgba(91,168,181,0.22)}
+.rf-toast-msg{min-width:0;overflow-wrap:anywhere}
+.rf-toast-action{background:transparent;border:1px solid rgba(24,23,20,0.14);border-radius:var(--radius-pill);padding:4px 10px;font-size:var(--text-sm);font-weight:600;color:var(--t-text);cursor:pointer;font-family:inherit;transition:background var(--duration-fast) var(--ease-out),border-color var(--duration-fast) var(--ease-out)}
+.rf-toast-action:hover{background:rgba(24,23,20,0.05);border-color:rgba(24,23,20,0.22)}
+.rf-toast-close{background:transparent;border:none;cursor:pointer;color:var(--t-text-dim);width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);transition:color var(--duration-fast) var(--ease-out),background var(--duration-fast) var(--ease-out)}
+.rf-toast-close:hover{color:var(--t-text);background:rgba(24,23,20,0.05)}
 /* ─── STORY DESIGNER SCENE GRAPH ─── */
 .s-modal{width:960px;max-width:96vw;height:90vh;position:relative}
 .s-layout{display:flex;flex:1;overflow:hidden;min-height:0}
@@ -1089,6 +1137,7 @@ var(--t-bg)}
 @media (max-width: 900px){
   .stage-dual{grid-template-columns:1fr}
   .sidebar{display:none}
+  .nav-drawer-trigger{display:inline-flex}
   .topbar{padding:0 16px;height:auto;min-height:72px;flex-wrap:wrap;align-content:center;padding-top:12px;padding-bottom:12px}
   .ops-toolbar,.t-area,.analytics-area,.ig-grid-area,.cal-area{padding-left:14px;padding-right:14px}
   .t-head,.t-row{grid-template-columns:28px 16px 96px minmax(168px,1fr) 48px 40px 120px 96px 36px;padding:0 12px}
@@ -1547,3 +1596,14 @@ var(--t-bg)}
 .undo-toast-dismiss{background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:18px;line-height:1;padding:0 4px;transition:color 0.12s}
 .undo-toast-dismiss:hover{color:var(--t-surface)}
 .undo-toast-progress{position:absolute;bottom:0;left:0;height:2px;background:rgba(255,255,255,0.4);transition:width 0.1s linear}
+
+/* ─── Mobile NavDrawer ──────────────────────────────────────────── */
+.nav-drawer-trigger{display:none;width:36px;height:36px;align-items:center;justify-content:center;border:1px solid rgba(24,23,20,0.12);border-radius:var(--radius-pill);background:rgba(255,255,255,0.72);color:var(--t-text-sub);cursor:pointer;transition:background var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out);margin-right:var(--space-2)}
+.nav-drawer-trigger:hover{background:var(--t-surface);color:var(--t-text)}
+.nav-drawer-backdrop{position:fixed;inset:0;background:rgba(20,18,15,0.32);z-index:var(--z-modal);animation:fIn var(--duration-base) var(--ease-out)}
+.nav-drawer{position:fixed;left:0;top:0;bottom:0;width:min(320px,86vw);z-index:var(--z-modal);background:rgba(254,252,248,0.96);backdrop-filter:blur(18px);border-right:1px solid rgba(24,23,20,0.1);box-shadow:20px 0 60px rgba(24,23,20,0.14);animation:navDrawerIn var(--duration-panel) var(--ease-overshoot-sm);display:flex;flex-direction:column;overflow:hidden}
+.nav-drawer:focus{outline:none}
+@keyframes navDrawerIn{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+.nav-drawer .sidebar{display:flex;width:100%;border-right:none;background:transparent;height:100%}
+.nav-drawer-close{position:absolute;top:12px;right:12px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(24,23,20,0.12);border-radius:var(--radius-sm);background:rgba(255,255,255,0.6);color:var(--t-text-sub);cursor:pointer;z-index:1;transition:background var(--duration-fast) var(--ease-out)}
+.nav-drawer-close:hover{background:var(--t-surface);color:var(--t-text)}

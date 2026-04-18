@@ -1,5 +1,5 @@
 import "./studio.css";
-import React, { useCallback, useEffect, lazy, Suspense } from "react";
+import React, { useCallback, useEffect, useState, lazy, Suspense } from "react";
 
 import { StudioProvider, useStudio } from "./StudioContext.jsx";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts.js";
@@ -60,7 +60,6 @@ import { AddPostModal } from "./components/AddPostModal.jsx";
 import { Composer } from "./components/Composer.jsx";
 const StoryDesigner = lazy(() => import("./components/StoryDesigner.jsx").then(m => ({ default: m.StoryDesigner })));
 import { MonthMiniMap } from "./components/MonthMiniMap.jsx";
-import { Toast } from "./components/Toast.jsx";
 import { TokenExpiryBanner } from "./components/TokenExpiryBanner.jsx";
 import { UndoDeleteToast } from "./components/UndoDeleteToast.jsx";
 import { UndoToast } from "./components/UndoToast.jsx";
@@ -70,6 +69,7 @@ import { FirstRunHint } from "./components/FirstRunHint.jsx";
 
 import { Sidebar } from "./components/Sidebar.jsx";
 import { Topbar } from "./components/Topbar.jsx";
+import { NavDrawer } from "./components/NavDrawer.jsx";
 import { StatsBar } from "./components/StatsBar.jsx";
 import { Toolbar } from "./components/Toolbar.jsx";
 import { ListView } from "./components/ListView.jsx";
@@ -93,7 +93,6 @@ function StudioShell() {
     showConn, setShowConn,
     showSettings, setSettings,
     connections, setConns,
-    toast, setToast,
     pendingDelete, setPendingDelete,
     tokenBannerDismissed, setTokenBannerDismissed,
     publishConfirm, setPublishConfirm,
@@ -125,6 +124,9 @@ function StudioShell() {
   const onSavePressed = useCallback(() => showToast("Already saved · changes auto-sync", T.mint), [showToast]);
   useKeyboardShortcuts({ add: addForMonth, setView, getModals, closeModal, toggleCommandPalette, onSavePressed });
 
+  // Mobile nav drawer — visible only at narrow breakpoints (CSS-gated).
+  const [navOpen, setNavOpen] = useState(false);
+
   // Only one right-side panel open at a time: opening settings/connection closes detail panel
   useEffect(() => {
     if ((showSettings || showConn) && selectedRowId) {
@@ -151,8 +153,10 @@ function StudioShell() {
     <div className="app">
       <Sidebar />
 
+      <NavDrawer open={navOpen} onClose={() => setNavOpen(false)} />
+
       <main className="main">
-        <Topbar />
+        <Topbar onOpenNav={() => setNavOpen(true)} />
         <StatsBar />
         <Toolbar />
 
@@ -307,9 +311,7 @@ function StudioShell() {
         />
       )}
 
-      {/* Toasts */}
-      {toast && <Toast key={toast.id} msg={toast.msg} color={toast.color} onDone={() => setToast(null)} />}
-
+      {/* Toasts now render via the Toaster mounted at main.jsx root */}
       {pendingDelete && (
         <UndoDeleteToast
           key={pendingDelete.rows.map(r => r.id).join("-")}
