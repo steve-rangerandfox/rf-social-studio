@@ -90,6 +90,7 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
                     <div className="cal-posts">
                       {rows.filter(r=>rowDay(r)===d).slice(0, 4).map(r=>{
                         const p=PLATFORMS[r.platform];
+                        const t=toPTDisplay(r.scheduledAt);
                         return (
                           <div
                             key={r.id}
@@ -98,7 +99,8 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
                             onClick={e=>{e.stopPropagation();setSelectedDay(d);onSelectRow(r.id);}}
                           >
                             <span style={{width:4,height:4,borderRadius:"50%",background:p.color,flexShrink:0,display:"inline-block"}}/>
-                            {r.note||p.short}
+                            <span className="cal-post-label">{r.note||p.short}</span>
+                            {t && <span className="cal-post-time">{t.hour}:{t.minute}{t.ampm.toLowerCase()}</span>}
                           </div>
                         );
                       })}

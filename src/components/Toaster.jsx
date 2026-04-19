@@ -25,6 +25,16 @@ const DEFAULT_DURATION = {
   error: 7000,
 };
 
+// Mono-glyph per variant — replaces the colored dot with a typeset
+// character set in JBM. Reads as a labeled status mark, not a UI light.
+const GLYPH = {
+  success: "S",
+  error: "!",
+  warning: "!",
+  info: "i",
+  neutral: "\u00B7",
+};
+
 const ToasterContext = createContext(null);
 
 export function ToasterProvider({ children }) {
@@ -113,7 +123,9 @@ function ToastItem({ id, variant, message, action, duration, onDismiss }) {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <span className={`rf-toast-dot rf-toast-dot-${variant}`} aria-hidden="true" />
+      <span className={`rf-toast-glyph rf-toast-glyph-${variant}`} aria-hidden="true">
+        {GLYPH[variant] || GLYPH.neutral}
+      </span>
       <span className="rf-toast-msg">{message}</span>
       {action && (
         <button

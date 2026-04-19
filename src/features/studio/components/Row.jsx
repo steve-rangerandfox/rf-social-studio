@@ -73,7 +73,13 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
 
   return (
     <div className={`t-row ${sel ? "sel" : ""} ${isSelected ? "row-selected" : ""} ${isFocused ? "row-focused" : ""} ${dragHandlers.isDragging ? "dragging" : ""} ${dragHandlers.isDragOver ? "drag-over" : ""}`}
-      style={isMenuOpen || isStatusDropdownOpen || isPlatformOpen ? { zIndex: 20 } : undefined}
+      style={{
+        // Status-as-left-stripe — the row carries its own status color as
+        // a 3px left rule so the queue scans by hue without needing the
+        // status pill in peripheral vision.
+        "--row-stripe": s.dot,
+        ...(isMenuOpen || isStatusDropdownOpen || isPlatformOpen ? { zIndex: 20 } : null),
+      }}
       onMouseEnter={dragHandlers.onMouseEnter}
       onClick={() => { if (!isEditingTitle) onSelect(); }}>
       <div className="row-cb-wrap" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="cb" checked={sel} onChange={e => onSel(e.target.checked)} /></div>

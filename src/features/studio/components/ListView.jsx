@@ -89,7 +89,7 @@ export function ListView() {
     getScrollElement: () => parentRef.current,
     estimateSize: (index) => {
       const item = flatItems[index];
-      if (item.type === "header") return 44;
+      if (item.type === "header") return 76;
       if (item.type === "empty") return 120;
       return 86;
     },
@@ -180,6 +180,14 @@ export function ListView() {
 
               if (item.type === "header") {
                 const { mi, mName, rows: mRows } = item.group;
+                const scheduledN = mRows.filter(r => r.status === "scheduled" || r.status === "approved").length;
+                const reviewN = mRows.filter(r => r.status === "needs_review").length;
+                const draftN = mRows.filter(r => r.status === "draft" || r.status === "idea").length;
+                const summaryParts = [];
+                if (scheduledN) summaryParts.push(`${scheduledN} scheduled`);
+                if (reviewN) summaryParts.push(`${reviewN} in review`);
+                if (draftN) summaryParts.push(`${draftN} draft${draftN !== 1 ? "s" : ""}`);
+                const summary = summaryParts.length > 0 ? summaryParts.join(" \u00B7 ") : "No posts yet";
                 return (
                   <div
                     key={`header-${mi}`}
@@ -193,8 +201,12 @@ export function ListView() {
                     }}
                   >
                     <div className="month-anchor-header">
-                      <span className="month-anchor-label">{mName} {year}</span>
-                      <span className="month-anchor-count">{mRows.length} post{mRows.length !== 1 ? "s" : ""}</span>
+                      <div className="month-anchor-mark">
+                        <span className="month-anchor-num">{String(mi + 1).padStart(2, "0")}</span>
+                        <span className="month-anchor-label">{mName}</span>
+                        <span className="month-anchor-year">{year}</span>
+                      </div>
+                      <span className="month-anchor-summary">{summary}</span>
                     </div>
                   </div>
                 );

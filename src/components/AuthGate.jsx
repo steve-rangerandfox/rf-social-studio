@@ -21,67 +21,39 @@ const AUTH_STYLES = `
   min-height:100vh;
   display:grid;
   grid-template-columns:minmax(280px, 0.95fr) minmax(420px, 0.9fr);
-  background:
-    radial-gradient(circle at 14% 12%, rgba(255,137,51,0.18), transparent 24%),
-    radial-gradient(circle at 78% 16%, rgba(132,199,255,0.18), transparent 20%),
-    radial-gradient(circle at 62% 72%, rgba(219,155,255,0.12), transparent 22%),
-    linear-gradient(180deg, #f8f4ed 0%, #f1ece2 100%);
+  background:linear-gradient(180deg, #f8f4ed 0%, #f1ece2 100%);
   color:#181714;
 }
 
 .auth-panel{
   position:relative;
-  overflow:hidden;
-  padding:48px 42px;
+  padding:56px 48px;
   display:flex;
   flex-direction:column;
   justify-content:space-between;
   border-right:1px solid rgba(24,23,20,0.08);
 }
 
-.auth-panel::after{
-  content:"";
-  position:absolute;
-  inset:auto -80px -90px 30%;
-  height:260px;
-  border-radius:999px;
-  background:radial-gradient(circle, rgba(24,23,20,0.08) 0%, rgba(24,23,20,0) 72%);
-  pointer-events:none;
-}
-
+/* Editorial wordmark lockup — replaces the circular badge. The Bricolage
+   display + JBM caption combo is the same vocabulary as the studio chrome,
+   so the auth screen reads as the same authored system. */
 .auth-mark{
   display:flex;
-  align-items:center;
-  gap:12px;
+  flex-direction:column;
+  gap:4px;
 }
 
-.auth-mark-badge{
-  width:38px;
-  height:38px;
-  border-radius:50%;
-  background:#181714;
-  color:#FBFAF6;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font:700 11px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.12em;
-  box-shadow:0 10px 30px rgba(24,23,20,0.14);
+.auth-mark-name{
+  font:800 28px/0.95 "Bricolage Grotesque", sans-serif;
+  letter-spacing:-0.045em;
+  color:#111111;
 }
 
-.auth-mark-copy strong{
-  display:block;
-  font:600 14px/1.2 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
-  letter-spacing:-0.02em;
-}
-
-.auth-mark-copy span{
-  display:block;
-  margin-top:2px;
-  color:#8b8377;
-  font:500 11px/1.4 "JetBrains Mono", monospace;
-  letter-spacing:0.08em;
+.auth-mark-sub{
+  font:600 10px/1 "JetBrains Mono", monospace;
+  letter-spacing:0.16em;
   text-transform:uppercase;
+  color:#8b8377;
 }
 
 .auth-hero{
@@ -164,12 +136,31 @@ const AUTH_STYLES = `
   font-family:"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
+/* Footer is now an editorial colophon-style lockup — pull-quote +
+   typographic mark, set against a fine top rule. Replaces the
+   conventional "Sign in to continue. Authentication is handled
+   securely…" boilerplate. */
 .auth-footnote{
   position:relative;
-  z-index:1;
-  max-width:420px;
+  max-width:480px;
+  padding-top:24px;
+  border-top:1px solid rgba(24,23,20,0.1);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.auth-footnote-quote{
+  font:500 16px/1.55 "Bricolage Grotesque", sans-serif;
+  letter-spacing:-0.02em;
+  color:#2e2c28;
+}
+
+.auth-footnote-attribution{
+  font:600 10px/1 "JetBrains Mono", monospace;
+  letter-spacing:0.16em;
+  text-transform:uppercase;
   color:#8b8377;
-  font:400 12px/1.7 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
 .auth-stage{
@@ -180,22 +171,8 @@ const AUTH_STYLES = `
   padding:42px;
 }
 
-.auth-stage::before{
-  content:"";
-  position:absolute;
-  inset:28px;
-  border-radius:30px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.7), rgba(240,234,225,0.72)),
-    radial-gradient(circle at 16% 12%, rgba(255,122,0,0.14), transparent 24%),
-    radial-gradient(circle at 88% 14%, rgba(130,199,255,0.18), transparent 22%);
-  border:1px solid rgba(24,23,20,0.06);
-  box-shadow:0 24px 80px rgba(24,23,20,0.08);
-}
-
 .auth-card-wrap{
   position:relative;
-  z-index:1;
   width:min(100%, 460px);
 }
 
@@ -325,12 +302,19 @@ const signInAppearance = {
     formButtonPrimary: {
       minHeight: "52px",
       borderRadius: "999px",
-      background: "linear-gradient(135deg, #FF7A00 0%, #F0B24D 28%, #D99BFF 68%, #82C7FF 100%)",
-      boxShadow: "0 14px 28px rgba(229,106,11,0.2)",
+      // Single-color CTA — strips the gradient (kept once, on the brand
+      // mark in marketing surfaces). Premium products commit to one
+      // brand color on primary actions; the gradient is reserved as a
+      // signature surface.
+      background: "#181714",
+      boxShadow: "0 12px 28px rgba(24,23,20,0.18)",
       fontSize: "14px",
-      fontWeight: "800",
-      color: "#111111",
-      transition: "transform 120ms ease, opacity 120ms ease",
+      fontWeight: "700",
+      color: "#FBFAF6",
+      transition: "background 140ms ease, box-shadow 140ms ease, transform 140ms ease",
+      "&:hover": {
+        background: "#2E2C28",
+      },
     },
     footer: {
       background: "linear-gradient(180deg, rgba(240,234,225,0.42) 0%, rgba(240,234,225,0.72) 100%)",
@@ -389,11 +373,8 @@ export function AuthGate() {
         <div className="auth-shell">
           <section className="auth-panel">
             <div className="auth-mark">
-              <div className="auth-mark-badge">RF</div>
-              <div className="auth-mark-copy">
-                <strong>Ranger & Fox</strong>
-                <span>Social Studio</span>
-              </div>
+              <div className="auth-mark-name">Ranger &amp; Fox</div>
+              <div className="auth-mark-sub">Social Studio</div>
             </div>
 
             <div className="auth-hero">
@@ -415,10 +396,12 @@ export function AuthGate() {
               </div>
             </div>
 
-            <p className="auth-footnote">
-              Sign in to continue into the studio. Authentication is handled securely through Clerk, while the
-              product shell keeps the same visual language as the rest of the planning experience.
-            </p>
+            <div className="auth-footnote">
+              <p className="auth-footnote-quote">
+                &ldquo;Editorial rhythm, calm by default — dense when you need it.&rdquo;
+              </p>
+              <p className="auth-footnote-attribution">House voice · 2026</p>
+            </div>
           </section>
 
           <section className="auth-stage">

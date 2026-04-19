@@ -1,25 +1,22 @@
 import React from "react";
+import { PublicLayout, PublicSection } from "./PublicLayout.jsx";
 
 export function PrivacyPolicy() {
+  const updated = new Date().toLocaleDateString("en-US", {
+    month: "long", day: "numeric", year: "numeric",
+  });
+
   return (
-    <div style={{
-      maxWidth: 720, margin: "0 auto", padding: "48px 24px",
-      fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif', color: "#181714",
-      lineHeight: 1.7, fontSize: 15,
-    }}>
-      <h1 style={{
-        fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 32,
-        fontWeight: 800, letterSpacing: "-0.04em", marginBottom: 8,
-      }}>Privacy Policy</h1>
-      <p style={{ color: "#746B5E", fontSize: 13, marginBottom: 32, fontFamily: "'JetBrains Mono', monospace" }}>
-        Last updated: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-      </p>
-
-      <Section title="What we collect">
+    <PublicLayout
+      eyebrow="Policy"
+      title="Privacy Policy"
+      meta={`Last updated \u00B7 ${updated}`}
+    >
+      <PublicSection title="What we collect">
         <p>When you connect your Instagram account, we access your public profile information (username, profile picture, bio) and your media feed (posts, captions, timestamps) through the Instagram Graph API. We use Clerk for authentication, which handles your login credentials securely.</p>
-      </Section>
+      </PublicSection>
 
-      <Section title="How we use it">
+      <PublicSection title="How we use it">
         <p>Your data is used exclusively to power RF Social Studio features:</p>
         <ul>
           <li>Displaying your Instagram feed in the Grid view</li>
@@ -27,44 +24,28 @@ export function PrivacyPolicy() {
           <li>Enabling content scheduling and publishing</li>
           <li>Generating analytics from your post performance</li>
         </ul>
-      </Section>
+      </PublicSection>
 
-      <Section title="Storage">
-        <p>Your studio document (post drafts, captions, schedules) is stored in your browser's local storage and optionally synced to our Supabase database, scoped to your authenticated user account. Instagram media data is cached locally and refreshed on each session.</p>
-      </Section>
+      <PublicSection title="Storage">
+        <p>Your studio document (post drafts, captions, schedules) is stored in your browser&rsquo;s local storage and optionally synced to our Supabase database, scoped to your authenticated user account. Instagram media data is cached locally and refreshed on each session.</p>
+      </PublicSection>
 
-      <Section title="Third-party services">
+      <PublicSection title="Third-party services">
         <ul>
-          <li><strong>Clerk</strong> — authentication and session management</li>
-          <li><strong>Supabase</strong> — optional server-side document persistence</li>
-          <li><strong>Instagram Graph API</strong> — media and profile data</li>
-          <li><strong>Anthropic Claude API</strong> — AI caption generation (prompts are not stored)</li>
+          <li><strong>Clerk</strong> &mdash; authentication and session management</li>
+          <li><strong>Supabase</strong> &mdash; optional server-side document persistence</li>
+          <li><strong>Instagram Graph API</strong> &mdash; media and profile data</li>
+          <li><strong>Anthropic Claude API</strong> &mdash; AI caption generation (prompts are not stored)</li>
         </ul>
-      </Section>
+      </PublicSection>
 
-      <Section title="Data deletion">
-        <p>You can disconnect your Instagram account at any time from the Connections panel, which removes your Instagram data from the app. To delete all studio data, clear your browser's local storage or contact us. You can also request complete account deletion by emailing the address below.</p>
-      </Section>
+      <PublicSection title="Data deletion">
+        <p>You can disconnect your Instagram account at any time from the Connections panel, which removes your Instagram data from the app. To delete all studio data, clear your browser&rsquo;s local storage or contact us. You can also request complete account deletion by emailing the address below.</p>
+      </PublicSection>
 
-      <Section title="Contact">
-        <p>For privacy questions or data deletion requests, contact <a href="mailto:social@rangerandfox.tv" style={{ color: "#E56A0B" }}>social@rangerandfox.tv</a>.</p>
-      </Section>
-
-      <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #D8CABA", fontSize: 12, color: "#746B5E" }}>
-        Ranger & Fox Social Studio
-      </div>
-    </div>
-  );
-}
-
-function Section({ title, children }) {
-  return (
-    <div style={{ marginBottom: 28 }}>
-      <h2 style={{
-        fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18,
-        fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 8,
-      }}>{title}</h2>
-      {children}
-    </div>
+      <PublicSection title="Contact">
+        <p>For privacy questions or data deletion requests, contact <a href="mailto:social@rangerandfox.tv">social@rangerandfox.tv</a>.</p>
+      </PublicSection>
+    </PublicLayout>
   );
 }
