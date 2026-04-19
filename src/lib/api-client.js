@@ -111,6 +111,21 @@ export function publishToInstagram({ caption, mediaUrl, videoUrl, mediaType, row
   }, { timeoutMs: 60000 });
 }
 
+export function generateMonthlyStrategy({ year, month, postsPerWeek, platforms, existingRows, brandProfile }) {
+  return requestJson("/api/captions", {
+    method: "POST",
+    body: JSON.stringify({
+      intent: "strategy",
+      year,
+      month,
+      postsPerWeek,
+      platforms,
+      existingRows,
+      ...(brandProfile ? { brandProfile } : {}),
+    }),
+  }, { timeoutMs: 60000 });
+}
+
 export function learnBrandFromUrl(url) {
   return requestJson("/api/captions", {
     method: "POST",

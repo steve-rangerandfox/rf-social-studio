@@ -70,8 +70,25 @@ export function validateCaptionRequest(body) {
   }
 
   const intent = body.intent || "caption";
-  if (!["caption", "story_tips", "variants", "learn_brand"].includes(intent)) {
+  if (!["caption", "story_tips", "variants", "learn_brand", "strategy"].includes(intent)) {
     errors.push(`Invalid intent: ${intent}`);
+  }
+
+  if (intent === "strategy") {
+    if (!Number.isInteger(Number(body.year))) errors.push("year must be an integer");
+    if (!Number.isInteger(Number(body.month))) errors.push("month must be an integer (0-indexed)");
+    const postsPerWeek = Number(body.postsPerWeek);
+    if (Number.isFinite(postsPerWeek) && (postsPerWeek < 1 || postsPerWeek > 14)) {
+      errors.push("postsPerWeek must be between 1 and 14");
+    }
+    if (!Array.isArray(body.platforms) || body.platforms.length === 0) {
+      errors.push("platforms must be a non-empty array");
+    } else if (body.platforms.length > 8) {
+      errors.push("platforms has too many entries (max 8)");
+    } else {
+      const bad = body.platforms.find((p) => !VALID_PLATFORMS.includes(p));
+      if (bad) errors.push(`Invalid platform: ${bad}`);
+    }
   }
 
   if (intent === "learn_brand") {

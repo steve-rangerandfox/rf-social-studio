@@ -1,10 +1,10 @@
 import React from "react";
-import { Menu } from "lucide-react";
+import { Menu, Sparkles } from "lucide-react";
 import { useStudio } from "../StudioContext.jsx";
 import { SaveStatusBadge } from "../../../components/SaveStatusBadge.jsx";
 import { MONTHS_FULL } from "../shared.js";
 
-export function Topbar({ onOpenNav }) {
+export function Topbar({ onOpenNav, onOpenStrategy }) {
   const {
     timeScale, month, year, view, setView,
     saveState, showAssets, setAssets, isOnline, setCommandPalette,
@@ -28,6 +28,17 @@ export function Topbar({ onOpenNav }) {
         : <><span className="tb-month">{MONTHS_FULL[month]}</span><span className="tb-year">{year}</span></>
       }
       <div className="tb-space" />
+      {onOpenStrategy && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm topbar-plan-btn"
+          onClick={onOpenStrategy}
+          title="Plan the month with AI"
+        >
+          <Sparkles size={12} style={{ marginRight: 4 }} />
+          Plan month
+        </button>
+      )}
       <SaveStatusBadge saveState={saveState} isOnline={isOnline} />
       <button
         type="button"

@@ -70,6 +70,7 @@ import { FirstRunHint } from "./components/FirstRunHint.jsx";
 import { Sidebar } from "./components/Sidebar.jsx";
 import { Topbar } from "./components/Topbar.jsx";
 import { NavDrawer } from "./components/NavDrawer.jsx";
+import { StrategyModal } from "./components/StrategyModal.jsx";
 import { StatsBar } from "./components/StatsBar.jsx";
 import { Toolbar } from "./components/Toolbar.jsx";
 import { ListView } from "./components/ListView.jsx";
@@ -127,6 +128,8 @@ function StudioShell() {
 
   // Mobile nav drawer — visible only at narrow breakpoints (CSS-gated).
   const [navOpen, setNavOpen] = useState(false);
+  // Monthly-strategy modal (AI planner)
+  const [strategyOpen, setStrategyOpen] = useState(false);
 
   // Only one right-side panel open at a time: opening settings/connection closes detail panel
   useEffect(() => {
@@ -157,7 +160,7 @@ function StudioShell() {
       <NavDrawer open={navOpen} onClose={() => setNavOpen(false)} />
 
       <main className="main">
-        <Topbar onOpenNav={() => setNavOpen(true)} />
+        <Topbar onOpenNav={() => setNavOpen(true)} onOpenStrategy={() => setStrategyOpen(true)} />
         <StatsBar />
         <Toolbar />
 
@@ -350,6 +353,11 @@ function StudioShell() {
 
       {/* Command palette */}
       {showCommandPalette && <CommandPalette onClose={() => setCommandPalette(false)} />}
+
+      {/* Monthly strategy / AI planner */}
+      {strategyOpen && (
+        <StrategyModal onClose={() => setStrategyOpen(false)} initialMonth={month} initialYear={year} />
+      )}
 
       {/* First-run hint */}
       <FirstRunHint />

@@ -391,6 +391,119 @@ function normaliseBrandDraft(obj) {
   };
 }
 
+// Monthly strategy generator — produces a month's worth of post briefs
+// using the brand profile as the voice anchor and respecting the
+// posts-per-week cadence + platform mix the user requests.
+//
+// Existing rows for the target month are passed in so the model
+// doesn't duplicate concepts the user has already drafted.
+export async function generateMonthlyStrategy(env, {
+  brandProfile,
+  year,
+  month, // 0-indexed (JS Date convention)
+  postsPerWeek = 3,
+  platforms = ["ig_post", "linkedin"],
+  existingRows = [],
+}) {
+  const monthIndex = Number.isInteger(month) ? month : new Date().getMonth();
+  const yearNumber = Number.isInteger(year) ? year : new Date().getFullYear();
+  const targetDate = new Date(yearNumber, monthIndex, 1);
+  const monthLabel = targetDate.toLocaleString("en-US", { month: "long", year: "numeric" });
+  const daysInMonth = new Date(yearNumber, monthIndex + 1, 0).getDate();
+  const totalTargetPosts = Math.max(3, Math.min(40, Math.round(postsPerWeek * (daysInMonth / 7))));
+
+  const safePlatforms = Array.isArray(platforms) && platforms.length
+    ? platforms.filter((p) => typeof p === "string").slice(0, 8)
+    : ["ig_post", "linkedin"];
+
+  const existingSummary = Array.isArray(existingRows)
+    ? existingRows
+        .filter((row) => {
+          if (!row || !row.scheduledAt || row.deletedAt) return false;
+          const scheduled = new Date(row.scheduledAt);
+          return scheduled.getFullYear() === yearNumber && scheduled.getMonth() === monthIndex;
+        })
+        .slice(0, 30)
+        .map((row) => `<existing date="${new Date(row.scheduledAt).toISOString().slice(0, 10)}" platform="${row.platform}">${sanitiseForPrompt(row.note || row.caption || "", 140)}</existing>`)
+        .join("\n")
+    : "";
+
+  const brand = buildBrandContext(brandProfile);
+
+  const system =
+    (brandProfile?.businessName
+      ? `You are the content strategist for ${sanitiseForPrompt(brandProfile.businessName, 120)}.`
+      : "You are a senior content strategist for a premium creative studio.") +
+    " Produce a month of social media post briefs — not finished captions — for the user to review and schedule. " +
+    "Ground the plan in the <brand> block; if no brand context is provided, write a plausible plan for a small creative studio. " +
+    "Avoid duplicating concepts in <existing> blocks. " +
+    "Spread posts across the month and across the requested platforms. " +
+    "Mix formats: work showcases, behind-the-scenes, tips, culture, process, announcements. " +
+    'Return exactly this JSON shape and nothing else: {"briefs":[{"date":"YYYY-MM-DD","platform":"ig_post|ig_reel|ig_story|linkedin|tiktok|facebook","topic":"short label","note":"one-sentence concept","hook":"first-line idea"}]}. ' +
+    "Dates must fall within the target month. Keep note under 140 chars, hook under 100.";
+
+  const user = [
+    brand,
+    `<target_month>${monthLabel} (${yearNumber}-${String(monthIndex + 1).padStart(2, "0")})</target_month>`,
+    `<cadence>${postsPerWeek} posts per week, approximately ${totalTargetPosts} total</cadence>`,
+    `<platforms>${safePlatforms.join(", ")}</platforms>`,
+    existingSummary ? `<existing_posts>\n${existingSummary}\n</existing_posts>` : "",
+  ].filter(Boolean).join("\n\n");
+
+  const text = await callAnthropic(env, {
+    system,
+    user,
+    maxTokens: 3000,
+  });
+
+  const parsed = extractBriefsArray(text);
+  return parsed
+    .map((brief) => normaliseBrief(brief, { year: yearNumber, month: monthIndex, safePlatforms }))
+    .filter(Boolean);
+}
+
+function normaliseBrief(brief, { year, month, safePlatforms }) {
+  if (!brief || typeof brief !== "object") return null;
+  const platform = safePlatforms.includes(brief.platform) ? brief.platform : safePlatforms[0];
+  const dateStr = typeof brief.date === "string" ? brief.date : "";
+  let date = null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [yy, mm, dd] = dateStr.split("-").map(Number);
+    // Clamp to the requested month if the model drifted; accept slight
+    // date inaccuracy rather than dropping the brief.
+    if (yy === year && mm === month + 1 && dd >= 1 && dd <= 31) {
+      date = dateStr;
+    } else {
+      date = `${year}-${String(month + 1).padStart(2, "0")}-${String(Math.min(Math.max(dd, 1), 28)).padStart(2, "0")}`;
+    }
+  }
+  const topic = typeof brief.topic === "string" ? brief.topic.trim().slice(0, 80) : "";
+  const note = typeof brief.note === "string" ? brief.note.trim().slice(0, 200) : "";
+  const hook = typeof brief.hook === "string" ? brief.hook.trim().slice(0, 160) : "";
+  if (!note && !topic) return null;
+  return { date, platform, topic, note, hook };
+}
+
+function extractBriefsArray(text) {
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed.briefs)) return parsed.briefs;
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // fall through
+  }
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[0]);
+    if (Array.isArray(parsed.briefs)) return parsed.briefs;
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // fall through
+  }
+  return [];
+}
+
 export async function generateStoryTips(env, board) {
   const text = await callAnthropic(env, buildStoryTipsPrompt(board));
   const tips = extractTipsArray(text);

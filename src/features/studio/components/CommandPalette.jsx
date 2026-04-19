@@ -25,6 +25,7 @@ export function CommandPalette({ onClose }) {
 
     // Actions
     { id: "new-post", label: "Create new post", shortcut: "N", section: "Actions", action: () => add(month) },
+    { id: "plan-month", label: "Plan the month with AI", section: "Actions", action: () => document.querySelector(".topbar-plan-btn")?.click() },
     { id: "search", label: "Search posts", shortcut: "/", section: "Actions", action: () => document.querySelector(".ops-search")?.focus() },
     { id: "toggle-attention", label: "Toggle needs attention filter", section: "Actions", action: () => setAttentionOnly(v => !v) },
     { id: "export", label: "Export studio data", section: "Actions", action: () => exportData() },
