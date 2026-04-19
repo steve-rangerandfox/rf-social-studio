@@ -92,13 +92,14 @@ async function requestJson(url, options = {}, { timeoutMs = DEFAULT_TIMEOUT_MS, 
   throw lastError || new Error("Request failed after retries");
 }
 
-export function generateCaption({ platform, prompt }) {
+export function generateCaption({ platform, prompt, brandProfile }) {
   return requestJson("/api/captions", {
     method: "POST",
     body: JSON.stringify({
       intent: "caption",
       platform,
       prompt,
+      ...(brandProfile ? { brandProfile } : {}),
     }),
   }, { timeoutMs: 30000 });
 }

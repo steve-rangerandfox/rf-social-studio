@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Sparkles } from "lucide-react";
 import {
   PLATFORMS,
   T,
@@ -7,9 +7,180 @@ import {
   createTeamMember,
 } from "../shared.js";
 
-const SETTINGS_TABS = ["General","Team"];
+const SETTINGS_TABS = ["General", "Brand", "Team"];
 
-export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate }) {
+function listToCsv(list) {
+  return Array.isArray(list) ? list.join(", ") : "";
+}
+function csvToList(value) {
+  return String(value || "")
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function BrandTab({ brandProfile, onBrandProfileUpdate, onLearnFromWebsite }) {
+  const [draft, setDraft] = useState(() => ({
+    businessName: brandProfile?.businessName || "",
+    tagline: brandProfile?.tagline || "",
+    description: brandProfile?.description || "",
+    audience: brandProfile?.audience || "",
+    toneVoice: brandProfile?.toneVoice || "",
+    callToAction: brandProfile?.callToAction || "",
+    keyTopicsCsv: listToCsv(brandProfile?.keyTopics),
+    defaultHashtagsCsv: listToCsv(brandProfile?.defaultHashtags),
+    bannedPhrasesCsv: listToCsv(brandProfile?.bannedPhrases),
+  }));
+  const [saved, setSaved] = useState(false);
+  const set = (key) => (event) => {
+    setSaved(false);
+    setDraft((prev) => ({ ...prev, [key]: event.target.value }));
+  };
+
+  const save = () => {
+    if (!onBrandProfileUpdate) return;
+    onBrandProfileUpdate({
+      businessName: draft.businessName.trim(),
+      tagline: draft.tagline.trim(),
+      description: draft.description.trim(),
+      audience: draft.audience.trim(),
+      toneVoice: draft.toneVoice.trim(),
+      callToAction: draft.callToAction.trim(),
+      keyTopics: csvToList(draft.keyTopicsCsv),
+      defaultHashtags: csvToList(draft.defaultHashtagsCsv).map((t) =>
+        t.startsWith("#") ? t : `#${t}`,
+      ),
+      bannedPhrases: csvToList(draft.bannedPhrasesCsv),
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+  };
+
+  return (
+    <div className="settings-stack">
+      <div className="settings-card">
+        <div className="settings-card-title">Brand identity</div>
+        <div className="settings-field-sub settings-mt-0">
+          Fed into every AI caption and strategy suggestion. The richer this is, the more
+          the generated posts sound like you.
+        </div>
+
+        <div className="field settings-mt-8">
+          <div className="lbl">Business name</div>
+          <input className="inp" placeholder="Ranger &amp; Fox" value={draft.businessName} onChange={set("businessName")} />
+        </div>
+
+        <div className="field settings-mt-8">
+          <div className="lbl">Tagline</div>
+          <input className="inp" placeholder="Premium motion graphics studio" value={draft.tagline} onChange={set("tagline")} />
+        </div>
+
+        <div className="field settings-mt-8">
+          <div className="lbl">Description</div>
+          <textarea
+            className="txa"
+            rows={3}
+            placeholder="One or two sentences about what the business actually does."
+            value={draft.description}
+            onChange={set("description")}
+          />
+        </div>
+
+        <div className="field settings-mt-8">
+          <div className="lbl">Audience</div>
+          <textarea
+            className="txa"
+            rows={2}
+            placeholder="Creative directors, brand leads, agencies shipping high-end motion work."
+            value={draft.audience}
+            onChange={set("audience")}
+          />
+        </div>
+      </div>
+
+      <div className="settings-card settings-mt-8">
+        <div className="settings-card-title">Voice + topics</div>
+
+        <div className="field settings-mt-0">
+          <div className="lbl">Tone of voice</div>
+          <textarea
+            className="txa"
+            rows={3}
+            placeholder="Calm, confident, bold, understated. No emojis in LinkedIn. 2-3 in IG. Avoid hype language."
+            value={draft.toneVoice}
+            onChange={set("toneVoice")}
+          />
+        </div>
+
+        <div className="field settings-mt-8">
+          <div className="lbl">Key topics (comma-separated)</div>
+          <input
+            className="inp"
+            placeholder="motion design, case studies, process insights, team culture"
+            value={draft.keyTopicsCsv}
+            onChange={set("keyTopicsCsv")}
+          />
+        </div>
+
+        <div className="field settings-mt-8">
+          <div className="lbl">Default hashtags (comma-separated, # optional)</div>
+          <input
+            className="inp"
+            placeholder="motiondesign, creative, animation"
+            value={draft.defaultHashtagsCsv}
+            onChange={set("defaultHashtagsCsv")}
+          />
+        </div>
+
+        <div className="field settings-mt-8">
+          <div className="lbl">Banned phrases (comma-separated)</div>
+          <input
+            className="inp"
+            placeholder="dive deep, game-changer, circle back"
+            value={draft.bannedPhrasesCsv}
+            onChange={set("bannedPhrasesCsv")}
+          />
+        </div>
+
+        <div className="field settings-mt-8">
+          <div className="lbl">Call to action</div>
+          <input
+            className="inp"
+            placeholder="Link in bio, DM us, book a call"
+            value={draft.callToAction}
+            onChange={set("callToAction")}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", marginTop: 4 }}>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={onLearnFromWebsite}
+          disabled={!onLearnFromWebsite}
+          title={onLearnFromWebsite ? "Import positioning from a URL" : "Coming soon"}
+        >
+          <Sparkles size={12} style={{ marginRight: 4 }} />
+          Learn from website
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {saved && <span style={{ fontSize: 12, color: "var(--success)" }}>Saved</span>}
+          {brandProfile?.updatedAt && !saved && (
+            <span style={{ fontSize: 11, color: "var(--text-dim)", fontFamily: '"JetBrains Mono", monospace' }}>
+              Last saved {new Date(brandProfile.updatedAt).toLocaleDateString()}
+            </span>
+          )}
+          <button type="button" className="btn btn-primary btn-sm" onClick={save}>
+            Save brand profile
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, brandProfile, onBrandProfileUpdate, onLearnFromWebsite }) {
   const [tab, setTab] = useState("General");
   const [showInvite, setShowInvite] = useState(false);
   const [inviteName, setInviteName] = useState("");
@@ -143,6 +314,14 @@ export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate }) 
                 </div>
               </div>
             </div>
+          )}
+
+          {tab === "Brand" && (
+            <BrandTab
+              brandProfile={brandProfile}
+              onBrandProfileUpdate={onBrandProfileUpdate}
+              onLearnFromWebsite={onLearnFromWebsite}
+            />
           )}
 
           {tab==="Team"&&(

@@ -13,11 +13,13 @@ import {
   appendAuditEntries,
   applyRowPatch,
   createAuditEntry,
+  createDefaultBrandProfile,
   createNewRow,
   exportStudioData,
   loadStudioDocument,
   loadStudioDocumentAsync,
   markRowDeleted,
+  normalizeBrandProfile,
   persistStudioDocument,
   restoreDeletedRow,
 } from "./document-store.js";
@@ -152,6 +154,10 @@ export function StudioProvider({ children }) {
 
   const igConfig = useMemo(() => studioDoc.instagram?.account || null, [studioDoc]);
   const igMedia = useMemo(() => studioDoc.instagram?.media || null, [studioDoc]);
+  const brandProfile = useMemo(
+    () => normalizeBrandProfile(studioDoc.brandProfile || createDefaultBrandProfile()),
+    [studioDoc],
+  );
 
   const allSorted = useMemo(() => [...filteredRows].sort((a, b) => {
     const da = a.scheduledAt ? new Date(a.scheduledAt) : new Date(0);
@@ -812,6 +818,21 @@ export function StudioProvider({ children }) {
     commitReorder, jumpToMonth, jumpToStatsFilter,
     handleTokenRefresh,
     makeDrag,
+
+    // Brand profile
+    brandProfile,
+    updateBrandProfile: (patch) => updateDocument(
+      (current) => ({
+        ...current,
+        brandProfile: normalizeBrandProfile({
+          ...createDefaultBrandProfile(),
+          ...current.brandProfile,
+          ...patch,
+          updatedAt: new Date().toISOString(),
+        }),
+      }),
+      () => createAuditEntry("brand_profile.updated", currentUser, "Brand profile edited"),
+    ),
 
     // Export helper
     exportData: () => { exportStudioData(studioDoc); showToast("Backup downloaded", T.mint); },

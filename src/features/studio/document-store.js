@@ -12,7 +12,42 @@ import { saveDocument as idbSave, loadDocument as idbLoad } from "../../lib/idb-
 const DOCUMENT_STORAGE_KEY = "rf_studio_document";
 const LEGACY_ROWS_KEY = "rf_rows";
 const LEGACY_IG_MEDIA_KEY = "rf_ig_media";
-const STORE_VERSION = 2;
+const STORE_VERSION = 3;
+
+// Brand Profile feeds the AI caption generator + the monthly-strategy
+// generator + the default hashtag set on every new row. Stored inside
+// the studio document so it travels with the user's account and exports.
+export function createDefaultBrandProfile() {
+  return {
+    businessName: "",
+    tagline: "",
+    description: "",
+    audience: "",
+    toneVoice: "",
+    keyTopics: [],
+    callToAction: "",
+    defaultHashtags: [],
+    bannedPhrases: [],
+    exampleCaptions: [],
+    learnedFromUrl: "",
+    updatedAt: null,
+  };
+}
+
+export function normalizeBrandProfile(profile) {
+  const base = createDefaultBrandProfile();
+  if (!profile || typeof profile !== "object") return base;
+  return {
+    ...base,
+    ...profile,
+    keyTopics: Array.isArray(profile.keyTopics) ? profile.keyTopics.filter((t) => typeof t === "string") : [],
+    defaultHashtags: Array.isArray(profile.defaultHashtags) ? profile.defaultHashtags.filter((t) => typeof t === "string") : [],
+    bannedPhrases: Array.isArray(profile.bannedPhrases) ? profile.bannedPhrases.filter((t) => typeof t === "string") : [],
+    exampleCaptions: Array.isArray(profile.exampleCaptions)
+      ? profile.exampleCaptions.filter((e) => e && typeof e.text === "string")
+      : [],
+  };
+}
 const MAX_AUDIT_ENTRIES = 1000;
 const PURGE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -160,6 +195,7 @@ function createInitialDocument(seedRows = createSeedRows()) {
       media: null,
       syncedAt: null,
     },
+    brandProfile: createDefaultBrandProfile(),
     lastSavedAt: null,
   };
 }
@@ -187,6 +223,7 @@ function migrateLegacyDocument() {
       media: legacyMedia || null,
       syncedAt: legacyMedia?._syncedAt || null,
     },
+    brandProfile: createDefaultBrandProfile(),
     lastSavedAt: null,
   };
 }
@@ -217,8 +254,14 @@ export function migrateDocument(document) {
     doc.schemaVersion = 2;
   }
 
-  // Future migrations go here:
-  // if (doc.schemaVersion < 3) { ... doc.schemaVersion = 3; }
+  // v2 → v3: added brandProfile (fed into AI caption + strategy generators)
+  if (doc.schemaVersion < 3) {
+    doc.brandProfile = normalizeBrandProfile(doc.brandProfile);
+    doc.schemaVersion = 3;
+  } else {
+    // Always normalise even on v3 — keeps the shape stable after manual edits.
+    doc.brandProfile = normalizeBrandProfile(doc.brandProfile);
+  }
 
   return doc;
 }

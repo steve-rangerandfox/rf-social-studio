@@ -37,8 +37,9 @@ export async function handleCaptionRequest(req, res, env, reqId) {
 
     const platform = typeof body.platform === "string" ? body.platform : "ig_post";
     const prompt = body.prompt.trim();
+    const brandProfile = body.brandProfile && typeof body.brandProfile === "object" ? body.brandProfile : null;
 
-    const caption = await generateCaption(env, { platform, prompt });
+    const caption = await generateCaption(env, { platform, prompt, brandProfile });
     return json(res, 200, { caption });
   } catch (error) {
     logger("error", reqId, "caption_generation_failed", {

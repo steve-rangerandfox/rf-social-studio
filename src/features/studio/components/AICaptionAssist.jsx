@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { generateCaption } from "../../../lib/api-client.js";
+import { useStudio } from "../StudioContext.jsx";
 import { T } from "../shared.js";
 
 export function AICaptionAssist({ platform, note, onAccept, variant = "panel" }) {
   const isInline = variant === "inline";
   const [prompt, setPrompt] = useState(note || "");
   const [loading, setLoading] = useState(false);
+  const { brandProfile } = useStudio();
 
   const generate = async () => {
     if (!prompt.trim()) return;
@@ -18,7 +20,7 @@ export function AICaptionAssist({ platform, note, onAccept, variant = "panel" })
     const finalPrompt = isInline ? `${prompt}. ${tone}` : prompt;
 
     try {
-      const data = await generateCaption({ platform, prompt: finalPrompt });
+      const data = await generateCaption({ platform, prompt: finalPrompt, brandProfile });
       const text = data.caption || "";
       // Stream directly into the caption box
       let i = 0;

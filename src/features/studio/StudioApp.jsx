@@ -105,6 +105,7 @@ function StudioShell() {
     add, startInlineCreate, setView, undoDelete, handleTokenRefresh,
     updateDocument, currentUser, exportData,
     team, updateTeam,
+    brandProfile, updateBrandProfile,
   } = ctx;
 
   // ─── Keyboard shortcuts ─────────────────────────────────────────
@@ -308,6 +309,8 @@ function StudioShell() {
           onExport={exportData}
           team={team}
           onTeamUpdate={updateTeam}
+          brandProfile={brandProfile}
+          onBrandProfileUpdate={updateBrandProfile}
         />
       )}
 
