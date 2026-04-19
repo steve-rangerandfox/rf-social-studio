@@ -6,6 +6,7 @@ import {
   TEAM,
   createTeamMember,
 } from "../shared.js";
+import { learnBrandFromUrl } from "../../../lib/api-client.js";
 
 const SETTINGS_TABS = ["General", "Brand", "Team"];
 
@@ -19,7 +20,7 @@ function csvToList(value) {
     .filter(Boolean);
 }
 
-function BrandTab({ brandProfile, onBrandProfileUpdate, onLearnFromWebsite }) {
+function BrandTab({ brandProfile, onBrandProfileUpdate }) {
   const [draft, setDraft] = useState(() => ({
     businessName: brandProfile?.businessName || "",
     tagline: brandProfile?.tagline || "",
@@ -32,9 +33,38 @@ function BrandTab({ brandProfile, onBrandProfileUpdate, onLearnFromWebsite }) {
     bannedPhrasesCsv: listToCsv(brandProfile?.bannedPhrases),
   }));
   const [saved, setSaved] = useState(false);
+  const [learnUrl, setLearnUrl] = useState("");
+  const [learnState, setLearnState] = useState({ loading: false, error: "", success: false });
+  const [showLearn, setShowLearn] = useState(false);
+
   const set = (key) => (event) => {
     setSaved(false);
     setDraft((prev) => ({ ...prev, [key]: event.target.value }));
+  };
+
+  const handleLearn = async () => {
+    const url = learnUrl.trim();
+    if (!url) return;
+    setLearnState({ loading: true, error: "", success: false });
+    try {
+      const result = await learnBrandFromUrl(url);
+      const profile = result?.profile || {};
+      setDraft((prev) => ({
+        businessName: profile.businessName || prev.businessName,
+        tagline: profile.tagline || prev.tagline,
+        description: profile.description || prev.description,
+        audience: profile.audience || prev.audience,
+        toneVoice: profile.toneVoice || prev.toneVoice,
+        callToAction: profile.callToAction || prev.callToAction,
+        keyTopicsCsv: profile.keyTopics?.length ? listToCsv(profile.keyTopics) : prev.keyTopicsCsv,
+        defaultHashtagsCsv: profile.defaultHashtags?.length ? listToCsv(profile.defaultHashtags) : prev.defaultHashtagsCsv,
+        bannedPhrasesCsv: prev.bannedPhrasesCsv,
+      }));
+      setLearnState({ loading: false, error: "", success: true });
+      setTimeout(() => setLearnState((s) => ({ ...s, success: false })), 2500);
+    } catch (err) {
+      setLearnState({ loading: false, error: err?.message || "Failed to learn from that URL", success: false });
+    }
   };
 
   const save = () => {
@@ -153,16 +183,61 @@ function BrandTab({ brandProfile, onBrandProfileUpdate, onLearnFromWebsite }) {
         </div>
       </div>
 
+      {showLearn ? (
+        <div className="settings-card settings-mt-8" style={{ borderColor: "rgba(229,106,11,0.28)" }}>
+          <div className="settings-card-title" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Sparkles size={12} /> Learn from website
+          </div>
+          <div className="settings-field-sub settings-mt-0">
+            Paste a URL to your own site; Anthropic will read it and pre-fill the fields above.
+            Nothing saves until you review and hit Save.
+          </div>
+          <div className="field settings-mt-8" style={{ display: "flex", gap: 6 }}>
+            <input
+              className="inp"
+              style={{ flex: 1 }}
+              value={learnUrl}
+              onChange={(event) => setLearnUrl(event.target.value)}
+              placeholder="https://yourbrand.com"
+              autoFocus
+              onKeyDown={(event) => { if (event.key === "Enter") handleLearn(); }}
+            />
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleLearn}
+              disabled={learnState.loading || !learnUrl.trim()}
+            >
+              {learnState.loading ? "Reading\u2026" : "Import"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => { setShowLearn(false); setLearnState({ loading: false, error: "", success: false }); }}
+            >
+              Cancel
+            </button>
+          </div>
+          {learnState.error && (
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--t-red)" }}>{learnState.error}</div>
+          )}
+          {learnState.success && (
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--success)" }}>
+              Imported — review the fields above, then Save brand profile.
+            </div>
+          )}
+        </div>
+      ) : null}
+
       <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between", marginTop: 4 }}>
         <button
           type="button"
           className="btn btn-ghost btn-sm"
-          onClick={onLearnFromWebsite}
-          disabled={!onLearnFromWebsite}
-          title={onLearnFromWebsite ? "Import positioning from a URL" : "Coming soon"}
+          onClick={() => setShowLearn((v) => !v)}
+          title="Import positioning from a URL"
         >
           <Sparkles size={12} style={{ marginRight: 4 }} />
-          Learn from website
+          {showLearn ? "Close importer" : "Learn from website"}
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {saved && <span style={{ fontSize: 12, color: "var(--success)" }}>Saved</span>}
@@ -180,7 +255,7 @@ function BrandTab({ brandProfile, onBrandProfileUpdate, onLearnFromWebsite }) {
   );
 }
 
-export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, brandProfile, onBrandProfileUpdate, onLearnFromWebsite }) {
+export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, brandProfile, onBrandProfileUpdate }) {
   const [tab, setTab] = useState("General");
   const [showInvite, setShowInvite] = useState(false);
   const [inviteName, setInviteName] = useState("");
@@ -320,7 +395,6 @@ export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, br
             <BrandTab
               brandProfile={brandProfile}
               onBrandProfileUpdate={onBrandProfileUpdate}
-              onLearnFromWebsite={onLearnFromWebsite}
             />
           )}
 

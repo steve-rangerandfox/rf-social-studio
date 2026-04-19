@@ -70,8 +70,16 @@ export function validateCaptionRequest(body) {
   }
 
   const intent = body.intent || "caption";
-  if (!["caption", "story_tips", "variants"].includes(intent)) {
+  if (!["caption", "story_tips", "variants", "learn_brand"].includes(intent)) {
     errors.push(`Invalid intent: ${intent}`);
+  }
+
+  if (intent === "learn_brand") {
+    if (typeof body.url !== "string" || body.url.trim().length === 0) {
+      errors.push("url is required");
+    } else if (body.url.length > 2048) {
+      errors.push("url is too long");
+    }
   }
 
   if (intent === "caption") {

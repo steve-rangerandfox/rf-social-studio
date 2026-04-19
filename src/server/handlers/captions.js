@@ -1,7 +1,7 @@
 // POST /api/captions — AI caption / story-tips generation. Delegates
 // to src/server/ai.js which wraps the Anthropic Messages API.
 
-import { generateCaption, generateCaptionVariants, generateStoryTips } from "../ai.js";
+import { generateCaption, generateCaptionVariants, generateStoryTips, learnBrandFromUrl } from "../ai.js";
 import { ensureEnv } from "../env.js";
 import { errorJson, json, readJsonBody } from "../http.js";
 import { createLogger, sanitizeLogValue } from "../log.js";
@@ -46,6 +46,11 @@ export async function handleCaptionRequest(req, res, env, reqId) {
         brandProfile,
       });
       return json(res, 200, { variants });
+    }
+
+    if (intent === "learn_brand") {
+      const profile = await learnBrandFromUrl(env, { url: typeof body.url === "string" ? body.url : "" });
+      return json(res, 200, { profile });
     }
 
     const platform = typeof body.platform === "string" ? body.platform : "ig_post";

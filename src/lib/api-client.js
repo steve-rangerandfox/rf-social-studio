@@ -111,6 +111,16 @@ export function publishToInstagram({ caption, mediaUrl, videoUrl, mediaType, row
   }, { timeoutMs: 60000 });
 }
 
+export function learnBrandFromUrl(url) {
+  return requestJson("/api/captions", {
+    method: "POST",
+    body: JSON.stringify({
+      intent: "learn_brand",
+      url,
+    }),
+  }, { timeoutMs: 40000 });
+}
+
 export function generateCaptionVariants({ sourceNote, sourceCaption, platforms, brandProfile }) {
   return requestJson("/api/captions", {
     method: "POST",
