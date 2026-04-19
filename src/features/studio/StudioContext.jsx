@@ -439,7 +439,7 @@ export function StudioProvider({ children }) {
       );
       showToast("Instagram session refreshed", T.mint);
     } catch {
-      showToast("Token refresh failed — please reconnect Instagram", T.red);
+      showToast("Instagram session needs a refresh — reconnect from Connections.", T.red);
     }
   }, [currentUser, igConfig, showToast, updateDocument]);
 

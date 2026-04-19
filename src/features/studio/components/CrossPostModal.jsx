@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { X, Sparkles, Copy, Check } from "lucide-react";
+import { Copy } from "lucide-react";
+import { AIMark, Check, Close } from "../../../components/icons/index.jsx";
 
 import { useStudio } from "../StudioContext.jsx";
 import { generateCaptionVariants } from "../../../lib/api-client.js";
@@ -123,7 +124,7 @@ export function CrossPostModal({ sourceRow, onClose }) {
             </div>
           </div>
           <button className="m-x" onClick={onClose} aria-label="Close" title="Close (Esc)">
-            <X size={15} />
+            <Close size={15} />
           </button>
         </div>
 
@@ -225,7 +226,7 @@ export function CrossPostModal({ sourceRow, onClose }) {
             title={targets.size === 0 ? "Pick at least one platform" : undefined}
             style={{ color: loading ? T.textDim : undefined }}
           >
-            <Sparkles size={13} style={{ marginRight: 6 }} />
+            <AIMark size={13} style={{ marginRight: 6 }} />
             {loading ? "Generating\u2026" : variants.length ? "Regenerate" : "Generate variants"}
           </button>
         </div>

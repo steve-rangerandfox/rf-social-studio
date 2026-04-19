@@ -142,7 +142,7 @@ export function ListView() {
           {sorted.length === 0
             ? <EmptyState
                 title={`${MONTHS_FULL[month]}'s clear`}
-                subtitle="Start building your queue for this month."
+                subtitle="This month is open. The first post sets the tone."
                 actionLabel="+ Add post"
                 onAction={() => add(month)}
               />
@@ -216,7 +216,7 @@ export function ListView() {
                     <div className="month-empty">
                       <EmptyState
                         title={`${mName}'s clear`}
-                        subtitle="Start building your queue for this month."
+                        subtitle="This month is open. The first post sets the tone."
                         actionLabel={`+ Add first post for ${mName}`}
                         onAction={() => add(mi)}
                       />

@@ -122,14 +122,33 @@ export function CommandPalette({ onClose }) {
   // Track which section each flat index belongs to for rendering headers
   let flatIdx = 0;
 
+  // Rotating placeholder — cycles every 3.5s through example commands so
+  // users discover the palette's range without us writing copy noise.
+  // Switzer→JBM swap on the input itself signals "you're typing a
+  // command, not chatting" (Linear / Raycast convention).
+  const placeholders = [
+    "Try: plan month",
+    "Try: filter approved",
+    "Try: jump to August",
+    "Try: open settings",
+    "Type a command\u2026",
+  ];
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  useEffect(() => {
+    if (query) return undefined;
+    const t = setInterval(() => setPlaceholderIdx((i) => (i + 1) % placeholders.length), 3500);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
   return (
     <div className="cmd-palette-backdrop" onClick={handleBackdrop}>
       <div className="cmd-palette" role="dialog" aria-label="Command palette">
         <input
           ref={inputRef}
-          className="cmd-palette-input"
+          className="cmd-palette-input cmd-palette-input--mono"
           type="text"
-          placeholder="Type a command\u2026"
+          placeholder={query ? "" : placeholders[placeholderIdx]}
           value={query}
           onChange={e => setQ(e.target.value)}
           onKeyDown={handleKeyDown}

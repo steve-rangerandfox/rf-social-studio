@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { AIMark } from "../../../components/icons/index.jsx";
 import { generateCaption } from "../../../lib/api-client.js";
 import { useStudio } from "../StudioContext.jsx";
 import { T } from "../shared.js";
@@ -40,7 +40,7 @@ export function AICaptionAssist({ platform, note, onAccept, variant = "panel" })
   if (isInline) {
     return (
       <div style={{display:"flex",gap:4,alignItems:"center"}}>
-        <Sparkles size={12} style={{color:T.textDim,flexShrink:0}}/>
+        <AIMark size={12} style={{color:T.textDim,flexShrink:0}}/>
         <input
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
@@ -69,7 +69,7 @@ export function AICaptionAssist({ platform, note, onAccept, variant = "panel" })
       <div style={{display:"flex",gap:8}}>
         <input className="inp" style={{flex:1,fontSize:12.5}} value={prompt} onChange={e=>setPrompt(e.target.value)}
           onKeyDown={e=>e.key==="Enter"&&generate()} placeholder="Describe what you\u2019re posting\u2026"/>
-        <button className="btn btn-ai" style={{padding:"7px 12px",fontSize:12,flexShrink:0}}
+        <button className="btn btn-primary" style={{padding:"7px 12px",fontSize:12,flexShrink:0}}
           onClick={generate} disabled={loading||!prompt.trim()}>{loading?"Writing\u2026":"Generate"}</button>
       </div>
     </div>

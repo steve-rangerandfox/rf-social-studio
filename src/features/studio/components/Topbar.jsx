@@ -1,5 +1,6 @@
 import React from "react";
-import { Menu, Sparkles } from "lucide-react";
+import { Menu } from "lucide-react";
+import { AIMark } from "../../../components/icons/index.jsx";
 import { useStudio } from "../StudioContext.jsx";
 import { SaveStatusBadge } from "../../../components/SaveStatusBadge.jsx";
 import { MONTHS_FULL } from "../shared.js";
@@ -35,7 +36,7 @@ export function Topbar({ onOpenNav, onOpenStrategy }) {
           onClick={onOpenStrategy}
           title="Plan the month with AI"
         >
-          <Sparkles size={12} style={{ marginRight: 4 }} />
+          <AIMark size={12} style={{ marginRight: 4 }} />
           Plan month
         </button>
       )}

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus } from "../../../components/icons/index.jsx";
 import { useStudio } from "../StudioContext.jsx";
 import {
   MONTHS_FULL,

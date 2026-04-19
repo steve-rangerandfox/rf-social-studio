@@ -1,5 +1,5 @@
 import React from "react";
-import { X } from "lucide-react";
+import { Close as X } from "../../../components/icons/index.jsx";
 import { T } from "../shared.js";
 
 export function TokenExpiryBanner({ igConfig, onRefresh, onDismiss }) {

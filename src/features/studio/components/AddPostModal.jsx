@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X } from "lucide-react";
+import { Close as X } from "../../../components/icons/index.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { PLATFORMS, nowPT } from "../shared.js";
 

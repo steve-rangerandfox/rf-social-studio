@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { X, Upload, Check } from "lucide-react";
+import { Upload } from "lucide-react";
+import { Check, Close as X } from "../../../components/icons/index.jsx";
 import { T, PLATFORMS, toPTDisplay } from "../shared.js";
 import { publishToInstagram, publishToLinkedIn } from "../../../lib/api-client.js";
 import { uploadAsset } from "../../../lib/supabase.js";

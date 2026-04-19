@@ -19,7 +19,7 @@ export function CaptionEditor({ value, onChange, platform, note }) {
     <div style={{display:"flex",flexDirection:"column",gap:8}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <span className="lbl">Caption</span>
-        <button className="btn btn-ai btn-sm" onClick={()=>setShowAI(v=>!v)}>{showAI?"Hide AI":"Write with AI"}</button>
+        <button className="btn btn-ghost btn-sm" onClick={()=>setShowAI(v=>!v)}>{showAI?"Hide AI":"Write with AI"}</button>
       </div>
       {showAI&&<AICaptionAssist variant="panel" platform={platform} note={note} onAccept={(t)=>{onChange(t);setShowAI(false);}}/>}
       <div className="mw">

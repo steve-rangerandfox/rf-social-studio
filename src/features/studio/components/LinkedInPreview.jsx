@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { X, ThumbsUp, Heart, MessageSquare, Send, Repeat2 } from "lucide-react";
+import { ThumbsUp, Heart, MessageSquare, Send, Repeat2 } from "lucide-react";
+import { Close as X } from "../../../components/icons/index.jsx";
 
 export function LinkedInPreview({ caption, mediaUrls, onClose }) {
   const truncLen = 150;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Plus, Sparkles } from "lucide-react";
+import { AIMark, Close, Plus } from "../../../components/icons/index.jsx";
 import {
   PLATFORMS,
   T,
@@ -8,7 +8,13 @@ import {
 } from "../shared.js";
 import { learnBrandFromUrl } from "../../../lib/api-client.js";
 
-const SETTINGS_TABS = ["General", "Brand", "Team"];
+// Editorial numbered tabs — extends the "01 / Calendar" Sidebar motif
+// so chrome reads as one authored system. Render label = "01 General" etc.
+const SETTINGS_TABS = [
+  { key: "General", num: "01" },
+  { key: "Brand", num: "02" },
+  { key: "Team", num: "03" },
+];
 
 function listToCsv(list) {
   return Array.isArray(list) ? list.join(", ") : "";
@@ -186,7 +192,7 @@ function BrandTab({ brandProfile, onBrandProfileUpdate }) {
       {showLearn ? (
         <div className="settings-card settings-mt-8" style={{ borderColor: "rgba(229,106,11,0.28)" }}>
           <div className="settings-card-title" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Sparkles size={12} /> Learn from website
+            <AIMark size={12} /> Learn from website
           </div>
           <div className="settings-field-sub settings-mt-0">
             Paste a URL to your own site; Anthropic will read it and pre-fill the fields above.
@@ -236,7 +242,7 @@ function BrandTab({ brandProfile, onBrandProfileUpdate }) {
           onClick={() => setShowLearn((v) => !v)}
           title="Import positioning from a URL"
         >
-          <Sparkles size={12} style={{ marginRight: 4 }} />
+          <AIMark size={12} style={{ marginRight: 4 }} />
           {showLearn ? "Close importer" : "Learn from website"}
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -345,13 +351,20 @@ export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, br
             <div className="settings-panel-sub">Social Studio preferences</div>
           </div>
           <button className="m-x" onClick={handleClose} title="Close (Esc)" aria-label="Close">
-            <X size={15}/>
+            <Close size={15}/>
           </button>
         </div>
         <div className="settings-panel-body">
           <div className="settings-tabs">
-            {SETTINGS_TABS.map(t=>(
-              <button key={t} className={"settings-tab "+(tab===t?"on":"")} onClick={()=>setTab(t)}>{t}</button>
+            {SETTINGS_TABS.map(({ key, num }) => (
+              <button
+                key={key}
+                className={"settings-tab " + (tab === key ? "on" : "")}
+                onClick={() => setTab(key)}
+              >
+                <span className="settings-tab-num">{num}</span>
+                <span>{key}</span>
+              </button>
             ))}
           </div>
 
@@ -413,7 +426,7 @@ export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, br
                   {onTeamUpdate && (
                     <button className="m-x settings-remove-btn" title="Remove member"
                       onClick={()=>onTeamUpdate(team.filter(m=>m.id!==t.id))}>
-                      <X size={12}/>
+                      <Close size={12}/>
                     </button>
                   )}
                 </div>

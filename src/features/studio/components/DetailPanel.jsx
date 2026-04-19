@@ -15,7 +15,8 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, STATUS_ORDER } from "./StatusMachine.js";
-import { CheckCircle2, AlertTriangle, Play, Upload, X, Check, ChevronDown, Share2, Calendar } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Play, Upload, Share2, Calendar } from "lucide-react";
+import { Check, ChevronDown, Close as X } from "../../../components/icons/index.jsx";
 import { CrossPostModal } from "./CrossPostModal.jsx";
 
 export function DetailPanel() {
@@ -583,6 +584,7 @@ export function DetailPanel() {
             <div className="readiness-list">
               {checks.map((c, i) => (
                 <div key={i} className={`readiness-item`}>
+                  <span className="readiness-num">{String(i + 1).padStart(2, "0")}</span>
                   <span className="readiness-icon">{c.pass ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} color={T.amber} />}</span>
                   <span className="readiness-label">{c.label}</span>
                   <span className={`readiness-ok ${c.pass ? "pass" : "fail"}`}>{c.pass ? "Ready" : "Missing"}</span>

@@ -9,7 +9,8 @@ import { DateTimeCell } from "./DateTimeCell.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { canTransition, getAvailableTransitions } from "./StatusMachine.js";
 import { useOutsideClick } from "../useOutsideClick.js";
-import { AlertTriangle, X, GripVertical } from "lucide-react";
+import { AlertTriangle, GripVertical } from "lucide-react";
+import { Close as X } from "../../../components/icons/index.jsx";
 
 export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, onSelect, isSelected, isFocused, dragHandlers, hasConnectedAccount = false }) {
   const p = PLATFORMS[row.platform], s = STATUSES[row.status];

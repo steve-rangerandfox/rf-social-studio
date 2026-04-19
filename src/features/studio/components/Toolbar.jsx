@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
+import { Search } from "../../../components/icons/index.jsx";
 import { useStudio } from "../StudioContext.jsx";
 
 const STATUS_OPTIONS = [

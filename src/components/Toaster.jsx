@@ -3,7 +3,7 @@
 // same file — standard React context pattern. The fast-refresh rule is
 // intentionally relaxed here.
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Close as X } from "./icons/index.jsx";
 
 // Queued, variant-aware toast notifications.
 //

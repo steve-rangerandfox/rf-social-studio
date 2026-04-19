@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { X, Sparkles, Check } from "lucide-react";
+import { AIMark, Check, Close } from "../../../components/icons/index.jsx";
 
 import { useStudio } from "../StudioContext.jsx";
 import { generateMonthlyStrategy } from "../../../lib/api-client.js";
@@ -143,7 +143,7 @@ export function StrategyModal({ onClose, initialMonth, initialYear }) {
             </div>
           </div>
           <button className="m-x" onClick={onClose} aria-label="Close" title="Close (Esc)">
-            <X size={15} />
+            <Close size={15} />
           </button>
         </div>
 
@@ -264,7 +264,7 @@ export function StrategyModal({ onClose, initialMonth, initialYear }) {
               onClick={generate}
               disabled={loading || platforms.size === 0}
             >
-              <Sparkles size={13} style={{ marginRight: 6 }} />
+              <AIMark size={13} style={{ marginRight: 6 }} />
               {loading ? "Planning\u2026" : "Generate plan"}
             </button>
           )}

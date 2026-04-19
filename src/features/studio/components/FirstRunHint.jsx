@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X } from "lucide-react";
+import { Close as X } from "../../../components/icons/index.jsx";
 import { useStudio } from "../StudioContext.jsx";
 
 const DISMISS_KEY = "rf_first_run_dismissed";

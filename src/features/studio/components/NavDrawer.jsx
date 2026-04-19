@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { Close as X } from "../../../components/icons/index.jsx";
 
 import { Sidebar } from "./Sidebar.jsx";
 

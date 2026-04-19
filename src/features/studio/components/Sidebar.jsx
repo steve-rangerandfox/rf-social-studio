@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "../../../components/icons/index.jsx";
 import { useStudio } from "../StudioContext.jsx";
 import { MONTHS_FULL, T } from "../shared.js";
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Check, Plus, Minus, RotateCcw, RotateCw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, ChevronDown, Type, AArrowDown, Image as ImageIcon, Film, Wallpaper, Layers, LayoutTemplate, Sparkles, PanelLeftClose, Sliders, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, Download } from "lucide-react";
+import { Minus, RotateCcw, RotateCw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, Type, AArrowDown, Image as ImageIcon, Film, Wallpaper, Layers, LayoutTemplate, PanelLeftClose, Sliders, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, Download } from "lucide-react";
+import { AIMark, Check, ChevronDown, Close as X, Plus } from "../../../components/icons/index.jsx";
 import { CanvasElement, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { StoryDesignerTour } from "./StoryDesignerTour.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
@@ -871,7 +872,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Posting...</span></div>}
             {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">Story live</span></div>}
-            <button className="btn btn-ai btn-sm"
+            <button className="btn btn-ghost btn-sm"
               onClick={()=>{const opening=sideTab!=="ai";setSideTab(opening?"ai":null);if(opening&&aiTips.length===0)runAICopilot();}}>
               {sideTab==="ai"?"Hide AI":"AI Refine"}
             </button>
@@ -900,7 +901,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
               { id:"uploads", icon:<Upload size={18}/>, label:"Uploads" },
               { id:"templates", icon:<LayoutTemplate size={18}/>, label:"Templates" },
               { id:"layers", icon:<Layers size={18}/>, label:"Layers" },
-              { id:"ai", icon:<Sparkles size={18}/>, label:"AI" },
+              { id:"ai", icon:<AIMark size={18}/>, label:"AI" },
             ].map(tab => (
               <button key={tab.id} title={tab.label}
                 onClick={() => setSideTab(prev => prev === tab.id ? null : tab.id)}
@@ -1130,7 +1131,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                     {aiLoading&&<div style={{height:4,background:"#EDE9FE",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:"60%",background:"#7C3AED",borderRadius:99}}/></div>}
                     {aiTips.length > 0 ? aiTips.map((tip,i)=><div key={i} className="ai-suggestion"><b>{i+1}.</b> {tip}</div>)
                       : !aiLoading && <button onClick={runAICopilot} style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",fontSize:11,fontWeight:600,color:T.textSub}}>
-                        <Sparkles size={12} style={{marginRight:4}}/> Analyze layout
+                        <AIMark size={12} style={{marginRight:4}}/> Analyze layout
                       </button>
                     }
                   </div>
