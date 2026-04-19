@@ -6,7 +6,12 @@ import {
   TEAM,
   createTeamMember,
 } from "../shared.js";
-import { learnBrandFromUrl } from "../../../lib/api-client.js";
+import {
+  fetchBilling,
+  learnBrandFromUrl,
+  openBillingPortal,
+  startBillingCheckout,
+} from "../../../lib/api-client.js";
 
 // Editorial numbered tabs — extends the "01 / Calendar" Sidebar motif
 // so chrome reads as one authored system. Render label = "01 General" etc.
@@ -14,6 +19,7 @@ const SETTINGS_TABS = [
   { key: "General", num: "01" },
   { key: "Brand", num: "02" },
   { key: "Team", num: "03" },
+  { key: "Billing", num: "04" },
 ];
 
 function listToCsv(list) {
@@ -261,8 +267,115 @@ function BrandTab({ brandProfile, onBrandProfileUpdate }) {
   );
 }
 
-export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, brandProfile, onBrandProfileUpdate }) {
-  const [tab, setTab] = useState("General");
+function BillingTab() {
+  const [state, setState] = useState({ loading: true, error: "", data: null });
+  const [busy, setBusy] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    fetchBilling()
+      .then((data) => { if (alive) setState({ loading: false, error: "", data }); })
+      .catch((err) => { if (alive) setState({ loading: false, error: err?.message || "Could not load billing", data: null }); });
+    return () => { alive = false; };
+  }, []);
+
+  const handleUpgrade = async (plan) => {
+    setBusy(`upgrade:${plan}`);
+    try {
+      const { url } = await startBillingCheckout({ plan });
+      if (url) window.location.href = url;
+    } catch (err) {
+      setState((s) => ({ ...s, error: err?.message || "Could not start checkout" }));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const handlePortal = async () => {
+    setBusy("portal");
+    try {
+      const { url } = await openBillingPortal();
+      if (url) window.location.href = url;
+    } catch (err) {
+      setState((s) => ({ ...s, error: err?.message || "Could not open portal" }));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  if (state.loading) {
+    return <div className="settings-stack"><div className="settings-card">Loading billing\u2026</div></div>;
+  }
+
+  const data = state.data || {};
+  const currentPlan = data.plan || "free";
+  const status = data.status || "none";
+  const trialEnd = data.trialEnd ? new Date(data.trialEnd) : null;
+  const periodEnd = data.currentPeriodEnd ? new Date(data.currentPeriodEnd) : null;
+  const cancelAt = data.cancelAtPeriodEnd;
+  const plans = data.plans || [];
+  const planLabel = plans.find((p) => p.id === currentPlan)?.label || currentPlan;
+
+  const statusLine = (() => {
+    if (status === "trialing" && trialEnd) return `Trial \u00B7 ends ${trialEnd.toLocaleDateString()}`;
+    if (status === "active" && cancelAt && periodEnd) return `Active \u00B7 cancels ${periodEnd.toLocaleDateString()}`;
+    if (status === "active" && periodEnd) return `Active \u00B7 renews ${periodEnd.toLocaleDateString()}`;
+    if (status === "past_due") return "Past due \u00B7 update payment to keep access";
+    if (status === "canceled") return "Canceled \u00B7 dropped to Free";
+    return "Free tier";
+  })();
+
+  return (
+    <div className="settings-stack">
+      <div className="settings-card">
+        <div className="settings-card-title">Current plan</div>
+        <div className="settings-field-row settings-mt-0">
+          <div>
+            <div className="settings-field-label">{planLabel}</div>
+            <div className="settings-field-sub">{statusLine}</div>
+          </div>
+          {currentPlan !== "free" && (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={handlePortal}
+              disabled={busy === "portal"}
+            >
+              {busy === "portal" ? "Opening\u2026" : "Manage billing"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {plans.filter((p) => p.id !== "free" && p.id !== currentPlan).map((p) => (
+        <div key={p.id} className="settings-card">
+          <div className="settings-card-title">{p.label} \u2014 ${p.priceMonthly}{p.perSeat ? "/seat" : ""}/mo</div>
+          <div className="settings-field-sub settings-mt-0">
+            {p.id === "essentials" && "AI captions, variants, and brand learning. Best for solo creators."}
+            {p.id === "team" && "Adds monthly strategy generation, unlimited posts, and seats for the studio."}
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => handleUpgrade(p.id)}
+              disabled={busy === `upgrade:${p.id}`}
+            >
+              {busy === `upgrade:${p.id}` ? "Starting\u2026" : (status === "none" || status === "canceled" ? `Start 14-day trial` : `Switch to ${p.label}`)}
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {state.error && (
+        <div className="settings-card" style={{ borderColor: "rgba(220,38,38,0.28)" }}>
+          <div style={{ color: "var(--t-red)", fontSize: 13 }}>{state.error}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, brandProfile, onBrandProfileUpdate, initialTab = "General" }) {
+  const [tab, setTab] = useState(initialTab);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState("");
@@ -410,6 +523,8 @@ export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, br
               onBrandProfileUpdate={onBrandProfileUpdate}
             />
           )}
+
+          {tab === "Billing" && <BillingTab />}
 
           {tab==="Team"&&(
             <div className="settings-team-list">

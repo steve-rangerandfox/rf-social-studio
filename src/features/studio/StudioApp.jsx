@@ -5,6 +5,7 @@ import { StudioProvider, useStudio } from "./StudioContext.jsx";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts.js";
 import { LoadingShell } from "../../components/LoadingShell.jsx";
 import { ErrorBoundary } from "../../components/ErrorBoundary.jsx";
+import { useToast } from "../../components/Toaster.jsx";
 
 // Compact per-view fallback so a single view throwing doesn't take over
 // the entire app — chrome (sidebar, topbar) stays usable.
@@ -92,7 +93,7 @@ function StudioShell() {
     story, setStory,
     showAssets, setAssets,
     showConn, setShowConn,
-    showSettings, setSettings,
+    showSettings, setSettings, settingsInitialTab, openSettingsTab,
     connections, setConns,
     pendingDelete, setPendingDelete,
     tokenBannerDismissed, setTokenBannerDismissed,
@@ -131,6 +132,23 @@ function StudioShell() {
   const [navOpen, setNavOpen] = useState(false);
   // Monthly-strategy modal (AI planner)
   const [strategyOpen, setStrategyOpen] = useState(false);
+
+  // Plan-gate prompt — api-client dispatches this when an AI endpoint
+  // returns 402 PLAN_UPGRADE_REQUIRED. We surface a warning toast with
+  // an Upgrade action that drops the user into Settings → Billing.
+  const toast = useToast();
+  useEffect(() => {
+    const handler = (e) => {
+      const detail = e.detail || {};
+      const planLabel = detail.requiredPlan === "team" ? "Team" : "Essentials";
+      toast.warning(`This is a ${planLabel} feature. Start a 14-day trial to use it.`, {
+        action: { label: "Upgrade", onClick: () => openSettingsTab("Billing") },
+        duration: 0,
+      });
+    };
+    window.addEventListener("rf:plan-upgrade-required", handler);
+    return () => window.removeEventListener("rf:plan-upgrade-required", handler);
+  }, [toast, openSettingsTab]);
 
   // Only one right-side panel open at a time: opening settings/connection closes detail panel
   useEffect(() => {
@@ -326,6 +344,7 @@ function StudioShell() {
           onTeamUpdate={updateTeam}
           brandProfile={brandProfile}
           onBrandProfileUpdate={updateBrandProfile}
+          initialTab={settingsInitialTab}
         />
       )}
 

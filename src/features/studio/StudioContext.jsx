@@ -94,6 +94,8 @@ export function StudioProvider({ children }) {
   const [showAssets, setAssets] = useState(false);
   const [showConn, setShowConn] = useState(null);
   const [showSettings, setSettings] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState("General");
+  const openSettingsTab = (tab) => { setSettingsInitialTab(tab || "General"); setSettings(true); };
   const [team, setTeam] = useState(() => loadTeam());
   const updateTeam = (newTeam) => { setTeam(newTeam); saveTeam(newTeam); };
   const [connections, setConns] = useState({ instagram: false, tiktok: false, facebook: false, linkedin: false });
@@ -809,7 +811,7 @@ export function StudioProvider({ children }) {
     story, setStory,
     showAssets, setAssets,
     showConn, setShowConn,
-    showSettings, setSettings,
+    showSettings, setSettings, settingsInitialTab, openSettingsTab,
     team, updateTeam,
     connections, setConns,
     saveState,

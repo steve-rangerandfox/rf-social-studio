@@ -50,6 +50,12 @@ import {
 } from "./handlers/linkedin-auth.js";
 import { handleLinkedInPublish } from "./handlers/linkedin-publish.js";
 import {
+  handleBillingGet,
+  handleBillingCheckout,
+  handleBillingPortal,
+  handleBillingWebhook,
+} from "./handlers/billing.js";
+import {
   IG_CACHE_TTL_MS,
   REFRESH_LOCK_TTL_MS,
   IG_PUBLISH_MEDIA_TYPES,
@@ -437,7 +443,7 @@ export async function handleApiRequest(req, res, overrides = {}) {
     if (!await checkRateLimit(res, auth.userId, "captions", { maxRequests: 10, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/captions" }); return; }
 
     try {
-      return await handleCaptionRequest(req, res, env, reqId);
+      return await handleCaptionRequest(req, res, env, reqId, auth);
     } finally {
       endTimer({ reqId, route: "/api/captions", status: res.statusCode });
     }
@@ -622,6 +628,75 @@ export async function handleApiRequest(req, res, overrides = {}) {
 
   if (url.pathname.startsWith("/api/inngest")) {
     return inngestHandler(req, res);
+  }
+
+  if (url.pathname === "/api/billing/webhook") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "POST");
+      res.end();
+      endTimer({ reqId, status: 405, route: "/api/billing/webhook" });
+      return;
+    }
+    try {
+      return await handleBillingWebhook(req, res, env, reqId);
+    } finally {
+      endTimer({ reqId, route: "/api/billing/webhook", status: res.statusCode });
+    }
+  }
+
+  if (url.pathname === "/api/billing/checkout") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "POST, OPTIONS");
+      res.end();
+      endTimer({ reqId, status: 405, route: "/api/billing/checkout" });
+      return;
+    }
+    const auth = requireRequestAuth(req, res, env);
+    if (!auth) { endTimer({ reqId, status: 401, route: "/api/billing/checkout" }); return; }
+    if (!await checkRateLimit(res, auth.userId, "billing-checkout", { maxRequests: 10, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/billing/checkout" }); return; }
+    try {
+      return await handleBillingCheckout(req, res, env, reqId, auth);
+    } finally {
+      endTimer({ reqId, route: "/api/billing/checkout", status: res.statusCode });
+    }
+  }
+
+  if (url.pathname === "/api/billing/portal") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "POST, OPTIONS");
+      res.end();
+      endTimer({ reqId, status: 405, route: "/api/billing/portal" });
+      return;
+    }
+    const auth = requireRequestAuth(req, res, env);
+    if (!auth) { endTimer({ reqId, status: 401, route: "/api/billing/portal" }); return; }
+    if (!await checkRateLimit(res, auth.userId, "billing-portal", { maxRequests: 10, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/billing/portal" }); return; }
+    try {
+      return await handleBillingPortal(req, res, env, reqId, auth);
+    } finally {
+      endTimer({ reqId, route: "/api/billing/portal", status: res.statusCode });
+    }
+  }
+
+  if (url.pathname === "/api/billing") {
+    if (req.method !== "GET") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "GET, OPTIONS");
+      res.end();
+      endTimer({ reqId, status: 405, route: "/api/billing" });
+      return;
+    }
+    const auth = requireRequestAuth(req, res, env);
+    if (!auth) { endTimer({ reqId, status: 401, route: "/api/billing" }); return; }
+    if (!await checkRateLimit(res, auth.userId, "billing-get", { maxRequests: 60, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/billing" }); return; }
+    try {
+      return await handleBillingGet(req, res, env, reqId, auth);
+    } finally {
+      endTimer({ reqId, route: "/api/billing", status: res.statusCode });
+    }
   }
 
   return false;

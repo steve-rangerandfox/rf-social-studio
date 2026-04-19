@@ -76,6 +76,27 @@ export function noContent(res) {
   res.end();
 }
 
+// Reads the raw request body as a string. Webhook handlers must verify
+// the HMAC signature against the *unparsed* bytes, so they can't go
+// through readJsonBody.
+export function readRawBody(req, maxBytes = MAX_BODY_BYTES) {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    let bytes = 0;
+    req.on("data", (chunk) => {
+      bytes += chunk.length;
+      if (bytes > maxBytes) {
+        req.destroy();
+        reject(Object.assign(new Error("Request body too large"), { code: 413 }));
+        return;
+      }
+      data += chunk;
+    });
+    req.on("end", () => resolve(data));
+    req.on("error", reject);
+  });
+}
+
 export function readJsonBody(req, maxBytes = MAX_BODY_BYTES) {
   if (req.body && typeof req.body === "object") {
     return Promise.resolve(req.body);

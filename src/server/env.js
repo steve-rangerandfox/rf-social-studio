@@ -55,6 +55,17 @@ export function loadServerEnv(source = process.env) {
     // Inngest — scheduled publishing background worker
     inngestEventKey: source.INNGEST_EVENT_KEY || "",
     inngestSigningKey: source.INNGEST_SIGNING_KEY || "",
+    // Stripe — Buffer-style three-tier billing (free / essentials / team).
+    // STRIPE_PRICE_* hold the price IDs for each paid tier; the public
+    // /pricing page and Settings → Billing tab present these as the
+    // canonical upgrade paths.
+    stripeSecretKey: source.STRIPE_SECRET_KEY || "",
+    stripeWebhookSecret: source.STRIPE_WEBHOOK_SECRET || "",
+    stripePriceEssentials: source.STRIPE_PRICE_ESSENTIALS || "",
+    stripePriceTeam: source.STRIPE_PRICE_TEAM || "",
+    // Used to build the success_url / cancel_url / portal return_url
+    // when the request itself doesn't carry an Origin we trust.
+    appBaseUrl: source.APP_BASE_URL || "",
     port: Number.parseInt(source.PORT || "3001", 10),
   };
 }

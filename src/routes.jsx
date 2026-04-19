@@ -15,3 +15,6 @@ export const TermsOfService = lazy(() =>
 export const DataDeletion = lazy(() =>
   import("./components/DataDeletion.jsx").then((m) => ({ default: m.DataDeletion })),
 );
+export const Pricing = lazy(() =>
+  import("./components/Pricing.jsx").then((m) => ({ default: m.Pricing })),
+);

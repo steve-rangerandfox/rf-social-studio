@@ -59,6 +59,11 @@ async function requestJson(url, options = {}, { timeoutMs = DEFAULT_TIMEOUT_MS, 
       // Non-retryable errors
       if (!RETRYABLE_STATUSES.has(response.status)) {
         const body = await response.json().catch(() => ({ error: response.statusText }));
+        // Plan-gate signal — surface globally so the UI can offer an
+        // Upgrade action without every call site needing to handle 402.
+        if (response.status === 402 && body?.code === "PLAN_UPGRADE_REQUIRED" && typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("rf:plan-upgrade-required", { detail: body }));
+        }
         const error = new Error(body.error || `Request failed (${response.status})`);
         error.status = response.status;
         error.retryable = false;
@@ -217,6 +222,23 @@ export function fetchStudioDocument() {
     updatedAt: data.updatedAt,
     version: data.version ?? null,
   }));
+}
+
+// ─── Billing ───────────────────────────────────────────────────────
+
+export function fetchBilling() {
+  return requestJson("/api/billing", { method: "GET" });
+}
+
+export function startBillingCheckout({ plan }) {
+  return requestJson("/api/billing/checkout", {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  });
+}
+
+export function openBillingPortal() {
+  return requestJson("/api/billing/portal", { method: "POST" });
 }
 
 export function saveStudioDocument(document, version = null) {
