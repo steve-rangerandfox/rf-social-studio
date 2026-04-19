@@ -52,7 +52,12 @@
   --text-xl: 23px;
   --text-2xl: 29px;
   --text-3xl: 36px;
-  --text-4xl: 48px;
+  --text-4xl: 42px;
+  --text-5xl: 48px;
+  /* Editorial display sizes — used sparingly for hero typographic
+     moments. Pair with letter-spacing -0.04em to -0.06em. */
+  --text-display: 56px;
+  --text-hero:    72px;
 
   /* Z-index scale */
   --z-content: 0;
@@ -93,15 +98,24 @@
   --shadow-brand:       0 14px 30px rgba(229,106,11,0.18);
   --shadow-brand-hover: 0 18px 36px rgba(229,106,11,0.22);
 
-  /* ─── Motion scale ──────────────────────────────────────────────── */
-  --duration-fast:  100ms;
-  --duration-base:  150ms;
-  --duration-slow:  200ms;
-  --duration-panel: 220ms;
-  --ease-out:          cubic-bezier(0.2, 0, 0, 1);
-  --ease-overshoot-sm: cubic-bezier(0.34, 1.1, 0.64, 1);
-  --ease-overshoot-md: cubic-bezier(0.34, 1.2, 0.64, 1);
-  --ease-overshoot-lg: cubic-bezier(0.34, 1.3, 0.64, 1);
+  /* ─── Motion: editorial calm ────────────────────────────────────────
+     Personality is "composed, not springy." Default ease is ease-out
+     with no overshoot. Overshoot eases are reserved for *celebratory*
+     contexts only (save confirmations, success acknowledgements).
+     Chrome — toasts, drawers, modals, hovers — uses --ease-editorial. */
+  --duration-fast:      100ms;
+  --duration-base:      150ms;
+  --duration-slow:      220ms;
+  --duration-panel:     260ms;
+  --ease-editorial:     cubic-bezier(0.2, 0, 0, 1);
+  --ease-out:           cubic-bezier(0.2, 0, 0, 1);
+  --ease-celebrate:     cubic-bezier(0.34, 1.2, 0.64, 1);
+  /* Legacy overshoot tokens — alias to ease-editorial so existing call
+     sites stay calm by default. Migrate any genuine celebrations to
+     --ease-celebrate explicitly. */
+  --ease-overshoot-sm:  cubic-bezier(0.2, 0, 0, 1);
+  --ease-overshoot-md:  cubic-bezier(0.2, 0, 0, 1);
+  --ease-overshoot-lg:  cubic-bezier(0.2, 0, 0, 1);
 
   /* ─── Status dot tokens (mirrors shared.js STATUSES) ────────────── */
   --status-idea:         #B5ADA0;
@@ -193,7 +207,10 @@ var(--t-bg)}
 .s-lbl-chevron.collapsed{transform:rotate(-90deg)}
 .m-item{display:flex;align-items:center;justify-content:space-between;padding:8px 8px;border-radius:var(--radius-md);cursor:pointer;font-size:var(--text-base);font-weight:500;color:var(--t-text-sub);transition:background 0.12s,color 0.12s;margin-bottom:2px;position:relative;user-select:none;line-height:1.4}
 .m-item:hover{background:rgba(24,23,20,0.06);color:var(--t-text)}.m-item.on{background:rgba(24,23,20,0.09);color:var(--t-ink);font-weight:600}
-.m-item.on::before{display:none}
+/* Editorial accent — the *active* month carries a 2px orange-bright
+   left rule. This is the single signature use of the accent color in
+   the sidebar; the rest of the surface stays calm. */
+.m-item.on::before{display:block;content:"";position:absolute;left:-4px;top:8px;bottom:8px;width:2px;background:var(--t-orange-bright);border-radius:99px}
 .m-ct{font-size:var(--text-xs);color:var(--t-text-dim);font-weight:500}
 .m-item.on .m-ct{color:var(--t-text-dim);opacity:0.8}
 .s-div{height:1px;background:rgba(24,23,20,0.12);margin:12px 12px}
@@ -255,7 +272,10 @@ var(--t-bg)}
 
 /* DATETIME PICKER POPUP */
 .dt-popup{position:fixed;background:var(--t-s2);border:1px solid var(--t-border2);border-radius:var(--radius-md);padding:12px;z-index:var(--z-toast);box-shadow:0 16px 48px rgba(24,23,20,0.08);width:240px;animation:popIn 0.15s cubic-bezier(0.34,1.3,0.64,1)}
-@keyframes popIn{from{transform:scale(0.94) translateY(-4px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+/* Editorial calm: chrome enters with translate + opacity, no scale.
+   Scale entrances read as bouncy / springy; we reserve those for
+   genuine celebrations only. */
+@keyframes popIn{from{transform:translateY(4px);opacity:0}to{transform:translateY(0);opacity:1}}
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .cal-nav-btn{background:transparent;border:1px solid var(--t-border);border-radius:var(--radius-sm);color:var(--t-text-sub);cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:var(--text-base);transition:all 0.1s}
 .cal-nav-btn:hover{border-color:var(--t-border2);color:var(--t-text)}
@@ -340,7 +360,9 @@ var(--t-bg)}
 .btn-ghost{background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(247,241,232,0.94));color:var(--t-text);border:1px solid rgba(24,23,20,0.12);box-shadow:0 8px 24px rgba(24,23,20,0.05);font-weight:700}
 .btn-ghost:hover{color:var(--t-ink);background:linear-gradient(180deg,rgba(255,255,255,1),rgba(244,237,226,0.98));border-color:rgba(24,23,20,0.2)}
 .btn-primary{background:var(--t-poster-grad);background-size:140% 140%;color:var(--t-ink);font-weight:700;border:1px solid rgba(24,23,20,0.16);box-shadow:0 14px 30px rgba(229,106,11,0.18),inset 0 1px 0 rgba(255,255,255,0.45);text-shadow:0 1px 0 rgba(255,255,255,0.18)}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 18px 36px rgba(229,106,11,0.22),inset 0 1px 0 rgba(255,255,255,0.52)}
+/* Editorial calm — buttons darken instead of lifting on hover. The
+   trampoline-button feel was an indie tell. */
+.btn-primary:hover{box-shadow:0 18px 36px rgba(229,106,11,0.22),inset 0 1px 0 rgba(255,255,255,0.52)}
 .btn-danger{background:rgba(220,38,38,0.06);color:var(--t-red);border:1px solid rgba(220,38,38,0.12)}
 .btn-danger:hover{background:rgba(220,38,38,0.1)}
 .btn:disabled{opacity:0.38;cursor:not-allowed}
@@ -390,7 +412,7 @@ var(--t-bg)}
 /* ─── ANALYTICS (editorial layout) ─── */
 .analytics-area{flex:1;overflow-y:auto;padding:32px 40px 48px;display:flex;flex-direction:column;gap:40px;max-width:880px}
 .analytics-hero{padding-bottom:24px;border-bottom:1px solid var(--t-border)}
-.analytics-hero-title{font-family:'Bricolage Grotesque',sans-serif;font-size:36px;font-weight:700;letter-spacing:-0.04em;line-height:1.1;color:var(--t-ink);margin-bottom:12px}
+.analytics-hero-title{font-family:'Bricolage Grotesque',sans-serif;font-size:var(--text-3xl);font-weight:700;letter-spacing:-0.04em;line-height:1.1;color:var(--t-ink);margin-bottom:12px}
 .analytics-hero-sub{font-size:var(--text-md);color:var(--t-text-sub);line-height:1.6;font-weight:400;max-width:60ch}
 .analytics-section{display:flex;flex-direction:column;gap:16px}
 .analytics-section-title{font-family:'JetBrains Mono',monospace;font-size:var(--text-xs);font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--t-text-dim)}
@@ -421,7 +443,7 @@ var(--t-bg)}
 .asset-body{flex:1;overflow-y:auto;padding:16px}
 .asset-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
 .asset-item{aspect-ratio:1;border-radius:var(--radius-md);border:1px solid rgba(24,23,20,0.06);overflow:hidden;cursor:pointer;position:relative;background:var(--t-s2);transition:all 0.12s}
-.asset-item:hover{border-color:rgba(24,23,20,0.1);transform:translateY(-1px)}
+.asset-item:hover{border-color:rgba(24,23,20,0.18)}
 .asset-thumb{width:100%;height:100%;object-fit:cover}
 .asset-empty-thumb{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:var(--text-xl);opacity:0.4}
 .asset-name{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(24,23,20,0.78));font-size:var(--text-xs);padding:12px 8px 8px;color:rgba(255,255,255,0.88);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.04em}
@@ -432,7 +454,7 @@ var(--t-bg)}
 .overlay{position:fixed;inset:0;background:rgba(20,18,15,0.65);z-index:var(--z-modal);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);animation:fIn 0.15s}
 @keyframes fIn{from{opacity:0}to{opacity:1}}
 .modal{background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--radius-md);width:560px;max-width:94vw;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(24,23,20,0.12),0 0 0 1px rgba(255,255,255,0.03);animation:mIn 0.2s cubic-bezier(0.34,1.2,0.64,1)}
-@keyframes mIn{from{transform:translateY(10px) scale(0.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+@keyframes mIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
 .m-head{padding:20px 20px 16px;border-bottom:1px solid var(--t-border);display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0}
 .m-title{font-size:var(--text-lg);font-weight:700;letter-spacing:-.35px;font-family:'Bricolage Grotesque',sans-serif}
 .m-sub{font-size:var(--text-base);color:var(--t-text-dim);margin-top:4px;font-weight:400;line-height:1.4}
@@ -668,21 +690,26 @@ var(--t-bg)}
 .stage-ai-typing::after{content:'▋';animation:blink 0.8s infinite;color:var(--t-text-dim)}
 
 /* Governance column */
-.readiness-list{display:flex;flex-direction:column;gap:8px}
+/* Readiness checks — tightened from card-per-row to a single editorial
+   list. Each row is one typeset line; the whole block reads as a
+   colophon, not five Bootstrap cards stacked. */
+.readiness-list{display:flex;flex-direction:column;gap:0;border-top:1px solid rgba(24,23,20,0.08);border-bottom:1px solid rgba(24,23,20,0.08)}
 .readiness-strip{display:flex;flex-wrap:wrap;gap:8px}
 .readiness-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,0.94),rgba(247,241,232,0.96));border:1px solid rgba(24,23,20,0.12);box-shadow:0 6px 18px rgba(24,23,20,0.03);white-space:nowrap}
 .readiness-chip.pass{border-color:rgba(24,23,20,0.12)}
 .readiness-chip.warn{border-color:rgba(229,106,11,0.26);background:linear-gradient(180deg,rgba(255,248,241,0.98),rgba(255,243,228,0.98))}
 .readiness-chip.fail{border-color:rgba(220,38,38,0.18);background:linear-gradient(180deg,rgba(255,250,250,0.98),rgba(255,241,241,0.98))}
-.readiness-item{display:flex;align-items:center;gap:8px;padding:12px 12px;border-radius:var(--radius-md);background:var(--t-surface);border:1px solid rgba(24,23,20,0.1)}
-.readiness-icon{font-size:var(--text-base);flex-shrink:0;width:18px;text-align:center;color:var(--t-text)}
+.readiness-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid rgba(24,23,20,0.06);background:transparent}
+.readiness-item:first-child{border-top:none}
+.readiness-icon{flex-shrink:0;width:18px;text-align:center;color:var(--t-text-dim)}
+.readiness-item .readiness-icon svg{display:block;margin:0 auto}
 .readiness-label{font-size:var(--text-base);color:var(--t-text);flex:1;font-weight:500}
-.readiness-ok{font-family:'Switzer','Helvetica Neue',Arial,system-ui,sans-serif;font-size:var(--text-sm);font-weight:700}
+.readiness-ok{font-family:"JetBrains Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
 .readiness-ok.pass{color:var(--t-ink)}.readiness-ok.fail{color:var(--t-red)}.readiness-ok.warn{color:var(--t-orange)}
 
 .quick-status{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
 .qs-btn{padding:8px 12px;border-radius:999px;font-size:var(--text-sm);font-weight:700;cursor:pointer;border:1px solid rgba(24,23,20,0.12);background:linear-gradient(180deg,rgba(255,255,255,0.88),rgba(247,241,232,0.9));color:var(--t-text-sub);transition:all 0.1s;white-space:nowrap;letter-spacing:.04em;box-shadow:0 6px 18px rgba(24,23,20,0.03)}
-.qs-btn:hover{border-color:rgba(24,23,20,0.22);color:var(--t-ink);background:linear-gradient(180deg,rgba(255,255,255,1),rgba(243,236,225,0.96));transform:translateY(-1px)}
+.qs-btn:hover{border-color:rgba(24,23,20,0.22);color:var(--t-ink);background:linear-gradient(180deg,rgba(255,255,255,1),rgba(243,236,225,0.96))}
 .qs-btn.active{border-color:currentColor;box-shadow:0 0 0 2px rgba(229,106,11,0.08),0 10px 24px rgba(229,106,11,0.12);font-weight:700}
 .stage-governance{display:flex;flex-direction:column;gap:16px}
 .stage-select{position:relative}
@@ -895,7 +922,7 @@ var(--t-bg)}
 .sd-tour-skip{background:none;border:none;color:var(--t-text-dim);font-size:var(--text-sm);font-weight:500;cursor:pointer;padding:6px 8px;font-family:inherit}
 .sd-tour-skip:hover{color:var(--t-text-sub)}
 .sd-tour-next{display:flex;align-items:center;gap:4px;background:var(--t-ink);color:var(--t-surface);border:none;border-radius:var(--radius-pill);padding:6px 14px;font-size:var(--text-sm);font-weight:600;cursor:pointer;font-family:inherit;transition:transform 0.12s}
-.sd-tour-next:hover{transform:translateY(-1px)}
+.sd-tour-next:hover{background:#2e2c28}
 
 /* ─── SETTINGS MODAL ─── */
 .settings-modal{width:520px}
@@ -949,7 +976,7 @@ var(--t-bg)}
 .ig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:transparent;padding:8px}
 .ig-cell{aspect-ratio:1;position:relative;overflow:hidden;cursor:pointer;background:var(--t-s3);border-radius:var(--radius-md);transition:filter .15s,opacity .15s,transform .15s}
 .ig-cell.is-queued{filter:none;box-shadow:0 0 0 1.5px rgba(124,58,237,0.35)}
-.ig-cell:hover{filter:brightness(1.04);opacity:.98;transform:translateY(-1px)}
+.ig-cell:hover{filter:brightness(1.06)}
 .ig-cell.is-queued:hover{filter:brightness(1.06);box-shadow:0 0 0 2px rgba(124,58,237,0.5);transform:translateY(-2px)}
 .ig-cell-overlay{position:absolute;inset:0;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;transition:background .18s;z-index:4}
 .ig-cell:hover .ig-cell-overlay{background:rgba(0,0,0,0.38)}
@@ -1197,6 +1224,18 @@ var(--t-bg)}
 .asset-drawer.closing { animation: drawerOut 0.2s ease forwards; }
 
 /* ─── SKELETON LOADING ─── */
+/* Page transitions — every top-level view fades in on mount with a
+   subtle 4px translate. Editorial-calm motion: 200ms, ease-out, no
+   bounce. The result is a 150-200ms cross-fade between view switches
+   (the outgoing view unmounts; the new view fades in). */
+.t-area, .cal-area, .ig-grid-area, .analytics-area {
+  animation: viewMount 220ms var(--ease-editorial) both;
+}
+@keyframes viewMount {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -1415,7 +1454,7 @@ var(--t-bg)}
 .detail-panel .stage-txa{min-height:120px}
 .detail-panel .stage-thumb{aspect-ratio:auto;max-height:200px}
 .detail-panel .stage-post-placeholder{min-height:80px}
-.detail-panel .readiness-item{padding:8px 10px;border-radius:var(--radius-md)}
+.detail-panel .readiness-item{padding:11px 0}
 
 /* ─── SETTINGS PANEL ─── */
 .settings-panel-backdrop{position:fixed;inset:0;background:rgba(20,18,15,0.18);z-index:var(--z-panel);animation:fIn 0.15s}
@@ -1456,8 +1495,8 @@ var(--t-bg)}
 
 /* ─── LIST VIEW MONTH HEADING ─── */
 .list-month-heading{display:flex;align-items:baseline;gap:14px;padding:20px 28px 18px;margin:0 0 8px}
-.list-month-title{font-family:'Bricolage Grotesque',sans-serif;font-size:42px;font-weight:800;letter-spacing:-0.06em;line-height:0.95;color:var(--t-ink)}
-.list-month-year{font-family:'Bricolage Grotesque',sans-serif;font-size:42px;font-weight:300;letter-spacing:-0.06em;line-height:0.95;color:var(--t-text-dim)}
+.list-month-title{font-family:'Bricolage Grotesque',sans-serif;font-size:var(--text-4xl);font-weight:800;letter-spacing:-0.06em;line-height:0.95;color:var(--t-ink)}
+.list-month-year{font-family:'Bricolage Grotesque',sans-serif;font-size:var(--text-4xl);font-weight:300;letter-spacing:-0.06em;line-height:0.95;color:var(--t-text-dim)}
 
 /* ─── CALENDAR NAV ─── */
 .cal-nav-actions{display:flex;gap:8px}
@@ -1642,7 +1681,9 @@ var(--t-bg)}
 
 /* ─── Numbered editorial motif (extending 01/02/03 from Sidebar) ── */
 .settings-tab-num{font-family:"JetBrains Mono",monospace;font-size:var(--text-xs);font-weight:600;color:var(--t-text-dim);opacity:0.55;letter-spacing:.04em;margin-right:6px}
-.settings-tab.on .settings-tab-num{color:var(--t-text-sub);opacity:0.75}
+/* Editorial accent — active settings tab number takes the signature
+   orange. Single use per panel keeps the chrome calm. */
+.settings-tab.on .settings-tab-num{color:var(--t-orange-bright);opacity:1}
 .readiness-num{font-family:"JetBrains Mono",monospace;font-size:10px;font-weight:600;color:var(--t-text-dim);opacity:0.55;letter-spacing:.06em;flex-shrink:0;width:18px}
 
 /* ─── Cross-post modal ──────────────────────────────────────────── */

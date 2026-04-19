@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { RotateCcw } from "lucide-react";
-import { Check, Close as X } from "../../../components/icons/index.jsx";
+import { Check, Close as X, RotateCcw } from "../../../components/icons/index.jsx";
 import {
   exchangeInstagramCode,
   exchangeLinkedInCode,

@@ -39,7 +39,9 @@ const PRICING_STYLES = `
   color:#8b8377;
 }
 
-.pricing-card.is-featured .pricing-tag{ color:#181714; }
+/* Editorial accent — featured tag carries the signature orange.
+   Single use per page keeps the surface calm. */
+.pricing-card.is-featured .pricing-tag{ color:#FF7A00; }
 
 .pricing-name{
   font:800 28px/0.95 "Bricolage Grotesque", sans-serif;
@@ -149,8 +151,77 @@ const PRICING_STYLES = `
   margin:0;
 }
 
+/* Comparison block — single editorial table positioned vs Buffer.
+   Designed as a typeset row pattern (no borders, no zebra stripes). */
+.pricing-compare{
+  margin-top:64px;
+  padding-top:24px;
+  border-top:1px solid rgba(24,23,20,0.12);
+}
+
+.pricing-compare-num{
+  font:600 11px/1 "JetBrains Mono", monospace;
+  letter-spacing:0.16em;
+  text-transform:uppercase;
+  color:#FF7A00;
+  margin-bottom:14px;
+  display:block;
+}
+
+.pricing-compare-title{
+  font:700 clamp(24px, 3.4vw, 32px)/1.05 "Bricolage Grotesque", sans-serif;
+  letter-spacing:-0.035em;
+  color:#111111;
+  margin:0 0 22px;
+  max-width:24ch;
+}
+
+.pricing-compare-table{
+  display:grid;
+  grid-template-columns:minmax(140px, 1.2fr) 1fr 1fr;
+  gap:0;
+  border-top:1px solid rgba(24,23,20,0.1);
+}
+
+.pricing-compare-head{
+  display:contents;
+  font:600 10px/1.4 "JetBrains Mono", monospace;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:#8b8377;
+}
+
+.pricing-compare-head span{
+  padding:14px 12px 10px;
+  border-bottom:1px solid rgba(24,23,20,0.1);
+}
+
+.pricing-compare-row{
+  display:contents;
+}
+
+.pricing-compare-row > span{
+  padding:14px 12px;
+  border-bottom:1px solid rgba(24,23,20,0.06);
+  font-size:14px;
+  line-height:1.45;
+  color:#2e2c28;
+}
+
+.pricing-compare-row > span:first-child{
+  font-weight:600;
+  color:#111111;
+}
+
+.pricing-compare-row > span.is-us{
+  color:#181714;
+  font-weight:500;
+}
+
 @media (max-width:780px){
   .pricing-grid{ grid-template-columns:1fr; }
+  .pricing-compare-table{ grid-template-columns:1fr 1fr 1fr; }
+  .pricing-compare-row > span{ font-size:13px; padding:12px 8px; }
 }
 `;
 
@@ -169,7 +240,7 @@ const TIERS = [
       { on: false, text: "AI captions, variants, strategy" },
       { on: false, text: "Brand learning from website" },
     ],
-    cta: { label: "Sign in to start", href: "/" },
+    cta: { label: "Sign in to start", href: "/app" },
     primary: false,
   },
   {
@@ -186,7 +257,7 @@ const TIERS = [
       { on: true, text: "Brand learning from website" },
       { on: false, text: "AI monthly strategy + team seats" },
     ],
-    cta: { label: "Start 14-day trial", href: "/?upgrade=essentials" },
+    cta: { label: "Start 14-day trial", href: "/app?upgrade=essentials" },
     primary: true,
   },
   {
@@ -203,9 +274,19 @@ const TIERS = [
       { on: true, text: "Up to 3 seats included" },
       { on: true, text: "Approval flow + comments" },
     ],
-    cta: { label: "Start 14-day trial", href: "/?upgrade=team" },
+    cta: { label: "Start 14-day trial", href: "/app?upgrade=team" },
     primary: false,
   },
+];
+
+const COMPARISON = [
+  { feature: "Free tier", us: "Yes \u2014 5 posts", buffer: "Limited \u2014 10 posts, 3 channels" },
+  { feature: "AI captions on entry tier", us: "Included at $5/mo", buffer: "$6/mo Essentials add-on" },
+  { feature: "Cross-post variants", us: "One click, all platforms", buffer: "Per-post manual" },
+  { feature: "AI monthly strategy", us: "Built into Team tier", buffer: "Not offered" },
+  { feature: "Story design canvas", us: "Built-in (9:16)", buffer: "External tool" },
+  { feature: "Per-seat pricing", us: "$10 / seat (Team only)", buffer: "$6 / channel" },
+  { feature: "Trial card required", us: "No", buffer: "Yes" },
 ];
 
 export function Pricing() {
@@ -247,6 +328,25 @@ export function Pricing() {
       <p className="pricing-trial">
         Trials don&rsquo;t require a card up front \u00B7 Switch tiers or cancel from Settings &rarr; Billing
       </p>
+
+      <section className="pricing-compare">
+        <span className="pricing-compare-num">02 \u00B7 vs Buffer</span>
+        <h2 className="pricing-compare-title">Same job, different opinion.</h2>
+        <div className="pricing-compare-table" role="table">
+          <div className="pricing-compare-head" role="row">
+            <span role="columnheader">Feature</span>
+            <span role="columnheader">RF Social Studio</span>
+            <span role="columnheader">Buffer</span>
+          </div>
+          {COMPARISON.map((row) => (
+            <div key={row.feature} className="pricing-compare-row" role="row">
+              <span role="cell">{row.feature}</span>
+              <span role="cell" className="is-us">{row.us}</span>
+              <span role="cell">{row.buffer}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <h2>Questions worth answering</h2>
       <p>

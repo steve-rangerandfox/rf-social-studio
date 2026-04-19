@@ -1,6 +1,5 @@
 import React from "react";
-import { Menu } from "lucide-react";
-import { AIMark } from "../../../components/icons/index.jsx";
+import { AIMark, Menu } from "../../../components/icons/index.jsx";
 import { useStudio } from "../StudioContext.jsx";
 import { SaveStatusBadge } from "../../../components/SaveStatusBadge.jsx";
 import { MONTHS_FULL } from "../shared.js";

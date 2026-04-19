@@ -1,6 +1,39 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Minus, RotateCcw, RotateCw, Undo2, Redo2, Grid3x3, Upload, Trash2, Bold, Italic, Underline, Strikethrough, Type, AArrowDown, Image as ImageIcon, Film, Wallpaper, Layers, LayoutTemplate, PanelLeftClose, Sliders, AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, Download } from "lucide-react";
-import { AIMark, Check, ChevronDown, Close as X, Plus } from "../../../components/icons/index.jsx";
+import {
+  AArrowDown,
+  AIMark,
+  AlignCenter,
+  AlignCenterVertical,
+  AlignEndVertical,
+  AlignLeft,
+  AlignRight,
+  AlignStartVertical,
+  Bold,
+  Check,
+  ChevronDown,
+  Close as X,
+  Download,
+  Film,
+  Grid3 as Grid3x3,
+  ImageIcon,
+  Italic,
+  Layers,
+  LayoutTemplate,
+  Minus,
+  PanelLeftClose,
+  Plus,
+  Redo as Redo2,
+  RotateCcw,
+  RotateCw,
+  Sliders,
+  Strikethrough,
+  Trash as Trash2,
+  TypeIcon as Type,
+  Underline,
+  Undo as Undo2,
+  Upload,
+  Wallpaper,
+} from "../../../components/icons/index.jsx";
 import { CanvasElement, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { StoryDesignerTour } from "./StoryDesignerTour.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";

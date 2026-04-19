@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Copy } from "lucide-react";
-import { AIMark, Check, Close } from "../../../components/icons/index.jsx";
+import { AIMark, Check, Close, Copy } from "../../../components/icons/index.jsx";
 
 import { useStudio } from "../StudioContext.jsx";
 import { generateCaptionVariants } from "../../../lib/api-client.js";

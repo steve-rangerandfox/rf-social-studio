@@ -15,8 +15,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, STATUS_ORDER } from "./StatusMachine.js";
-import { CheckCircle2, AlertTriangle, Play, Upload, Share2, Calendar } from "lucide-react";
-import { Check, ChevronDown, Close as X } from "../../../components/icons/index.jsx";
+import { AlertTriangle, CalendarIcon as Calendar, Check, CheckCircle as CheckCircle2, ChevronDown, Close as X, Play, Share as Share2, Upload } from "../../../components/icons/index.jsx";
 import { CrossPostModal } from "./CrossPostModal.jsx";
 
 export function DetailPanel() {

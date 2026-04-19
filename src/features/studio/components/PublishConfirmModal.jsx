@@ -1,6 +1,5 @@
 import React from "react";
-import { AlertTriangle, Clock, Send } from "lucide-react";
-import { Check, Close as X } from "../../../components/icons/index.jsx";
+import { AlertTriangle, Check, Clock, Close as X, Send } from "../../../components/icons/index.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { T, PLATFORMS, toPTDisplay, getReadinessChecks } from "../shared.js";
 

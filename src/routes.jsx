@@ -18,3 +18,9 @@ export const DataDeletion = lazy(() =>
 export const Pricing = lazy(() =>
   import("./components/Pricing.jsx").then((m) => ({ default: m.Pricing })),
 );
+export const Landing = lazy(() =>
+  import("./components/Landing.jsx").then((m) => ({ default: m.Landing })),
+);
+export const About = lazy(() =>
+  import("./components/About.jsx").then((m) => ({ default: m.About })),
+);

@@ -4,7 +4,7 @@
 // purity would fragment tight-knit canvas code; disabling the rule
 // here is the better trade.
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Volume as Volume2, VolumeMute as VolumeX } from "../../../components/icons/index.jsx";
 
 function formatTime(s) {
   if (!s || isNaN(s)) return "0:00";

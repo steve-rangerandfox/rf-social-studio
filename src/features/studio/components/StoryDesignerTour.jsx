@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { ChevronRight } from "lucide-react";
-import { Close as X } from "../../../components/icons/index.jsx";
+import { ChevronRight, Close as X } from "../../../components/icons/index.jsx";
 
 const DISMISS_KEY = "rf_story_designer_tour_dismissed";
 

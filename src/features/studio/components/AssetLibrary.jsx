@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Upload } from "lucide-react";
-import { Close as X } from "../../../components/icons/index.jsx";
+import { Close as X, Upload } from "../../../components/icons/index.jsx";
 import {
   T,
   formatRelativeStamp,

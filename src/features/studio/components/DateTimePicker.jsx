@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "../../../components/icons/index.jsx";
 import { nowPT, ptPickerToISO, MONTHS_SHORT, WD_SHORT } from "../shared.js";
 
 export function DateTimePicker({ isoValue, onChange, onClose, anchorRef }) {

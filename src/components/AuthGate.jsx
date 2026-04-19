@@ -406,7 +406,7 @@ export function AuthGate() {
 
           <section className="auth-stage">
             <div className="auth-card-wrap">
-              <SignIn appearance={signInAppearance} />
+              <SignIn appearance={signInAppearance} afterSignInUrl="/app" afterSignUpUrl="/app" signUpUrl="/app/sign-up" />
             </div>
           </section>
         </div>

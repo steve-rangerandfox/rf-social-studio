@@ -54,7 +54,10 @@ export class ErrorBoundary extends Component {
     }
 
     const scope = this.props.scope;
-    const headline = scope ? `${scope} failed to render` : "Something went wrong";
+    const kicker = scope ? scope : "Studio";
+    const headline = scope
+      ? `${scope} tripped on its way in.`
+      : "Something tripped on its way in.";
 
     return (
       <div
@@ -63,48 +66,80 @@ export class ErrorBoundary extends Component {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          height: "100vh",
-          gap: 16,
+          minHeight: "100vh",
+          gap: 18,
           padding: 32,
           fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif',
-          background: "#F3EEE5",
+          background: "linear-gradient(180deg, #f8f4ed 0%, #f1ece2 100%)",
           color: "#181714",
         }}
       >
-        <div style={{ fontSize: 28, opacity: 0.3 }}>!</div>
-        <div style={{ fontSize: 16, fontWeight: 700 }}>{headline}</div>
         <div
           style={{
-            fontSize: 13,
-            color: "#5E574C",
-            maxWidth: 420,
-            textAlign: "center",
-            lineHeight: 1.6,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "6px 12px",
+            border: "1px solid rgba(24,23,20,0.12)",
+            borderRadius: 999,
+            background: "rgba(251,250,246,0.78)",
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "#4d463d",
           }}
         >
-          Try again to recover without losing in-progress work. Reload is a last resort — it wipes unsaved changes in this tab.
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#FF7A00" }} />
+          {kicker} \u00B7 Recoverable
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <div
+          style={{
+            fontFamily: '"Bricolage Grotesque", sans-serif',
+            fontSize: "clamp(32px, 4vw, 44px)",
+            fontWeight: 800,
+            letterSpacing: "-0.045em",
+            lineHeight: 1.02,
+            color: "#111111",
+            textAlign: "center",
+            maxWidth: "20ch",
+          }}
+        >
+          {headline}
+        </div>
+        <div
+          style={{
+            fontSize: 15,
+            color: "#5E584F",
+            maxWidth: 460,
+            textAlign: "center",
+            lineHeight: 1.65,
+          }}
+        >
+          Local drafts are safe. Try this view again first &mdash; reloading the studio is the last resort and will wipe in-flight changes in this tab.
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
           <button
             style={{
-              padding: "9px 20px",
+              padding: "11px 22px",
               background: "#181714",
-              color: "#FEFCF8",
+              color: "#FBFAF6",
               border: "none",
               borderRadius: 999,
               fontSize: 13,
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: "pointer",
             }}
             onClick={this.reset}
           >
-            Try again
+            Try this view again
           </button>
           <button
             style={{
-              padding: "9px 20px",
+              padding: "11px 22px",
               background: "transparent",
-              color: "#5E574C",
+              color: "#181714",
               border: "1px solid rgba(24,23,20,0.18)",
               borderRadius: 999,
               fontSize: 13,
@@ -113,19 +148,20 @@ export class ErrorBoundary extends Component {
             }}
             onClick={() => window.location.reload()}
           >
-            Reload app
+            Reload the studio
           </button>
         </div>
         {import.meta.env.DEV && (
           <pre
             style={{
-              marginTop: 12,
+              marginTop: 16,
+              fontFamily: '"JetBrains Mono", monospace',
               fontSize: 11,
-              color: "#DC2626",
-              background: "#FFF1F2",
-              border: "1px solid #FCA5A5",
-              borderRadius: 6,
-              padding: "10px 14px",
+              color: "#9B7441",
+              background: "rgba(255,247,232,0.72)",
+              border: "1px solid rgba(155,116,65,0.22)",
+              borderRadius: 8,
+              padding: "12px 16px",
               maxWidth: 640,
               overflowX: "auto",
               whiteSpace: "pre-wrap",

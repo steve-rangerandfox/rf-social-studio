@@ -562,8 +562,7 @@ export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, br
           )}
         </div>
         <div className="settings-panel-footer">
-          <button className="btn btn-ghost btn-sm" onClick={handleClose}>Close</button>
-          <button className="btn btn-primary btn-sm" onClick={handleClose}>Save Changes</button>
+          <button className="btn btn-primary btn-sm" onClick={handleClose}>Done</button>
         </div>
       </div>
     </>
