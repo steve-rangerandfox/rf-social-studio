@@ -34,6 +34,7 @@ import {
   ptPickerToISO,
   saveTeam,
   STATUSES,
+  suggestBestSlot,
   T,
   uid,
 } from "./shared.js";
@@ -448,6 +449,22 @@ export function StudioProvider({ children }) {
         : () => createAuditEntry("post.updated", currentUser, "Updated a post", { id, fields: Object.keys(patch) }),
     );
 
+  // One-click approve: flip status→scheduled and pick the next sensible
+  // slot for the row's platform. No-op for already-posted rows.
+  const approveAndSchedule = useCallback((id) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row || row.status === "posted") return null;
+    const scheduledAt = suggestBestSlot(row.platform, rows, new Date());
+    update(id, { status: "scheduled", scheduledAt });
+    const when = new Date(scheduledAt).toLocaleString("en-US", {
+      weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+    });
+    showToast(`Scheduled for ${when}`, T.mint);
+    return scheduledAt;
+  // `update` is defined above and is stable per-render; safe to omit.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, showToast]);
+
   const softDelete = useCallback((ids) => {
     const idSet = new Set(Array.isArray(ids) ? ids : [ids]);
     setPendingDelete({ rows: rows.filter((row) => idSet.has(row.id)), count: idSet.size });
@@ -810,7 +827,7 @@ export function StudioProvider({ children }) {
     monthCounts, maxMonthCount,
 
     // Actions
-    update, softDelete, undoDelete, remove,
+    update, approveAndSchedule, softDelete, undoDelete, remove,
     toggleSel, toggleAll, bulkDel,
     bulkSetStatus, bulkSetPlatform, bulkSetAssignee,
     toggleOC, addComment,

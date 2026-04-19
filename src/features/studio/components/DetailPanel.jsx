@@ -15,7 +15,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, STATUS_ORDER } from "./StatusMachine.js";
-import { CheckCircle2, AlertTriangle, Play, Upload, X, Check, ChevronDown, Share2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Play, Upload, X, Check, ChevronDown, Share2, Calendar } from "lucide-react";
 import { CrossPostModal } from "./CrossPostModal.jsx";
 
 export function DetailPanel() {
@@ -25,6 +25,7 @@ export function DetailPanel() {
     setComposer, setStory, setPublishConfirm,
     connections, currentUser, team,
     addComment,
+    approveAndSchedule,
   } = useStudio();
 
   const row = rows.find((r) => r.id === selectedRowId);
@@ -598,6 +599,16 @@ export function DetailPanel() {
             <button className="btn btn-primary dp-action-btn" onClick={handlePostNow}>
               Post to {PLATFORMS[row.platform].label}
             </button>
+            {row.status !== "posted" && row.status !== "scheduled" && (
+              <button
+                className="btn btn-ghost dp-action-btn"
+                onClick={() => approveAndSchedule(row.id)}
+                title="Approve and auto-pick the next good time slot"
+              >
+                <Calendar size={13} style={{ marginRight: 6 }} />
+                Approve &amp; schedule
+              </button>
+            )}
             <button
               className="btn btn-ghost dp-action-btn"
               onClick={() => setIsCrossPostOpen(true)}

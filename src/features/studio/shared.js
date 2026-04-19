@@ -366,6 +366,57 @@ export function makeISO(day, hour24, minute, targetMonth = currentMonth) {
   return ptPickerToISO(currentYear, targetMonth, day, hour24, minute);
 }
 
+// Heuristic "best time to post" per platform. Returns an ISO string
+// for the next viable slot (skipping weekends where it matters, and
+// rolling forward past any existing scheduled row on the same platform
+// within ±60 minutes so we don't stack posts on the same platform).
+//
+// This is a deliberately simple first cut — real "best time" learning
+// from engagement data lives in the Analytics pipeline later.
+const PLATFORM_SLOTS = {
+  ig_post:   { hours: [10, 14, 18], weekendsOk: true },
+  ig_reel:   { hours: [11, 17],     weekendsOk: true },
+  ig_story:  { hours: [9, 12, 16],  weekendsOk: true },
+  linkedin:  { hours: [9, 11, 14],  weekendsOk: false },
+  facebook:  { hours: [12, 16],     weekendsOk: true },
+  tiktok:    { hours: [18, 20, 21], weekendsOk: true },
+};
+
+export function suggestBestSlot(platform, existingRows = [], referenceDate = new Date()) {
+  const rules = PLATFORM_SLOTS[platform] || PLATFORM_SLOTS.ig_post;
+  const conflicts = existingRows
+    .filter((row) => row.platform === platform && row.scheduledAt && !row.deletedAt
+      && (row.status === "scheduled" || row.status === "approved"))
+    .map((row) => new Date(row.scheduledAt).getTime());
+
+  const conflictWindow = 60 * 60 * 1000; // 1 hour
+
+  // Walk forward day-by-day, try each hour slot in order, skip weekends
+  // if the platform rules say so.
+  for (let dayOffset = 0; dayOffset < 14; dayOffset += 1) {
+    const day = new Date(referenceDate);
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() + dayOffset);
+    const dow = day.getDay();
+    if (!rules.weekendsOk && (dow === 0 || dow === 6)) continue;
+
+    for (const hour of rules.hours) {
+      const candidate = new Date(day);
+      candidate.setHours(hour, 0, 0, 0);
+      if (candidate.getTime() <= referenceDate.getTime()) continue;
+
+      const clashes = conflicts.some((ts) => Math.abs(ts - candidate.getTime()) < conflictWindow);
+      if (!clashes) return candidate.toISOString();
+    }
+  }
+
+  // Fallback: 48 hours from now at 10am.
+  const fallback = new Date(referenceDate);
+  fallback.setDate(fallback.getDate() + 2);
+  fallback.setHours(10, 0, 0, 0);
+  return fallback.toISOString();
+}
+
 export function createSeedRows() {
   return [
     {
