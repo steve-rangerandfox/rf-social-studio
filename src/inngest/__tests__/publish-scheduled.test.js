@@ -4,6 +4,7 @@ import {
   MAX_LATE_MS,
   platformToMediaType,
   findDueRows,
+  findDueLinkedInRows,
 } from "../publish-scheduled.js";
 
 describe("platformToMediaType", () => {
@@ -99,5 +100,52 @@ describe("findDueRows", () => {
       ],
     });
     expect(result.map((r) => r.id).sort()).toEqual(["p", "r", "s"]);
+  });
+});
+
+describe("findDueLinkedInRows", () => {
+  const now = Date.now();
+  const oneMin = 60_000;
+
+  function liRow(overrides = {}) {
+    return {
+      id: "li",
+      platform: "linkedin",
+      status: "scheduled",
+      caption: "A real LinkedIn post.",
+      scheduledAt: new Date(now - oneMin).toISOString(),
+      deletedAt: null,
+      ...overrides,
+    };
+  }
+
+  it("includes a LinkedIn row with caption + due scheduledAt", () => {
+    expect(findDueLinkedInRows({ rows: [liRow()] })).toHaveLength(1);
+  });
+
+  it("excludes rows without a caption", () => {
+    expect(findDueLinkedInRows({ rows: [liRow({ caption: "" })] })).toEqual([]);
+    expect(findDueLinkedInRows({ rows: [liRow({ caption: "   " })] })).toEqual([]);
+  });
+
+  it("excludes non-LinkedIn platforms", () => {
+    for (const platform of ["ig_post", "ig_reel", "ig_story", "tiktok", "facebook"]) {
+      expect(findDueLinkedInRows({ rows: [liRow({ platform })] })).toEqual([]);
+    }
+  });
+
+  it("excludes non-scheduled statuses", () => {
+    for (const status of ["idea", "draft", "needs_review", "approved", "posted"]) {
+      expect(findDueLinkedInRows({ rows: [liRow({ status })] })).toEqual([]);
+    }
+  });
+
+  it("excludes soft-deleted rows", () => {
+    expect(findDueLinkedInRows({ rows: [liRow({ deletedAt: new Date().toISOString() })] })).toEqual([]);
+  });
+
+  it("excludes rows more than MAX_LATE_MS in the past", () => {
+    const tooStale = new Date(now - MAX_LATE_MS - oneMin).toISOString();
+    expect(findDueLinkedInRows({ rows: [liRow({ scheduledAt: tooStale })] })).toEqual([]);
   });
 });

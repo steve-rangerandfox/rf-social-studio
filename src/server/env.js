@@ -42,6 +42,11 @@ export function loadServerEnv(source = process.env) {
     igAppSecret: fbAppSecret,
     supabaseUrl: source.SUPABASE_URL || source.VITE_SUPABASE_URL || "",
     supabaseServiceRoleKey: source.SUPABASE_SERVICE_ROLE_KEY || "",
+    // LinkedIn publishing — uses LinkedIn's "Share on LinkedIn" + UGC
+    // Posts product. Create an app at linkedin.com/developers/apps.
+    liAppId: source.LINKEDIN_CLIENT_ID || "",
+    liAppSecret: source.LINKEDIN_CLIENT_SECRET || "",
+    liRedirectUri: source.LINKEDIN_REDIRECT_URI || "",
     anthropicApiKey: source.ANTHROPIC_API_KEY || "",
     anthropicModel: source.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
     // Upstash Redis — rate limiting (cross-instance, required in production)

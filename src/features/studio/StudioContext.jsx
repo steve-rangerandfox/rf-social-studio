@@ -97,6 +97,11 @@ export function StudioProvider({ children }) {
   const [team, setTeam] = useState(() => loadTeam());
   const updateTeam = (newTeam) => { setTeam(newTeam); saveTeam(newTeam); };
   const [connections, setConns] = useState({ instagram: false, tiktok: false, facebook: false, linkedin: false });
+  // In-memory profile snapshot for LinkedIn — cleared on reload, but the
+  // underlying session cookie + Supabase li_tokens row persists. A
+  // reload requires the user to click "Connect" again to re-hydrate
+  // (v1 compromise — a future pass can poll a status endpoint).
+  const [linkedinAccount, setLinkedinAccount] = useState(null);
   const [saveState, setSaveState] = useState(() => ({
     status: studioDoc.lastSavedAt ? "saved" : "idle",
     lastSavedAt: studioDoc.lastSavedAt,
@@ -835,6 +840,10 @@ export function StudioProvider({ children }) {
     commitReorder, jumpToMonth, jumpToStatsFilter,
     handleTokenRefresh,
     makeDrag,
+
+    // LinkedIn (in-memory snapshot only)
+    linkedinAccount,
+    setLinkedinAccount,
 
     // Brand profile
     brandProfile,

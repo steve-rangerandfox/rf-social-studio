@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { X, Upload, Check } from "lucide-react";
 import { T, PLATFORMS, toPTDisplay } from "../shared.js";
-import { publishToInstagram } from "../../../lib/api-client.js";
+import { publishToInstagram, publishToLinkedIn } from "../../../lib/api-client.js";
 import { uploadAsset } from "../../../lib/supabase.js";
 import { CaptionEditor } from "./CaptionEditor.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
@@ -48,6 +48,18 @@ export function Composer({ row, onClose, onPosted, postNow }) {
     setErrMsg("");
 
     try {
+      // LinkedIn: text-only publish path. Image + video posts on LI
+      // need a multi-step register-upload flow — out of scope for v1.
+      if (plat === "linkedin") {
+        const text = caption.trim();
+        if (!text) throw new Error("LinkedIn posts need a caption");
+        setSt("publishing");
+        const result = await publishToLinkedIn({ text, rowId: row?.id });
+        setSt("done");
+        onPosted?.({ mediaId: result.postUrn, mediaUrl: result.permalink });
+        return;
+      }
+
       if (files.length === 0) {
         throw new Error("Add media before publishing");
       }

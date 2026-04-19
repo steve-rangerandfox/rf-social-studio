@@ -44,6 +44,12 @@ import {
   handleInstagramExchange,
 } from "./handlers/instagram-auth.js";
 import {
+  handleLinkedInStart,
+  handleLinkedInExchange,
+  handleLinkedInDisconnect,
+} from "./handlers/linkedin-auth.js";
+import { handleLinkedInPublish } from "./handlers/linkedin-publish.js";
+import {
   IG_CACHE_TTL_MS,
   REFRESH_LOCK_TTL_MS,
   IG_PUBLISH_MEDIA_TYPES,
@@ -487,6 +493,59 @@ export async function handleApiRequest(req, res, overrides = {}) {
     res.end();
     endTimer({ reqId, status: 405, route: "/api/ig-oauth" });
     return;
+  }
+
+  if (url.pathname === "/api/li-oauth") {
+    if (req.method === "GET") {
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) { endTimer({ reqId, status: 401, route: "/api/li-oauth" }); return; }
+      if (!await checkRateLimit(res, auth.userId, "li-oauth:GET", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/li-oauth" }); return; }
+      try {
+        return await handleLinkedInStart(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/li-oauth", method: "GET", status: res.statusCode });
+      }
+    }
+    if (req.method === "POST") {
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) { endTimer({ reqId, status: 401, route: "/api/li-oauth" }); return; }
+      if (!await checkRateLimit(res, auth.userId, "li-oauth:POST", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/li-oauth" }); return; }
+      try {
+        return await handleLinkedInExchange(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/li-oauth", method: "POST", status: res.statusCode });
+      }
+    }
+    if (req.method === "DELETE") {
+      try {
+        return await handleLinkedInDisconnect(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/li-oauth", method: "DELETE", status: res.statusCode });
+      }
+    }
+    res.statusCode = 405;
+    res.setHeader("Allow", "GET, POST, DELETE, OPTIONS");
+    res.end();
+    endTimer({ reqId, status: 405, route: "/api/li-oauth" });
+    return;
+  }
+
+  if (url.pathname === "/api/li-publish") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "POST, OPTIONS");
+      res.end();
+      endTimer({ reqId, status: 405, route: "/api/li-publish" });
+      return;
+    }
+    const auth = requireRequestAuth(req, res, env);
+    if (!auth) { endTimer({ reqId, status: 401, route: "/api/li-publish" }); return; }
+    if (!await checkRateLimit(res, auth.userId, "li-publish:POST", { maxRequests: 5, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/li-publish" }); return; }
+    try {
+      return await handleLinkedInPublish(req, res, env, reqId);
+    } finally {
+      endTimer({ reqId, route: "/api/li-publish", method: "POST", status: res.statusCode });
+    }
   }
 
   if (url.pathname === "/api/ig-posts") {

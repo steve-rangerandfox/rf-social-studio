@@ -17,7 +17,9 @@ import { NonRetriableError } from "inngest";
 
 import { inngest } from "../server/inngest-client.js";
 import { listActiveIGTokenOwners, loadIGToken, saveIGToken } from "../server/ig-token-store.js";
+import { listActiveLITokenOwners, loadLIToken } from "../server/li-token-store.js";
 import { publishInstagramPost, refreshInstagramToken } from "../server/meta.js";
+import { publishLinkedInText } from "../server/linkedin.js";
 
 // ─── Constants ─────────────────────────────────────────────────────
 
@@ -46,7 +48,7 @@ async function getSupabaseClient(env) {
 }
 
 // Exported for unit tests only — treat as module-internal in app code.
-export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows };
+export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows, findDueLinkedInRows };
 
 /** Map platform identifier → Instagram mediaType string. */
 function platformToMediaType(platform) {
@@ -65,6 +67,25 @@ function findDueRows(document) {
     if (row.status !== "scheduled") return false;
     if (!["ig_post", "ig_reel", "ig_story"].includes(row.platform)) return false;
     if (!row.scheduledAt) return false;
+
+    const scheduledMs = new Date(row.scheduledAt).getTime();
+    return scheduledMs <= now && now - scheduledMs <= MAX_LATE_MS;
+  });
+}
+
+/** Find LinkedIn rows that are due for publishing. Separate from findDueRows
+ *  because LI doesn't require a media URL and goes through a different
+ *  publish path. */
+function findDueLinkedInRows(document) {
+  const now = Date.now();
+  if (!Array.isArray(document?.rows)) return [];
+
+  return document.rows.filter((row) => {
+    if (row.deletedAt) return false;
+    if (row.status !== "scheduled") return false;
+    if (row.platform !== "linkedin") return false;
+    if (!row.scheduledAt) return false;
+    if (!row.caption || !row.caption.trim()) return false;
 
     const scheduledMs = new Date(row.scheduledAt).getTime();
     return scheduledMs <= now && now - scheduledMs <= MAX_LATE_MS;
@@ -225,6 +246,93 @@ export const publishScheduledPosts = inngest.createFunction(
       if (result?.error) totalErrors++;
     }
 
-    return { processed: ownerIds.length, totalPublished, totalErrors };
+    // ── LinkedIn publishing pass ────────────────────────────────────
+    // Independent from the IG pass so a user can have either, both, or
+    // neither connected without affecting the other's schedule.
+    const liOwnerIds = await step.run("list-li-token-owners", async () => {
+      return listActiveLITokenOwners(env);
+    });
+
+    let totalLIPublished = 0;
+    let totalLIErrors = 0;
+
+    for (const ownerUserId of liOwnerIds) {
+      const result = await step.run(`process-li-user-${ownerUserId}`, async () => {
+        const tokenRecord = await loadLIToken(env, ownerUserId);
+        if (!tokenRecord) return { published: 0, skipped: "no_token" };
+
+        const supabase = await getSupabaseClient(env);
+        const { data: record, error: loadErr } = await supabase
+          .from("studio_documents")
+          .select("document, version")
+          .eq("owner_user_id", ownerUserId)
+          .maybeSingle();
+
+        if (loadErr || !record?.document) return { published: 0, skipped: "no_document" };
+
+        const dueRows = findDueLinkedInRows(record.document);
+        if (!dueRows.length) return { published: 0, skipped: "none_due" };
+
+        let document = record.document;
+        const version = record.version ?? 1;
+        let published = 0;
+
+        for (const row of dueRows) {
+          try {
+            const { postUrn, permalink } = await publishLinkedInText({
+              accessToken: tokenRecord.accessToken,
+              personUrn: tokenRecord.personUrn,
+              text: row.caption,
+            });
+
+            document = applyRowPatch(document, row.id, {
+              status: "posted",
+              postedAt: new Date().toISOString(),
+              liPostUrn: postUrn || null,
+              liPermalink: permalink || null,
+              publishError: null,
+              publishErrorAt: null,
+            });
+            published++;
+          } catch (err) {
+            logger.error(`publish-scheduled: LI post ${row.id} failed for ${ownerUserId}`, { error: err.message });
+            document = applyRowPatch(document, row.id, {
+              status: "approved",
+              publishError: err.message || "LinkedIn publish error",
+              publishErrorAt: new Date().toISOString(),
+            });
+          }
+        }
+
+        const { error: saveErr } = await supabase
+          .from("studio_documents")
+          .update({
+            document,
+            version: version + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("owner_user_id", ownerUserId)
+          .eq("version", version);
+
+        if (saveErr) {
+          logger.warn(`publish-scheduled: LI document save failed for ${ownerUserId}`, { error: saveErr.message });
+          throw new NonRetriableError(`Document save conflict for ${ownerUserId}: ${saveErr.message}`);
+        }
+
+        return { published };
+      });
+
+      totalLIPublished += result?.published ?? 0;
+      if (result?.error) totalLIErrors++;
+    }
+
+    return {
+      processed: ownerIds.length,
+      totalPublished,
+      totalErrors,
+      liProcessed: liOwnerIds.length,
+      totalLIPublished,
+      totalLIErrors,
+    };
   },
 );

@@ -179,6 +179,29 @@ export function disconnectInstagram() {
   }).catch(() => null);
 }
 
+// ─── LinkedIn ──────────────────────────────────────────────────────
+export function getLinkedInAuthorizeUrl() {
+  return requestJson("/api/li-oauth", { method: "GET" });
+}
+
+export function exchangeLinkedInCode({ code, state }) {
+  return requestJson("/api/li-oauth", {
+    method: "POST",
+    body: JSON.stringify({ code, state }),
+  });
+}
+
+export function disconnectLinkedIn() {
+  return requestJson("/api/li-oauth", { method: "DELETE" }).catch(() => null);
+}
+
+export function publishToLinkedIn({ text, rowId }) {
+  return requestJson("/api/li-publish", {
+    method: "POST",
+    body: JSON.stringify({ text, rowId }),
+  }, { timeoutMs: 30000 });
+}
+
 export function fetchInstagramFeed(cursor = null) {
   const url = cursor
     ? `/api/ig-posts?cursor=${encodeURIComponent(cursor)}`

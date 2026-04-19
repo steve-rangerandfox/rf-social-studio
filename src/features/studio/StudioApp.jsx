@@ -78,7 +78,7 @@ import { BulkActions } from "./components/BulkActions.jsx";
 import { DetailPanel } from "./components/DetailPanel.jsx";
 
 import { createAuditEntry } from "./document-store.js";
-import { disconnectInstagram } from "../../lib/api-client.js";
+import { disconnectInstagram, disconnectLinkedIn } from "../../lib/api-client.js";
 import { PLATFORMS, T } from "./shared.js";
 
 // ─── Inner shell (consumes StudioContext) ─────────────────────────
@@ -107,6 +107,7 @@ function StudioShell() {
     updateDocument, currentUser, exportData,
     team, updateTeam,
     brandProfile, updateBrandProfile,
+    linkedinAccount, setLinkedinAccount,
   } = ctx;
 
   // ─── Keyboard shortcuts ─────────────────────────────────────────
@@ -284,7 +285,7 @@ function StudioShell() {
             );
             showToast(`${feed.media?.data?.length || 0} posts synced from Instagram`, T.mint);
           }}
-          onConnect={() => { setConns(c => ({ ...c, [showConn]: true })); showToast("LinkedIn connected", T.mint); setShowConn(null); }}
+          onConnect={() => { setConns(c => ({ ...c, [showConn]: true })); setShowConn(null); }}
           onDisconnect={() => {
             if (showConn === "instagram") {
               disconnectInstagram();
@@ -296,10 +297,21 @@ function StudioShell() {
                 () => createAuditEntry("instagram.disconnected", currentUser, "Disconnected Instagram"),
               );
               showToast("Instagram disconnected", T.red);
-            } else {
-              setConns(c => ({ ...c, linkedin: false }));
-              showToast("LinkedIn disconnected", T.red);
             }
+            setShowConn(null);
+          }}
+          liAccount={linkedinAccount}
+          onLIConnect={(account) => {
+            setLinkedinAccount(account);
+            setConns((c) => ({ ...c, linkedin: true }));
+            showToast(`LinkedIn connected${account.name ? ` as ${account.name}` : ""}`, T.mint);
+            setShowConn(null);
+          }}
+          onLIDisconnect={() => {
+            disconnectLinkedIn();
+            setLinkedinAccount(null);
+            setConns((c) => ({ ...c, linkedin: false }));
+            showToast("LinkedIn disconnected", T.red);
             setShowConn(null);
           }}
           onClose={() => setShowConn(null)}

@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { X, Check, RotateCcw } from "lucide-react";
 import {
   exchangeInstagramCode,
+  exchangeLinkedInCode,
   fetchInstagramFeed,
   getInstagramAuthorizeUrl,
+  getLinkedInAuthorizeUrl,
 } from "../../../lib/api-client.js";
 import { T } from "../shared.js";
 
@@ -233,8 +235,146 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
   );
 }
 
-export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, onClose, igConfig, igMedia, onIGSave, onIGMediaSync }) {
+const LI_ENV_LABELS = {
+  liAppId: "LINKEDIN_CLIENT_ID",
+  liAppSecret: "LINKEDIN_CLIENT_SECRET",
+  liRedirectUri: "LINKEDIN_REDIRECT_URI",
+  sessionSecret: "SESSION_SECRET",
+};
+
+function LIOAuthPanel({ liAccount, onConnect, onDisconnect }) {
+  const [phase, setPhase] = useState("idle");
+  const [error, setError] = useState("");
+  const [setupDetails, setSetupDetails] = useState(null);
+
+  const isConnected = !!liAccount?.personUrn;
+  const connecting = phase === "connecting";
+
+  const startOAuth = async () => {
+    setError("");
+    setSetupDetails(null);
+    setPhase("connecting");
+
+    let authorizeUrl;
+    try {
+      const data = await getLinkedInAuthorizeUrl();
+      authorizeUrl = data.authorizeUrl;
+    } catch (e) {
+      const code = e.body?.code || "";
+      const missing = e.body?.missing || [];
+      if (code === "SERVER_ERROR" && missing.length > 0) {
+        const labels = [...new Set(missing.map((k) => LI_ENV_LABELS[k] || k))];
+        setSetupDetails({ missing: labels, reason: e.message });
+      } else {
+        setError(e.message || "Couldn't start the LinkedIn connection");
+      }
+      setPhase("idle");
+      return;
+    }
+
+    const popup = window.open(authorizeUrl, "rf_li_oauth", "width=620,height=760,scrollbars=yes,resizable=yes");
+    if (!popup) {
+      setError("Popup blocked — allow popups for this page and try again.");
+      setPhase("idle");
+      return;
+    }
+
+    let popupCheckTimer = null;
+
+    const handleMessage = async (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "rf_li_oauth") return;
+      window.removeEventListener("message", handleMessage);
+      if (popupCheckTimer) clearInterval(popupCheckTimer);
+
+      if (!event.data.ok) {
+        setError(event.data.error || "LinkedIn cancelled the connection");
+        setPhase("idle");
+        return;
+      }
+      try {
+        const result = await exchangeLinkedInCode({ code: event.data.code, state: event.data.state });
+        if (result?.account) {
+          onConnect(result.account);
+          setPhase("idle");
+        } else {
+          setError("LinkedIn returned an empty account");
+          setPhase("idle");
+        }
+      } catch (err) {
+        setError(err?.message || "LinkedIn exchange failed");
+        setPhase("idle");
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    popupCheckTimer = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(popupCheckTimer);
+        window.removeEventListener("message", handleMessage);
+        setPhase("idle");
+      }
+    }, 500);
+  };
+
+  if (isConnected) {
+    return (
+      <>
+        <div className="cp-account-row">
+          <div className="cp-avatar cp-li-avatar">
+            {liAccount.pictureUrl
+              ? <img src={liAccount.pictureUrl} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+              : (liAccount.name || "LI").slice(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <div className="cp-handle">{liAccount.name || "LinkedIn member"}</div>
+            <div className="cp-meta">Connected · ready to publish</div>
+          </div>
+        </div>
+        <button
+          className="btn btn-danger btn-sm"
+          style={{ marginTop: 12 }}
+          onClick={onDisconnect}
+        >
+          Disconnect LinkedIn
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="cp-description">
+        Connect LinkedIn to publish posts directly from the studio. Uses the "Share on LinkedIn"
+        product with OpenID Connect for member identity.
+      </div>
+      {setupDetails && (
+        <div className="cp-setup-error" role="alert">
+          <div className="cp-setup-error-title">Server isn't configured yet</div>
+          <div className="cp-setup-error-body">
+            Missing {setupDetails.missing.length === 1 ? "environment variable" : "environment variables"}:
+          </div>
+          <ul className="cp-setup-error-list">
+            {setupDetails.missing.map((name) => (
+              <li key={name}><code>{name}</code></li>
+            ))}
+          </ul>
+          <div className="cp-setup-error-help">
+            Set them in <strong>Vercel → Settings → Environment Variables</strong>, redeploy, then reopen this panel.
+          </div>
+        </div>
+      )}
+      {error && <div className="cp-error" style={{ padding: "0 0 10px" }}>{error}</div>}
+      <button className="cp-ig-btn" onClick={startOAuth} disabled={connecting}>
+        {connecting ? "Waiting for LinkedIn\u2026" : "Connect LinkedIn"}
+      </button>
+    </>
+  );
+}
+
+export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, onClose, igConfig, igMedia, onIGSave, onIGMediaSync, liAccount, onLIConnect, onLIDisconnect }) {
   const isIG = platform === "instagram";
+  const isLI = platform === "linkedin";
   const [simulating, setSimulating] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
@@ -315,8 +455,14 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
       >
         <div className="connection-panel-header">
           <div>
-            <div id="connection-panel-title" className="connection-panel-title">{isIG ? "Instagram" : "LinkedIn"}</div>
-            <div className="connection-panel-sub">{isIG ? (igConfig?.username ? `@${igConfig.username}` : "Not connected") : (connected ? "@rangerandfox · Company Page" : "Not connected")}</div>
+            <div id="connection-panel-title" className="connection-panel-title">{isIG ? "Instagram" : isLI ? "LinkedIn" : "Connection"}</div>
+            <div className="connection-panel-sub">
+              {isIG
+                ? (igConfig?.username ? `@${igConfig.username}` : "Not connected")
+                : isLI
+                  ? (liAccount?.personUrn ? (liAccount.name || "Connected") : "Not connected")
+                  : (connected ? "Connected" : "Not connected")}
+            </div>
           </div>
           <button className="m-x" onClick={handleClose} title="Close (Esc)" aria-label="Close"><X size={15}/></button>
         </div>
@@ -329,6 +475,12 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
               onMediaSync={onIGMediaSync}
               onDisconnect={onDisconnect}
             />
+          ) : isLI ? (
+            <LIOAuthPanel
+              liAccount={liAccount}
+              onConnect={onLIConnect}
+              onDisconnect={onLIDisconnect}
+            />
           ) : (
             <>
               <div className="cp-status-row">
@@ -336,51 +488,28 @@ export function ConnectionPanel({ platform, connected, onConnect, onDisconnect, 
                 <span className={`cp-status-text ${connected ? "" : "cp-text-dim"}`}>
                   {simulating ? (connected ? "Disconnecting…" : "Connecting…") : connected ? "Connected" : "Not connected"}
                 </span>
-                {connected && <span className="cp-status-ts">Workspace record only</span>}
               </div>
-              {connected ? (
-                <>
-                  <div className="cp-account-row">
-                    <div className="cp-avatar cp-li-avatar">RF</div>
-                    <div><div className="cp-handle">@rangerandfox</div><div className="cp-meta">LinkedIn Company Page</div></div>
-                  </div>
-                  <div className="cp-detail-grid">
-                    {[
-                      ["Connection state", "Saved to the studio workspace"],
-                      ["Publishing route", "Server endpoint not connected yet"],
-                      ["Scope", "Planning and readiness only"],
-                    ].map(([label, value])=>(
-                      <div key={label} className="cp-detail-card">
-                        <div className="cp-detail-label">{label}</div>
-                        <div className="cp-detail-value">{value}</div>
-                      </div>))}
-                  </div>
-                </>
-              ) : (
-                <div className="cp-description alt">
-                  Prepare LinkedIn workspace access now so publish routing can be added cleanly when the server-side integration is ready.
-                  {[`Attach the company page record to this workspace`,"Complete server-side publish setup when the backend route is live"].map((s,i) => (
-                    <div key={i} className="cp-step"><div className="cp-step-num">{i+1}</div><div className="cp-step-text">{s}</div></div>
-                  ))}
-                </div>
-              )}
+              <div className="cp-description alt">
+                This platform isn&apos;t wired up for publishing yet — plan posts here and they&apos;ll show in
+                the calendar and readiness checks regardless.
+              </div>
             </>
           )}
         </div>
-        {!isIG && (
+        {!isIG && !isLI && (
           <div className="connection-panel-footer">
             <button className="btn btn-ghost btn-sm" onClick={handleClose}>Close</button>
             {connected
               ? <button className="btn btn-danger btn-sm" disabled={simulating} onClick={()=>simulate(onDisconnect)}>
                   {simulating ? "Disconnecting…" : "Disconnect"}
                 </button>
-              : <button className="btn btn-primary btn-sm cp-li-btn" disabled={simulating} onClick={()=>simulate(onConnect)}>
-                  {simulating ? "Connecting…" : "Connect with LinkedIn →"}
+              : <button className="btn btn-primary btn-sm" disabled={simulating} onClick={()=>simulate(onConnect)}>
+                  {simulating ? "Connecting…" : "Mark as connected"}
                 </button>
             }
           </div>
         )}
-        {isIG && (
+        {(isIG || isLI) && (
           <div className="connection-panel-footer">
             <button className="btn btn-ghost btn-sm" onClick={handleClose}>Close</button>
           </div>
