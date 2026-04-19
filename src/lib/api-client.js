@@ -111,6 +111,19 @@ export function publishToInstagram({ caption, mediaUrl, videoUrl, mediaType, row
   }, { timeoutMs: 60000 });
 }
 
+export function generateCaptionVariants({ sourceNote, sourceCaption, platforms, brandProfile }) {
+  return requestJson("/api/captions", {
+    method: "POST",
+    body: JSON.stringify({
+      intent: "variants",
+      sourceNote: sourceNote || "",
+      sourceCaption: sourceCaption || "",
+      platforms,
+      ...(brandProfile ? { brandProfile } : {}),
+    }),
+  }, { timeoutMs: 45000 });
+}
+
 export function generateStoryTips(board) {
   return requestJson("/api/captions", {
     method: "POST",

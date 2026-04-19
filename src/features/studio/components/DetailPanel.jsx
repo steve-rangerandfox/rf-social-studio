@@ -15,7 +15,8 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, STATUS_ORDER } from "./StatusMachine.js";
-import { CheckCircle2, AlertTriangle, Play, Upload, X, Check, ChevronDown } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Play, Upload, X, Check, ChevronDown, Share2 } from "lucide-react";
+import { CrossPostModal } from "./CrossPostModal.jsx";
 
 export function DetailPanel() {
   const {
@@ -38,6 +39,7 @@ export function DetailPanel() {
   const [showLIPreview, setShowLIPreview] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
+  const [isCrossPostOpen, setIsCrossPostOpen] = useState(false);
 
   const titleInputRef = useRef(null);
   const mediaRef = useRef(null);
@@ -596,6 +598,14 @@ export function DetailPanel() {
             <button className="btn btn-primary dp-action-btn" onClick={handlePostNow}>
               Post to {PLATFORMS[row.platform].label}
             </button>
+            <button
+              className="btn btn-ghost dp-action-btn"
+              onClick={() => setIsCrossPostOpen(true)}
+              title="Draft captions for the other platforms with AI"
+            >
+              <Share2 size={13} style={{ marginRight: 6 }} />
+              Cross-post with AI
+            </button>
             <button className="btn btn-danger dp-action-btn" onClick={handleDelete}>
               Delete post
             </button>
@@ -604,6 +614,9 @@ export function DetailPanel() {
       </div>
 
       {showLIPreview && <LinkedInPreview caption={row.caption} mediaUrls={mediaUrls} onClose={() => setShowLIPreview(false)} />}
+      {isCrossPostOpen && (
+        <CrossPostModal sourceRow={row} onClose={() => setIsCrossPostOpen(false)} />
+      )}
     </>
   );
 }

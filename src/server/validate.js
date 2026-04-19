@@ -70,7 +70,7 @@ export function validateCaptionRequest(body) {
   }
 
   const intent = body.intent || "caption";
-  if (!["caption", "story_tips"].includes(intent)) {
+  if (!["caption", "story_tips", "variants"].includes(intent)) {
     errors.push(`Invalid intent: ${intent}`);
   }
 
@@ -91,6 +91,24 @@ export function validateCaptionRequest(body) {
       errors.push("board must be an array");
     } else if (body.board.length > 50) {
       errors.push("board has too many elements (max 50)");
+    }
+  }
+
+  if (intent === "variants") {
+    const source = (typeof body.sourceCaption === "string" && body.sourceCaption.trim())
+      || (typeof body.sourceNote === "string" && body.sourceNote.trim());
+    if (!source) {
+      errors.push("sourceCaption or sourceNote is required");
+    } else if (source.length > MAX_PROMPT_LENGTH) {
+      errors.push(`source content exceeds ${MAX_PROMPT_LENGTH} characters`);
+    }
+    if (!Array.isArray(body.platforms) || body.platforms.length === 0) {
+      errors.push("platforms must be a non-empty array");
+    } else if (body.platforms.length > 8) {
+      errors.push("platforms has too many entries (max 8)");
+    } else {
+      const bad = body.platforms.find((p) => !VALID_PLATFORMS.includes(p));
+      if (bad) errors.push(`Invalid platform: ${bad}`);
     }
   }
 

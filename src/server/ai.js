@@ -160,6 +160,81 @@ export async function generateCaption(env, { platform, prompt, brandProfile }) {
   return text.trim().slice(0, MAX_CAPTION_CHARS);
 }
 
+// Single Anthropic call that returns one caption per requested
+// platform, tuned to platform conventions. Returns an array of
+// { platform, caption } — platforms that the model didn't produce a
+// usable caption for are simply omitted.
+export async function generateCaptionVariants(env, { sourceNote, sourceCaption, platforms, brandProfile }) {
+  const safePlatforms = Array.isArray(platforms) && platforms.length
+    ? platforms.filter((p) => typeof p === "string").slice(0, 8)
+    : ["ig_post", "linkedin", "tiktok"];
+  const source = sanitiseForPrompt(sourceCaption || sourceNote || "", 2000);
+  if (!source) return [];
+
+  const brand = buildBrandContext(brandProfile);
+  const platformRules = safePlatforms.map((p) => `<platform id="${p}">${PLATFORM_RULES[p] || ""}</platform>`).join("\n");
+
+  const system =
+    (brandProfile?.businessName
+      ? `You are the senior social copywriter for ${sanitiseForPrompt(brandProfile.businessName, 120)}.`
+      : "You are the senior social copywriter for Ranger & Fox, a premium motion graphics studio.") +
+    " Given one source concept, produce a caption tuned to each requested platform. " +
+    "Per-platform rules are in <platform> tags; follow them for tone, length and hashtag use. " +
+    "The <brand> block (when present) is the source of truth for voice. " +
+    'Return exactly this JSON shape and nothing else: {"variants":[{"platform":"...","caption":"..."}]}. ' +
+    "Omit platforms you can't produce a good caption for rather than returning placeholder text.";
+
+  const userBlocks = [
+    brand,
+    `<requested_platforms>\n${platformRules}\n</requested_platforms>`,
+    `<source_concept>\n${source}\n</source_concept>`,
+  ].filter(Boolean).join("\n\n");
+
+  const text = await callAnthropic(env, {
+    system,
+    user: userBlocks,
+    maxTokens: 2400,
+  });
+
+  const parsed = extractVariantsArray(text);
+  return parsed
+    .filter((v) => v && typeof v.platform === "string" && typeof v.caption === "string")
+    .map((v) => ({
+      platform: v.platform,
+      caption: v.caption.trim().slice(0, MAX_CAPTION_CHARS),
+    }))
+    .filter((v) => v.caption.length > 0);
+}
+
+const PLATFORM_RULES = {
+  ig_post: "Instagram feed post. 2-3 relevant hashtags. Under 300 characters. Can use 1-2 emojis. Hook in first line.",
+  ig_story: "Instagram story. Casual, fragmentary. Under 120 characters. Question or direct statement.",
+  ig_reel: "Instagram Reel caption. Punchy hook, 2-3 hashtags. Under 220 characters.",
+  linkedin: "LinkedIn. Professional, thoughtful, no emojis. Under 1200 characters. Opens with a concrete observation, not a platitude.",
+  tiktok: "TikTok. Conversational, direct. Short. 1-3 hashtags. Under 150 characters. No corporate tone.",
+  facebook: "Facebook. Warm, conversational. Under 400 characters. Can include a clear CTA at the end.",
+};
+
+function extractVariantsArray(text) {
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed.variants)) return parsed.variants;
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // fall through
+  }
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[0]);
+    if (Array.isArray(parsed.variants)) return parsed.variants;
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // fall through
+  }
+  return [];
+}
+
 export async function generateStoryTips(env, board) {
   const text = await callAnthropic(env, buildStoryTipsPrompt(board));
   const tips = extractTipsArray(text);
