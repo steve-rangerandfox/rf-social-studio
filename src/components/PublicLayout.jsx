@@ -71,6 +71,7 @@ const PUBLIC_STYLES = `
   letter-spacing:-0.05em;
   color:#111111;
   margin:0 0 14px;
+  text-wrap:balance;
 }
 
 .public-meta{

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8f4ed"/>
+      <stop offset="100%" stop-color="#f1ece2"/>
+    </linearGradient>
+    <style>
+      .wordmark { font-family: 'Bricolage Grotesque', Georgia, serif; font-weight: 800; letter-spacing: -0.045em; fill: #111111; }
+      .caption  { font-family: 'JetBrains Mono', monospace; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; fill: #8b8377; }
+      .headline { font-family: 'Bricolage Grotesque', Georgia, serif; font-weight: 800; letter-spacing: -0.06em; fill: #111111; }
+      .em       { font-weight: 500; fill: #5e584f; }
+      .kicker   { font-family: 'JetBrains Mono', monospace; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; fill: #4d463d; }
+    </style>
+  </defs>
+  <rect width="1200" height="630" fill="url(#paper)"/>
+
+  <!-- wordmark lockup (top left) -->
+  <text x="80" y="104" class="wordmark" font-size="40">Ranger &amp; Fox</text>
+  <text x="80" y="128" class="caption" font-size="14">Social Studio</text>
+
+  <!-- Kicker pill (inline) -->
+  <g transform="translate(80, 200)">
+    <rect x="0" y="0" width="240" height="32" rx="16" fill="#fbfaf6" stroke="#18171414" stroke-width="1"/>
+    <circle cx="18" cy="16" r="3.5" fill="#FF7A00"/>
+    <text x="34" y="21" class="kicker" font-size="11">Publishing workspace</text>
+  </g>
+
+  <!-- Headline -->
+  <text x="80" y="330" class="headline" font-size="92">Calm operations</text>
+  <text x="80" y="420" class="headline em" font-size="92">for a sharper</text>
+  <text x="80" y="510" class="headline em" font-size="92">content system.</text>
+
+  <!-- Footer rule + colophon -->
+  <line x1="80" y1="560" x2="1120" y2="560" stroke="#18171414" stroke-width="1"/>
+  <text x="80" y="590" class="caption" font-size="12">rangerandfox-social.studio</text>
+  <text x="1120" y="590" class="caption" font-size="12" text-anchor="end">House voice &#183; 2026</text>
+</svg>

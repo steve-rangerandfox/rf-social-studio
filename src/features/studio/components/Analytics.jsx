@@ -62,14 +62,32 @@ export function Analytics({ rows }) {
   return (
     <div className="analytics-area">
       <div className="analytics-hero">
+        <div className="analytics-kicker">01 \u00B7 State of the queue</div>
         <h2 className="analytics-hero-title">
           {total} {total === 1 ? "post" : "posts"} in the queue.
         </h2>
         <p className="analytics-hero-sub">
-          {ready} ready to ship. {needsAttention > 0 && <>{needsAttention} need attention. </>}
           Schedule covers {upcomingCoverageDays} of the next 14 days.
         </p>
       </div>
+
+      {/* Typographic stat strip — each number is a hero moment, not
+          a KPI card. Mono context line underneath, hairline rule
+          between columns. */}
+      <section className="analytics-stat-strip">
+        <div className="analytics-stat">
+          <span className="analytics-stat-num">{ready}</span>
+          <span className="analytics-stat-label">Ready to ship</span>
+        </div>
+        <div className="analytics-stat">
+          <span className="analytics-stat-num analytics-stat-num-accent">{needsAttention}</span>
+          <span className="analytics-stat-label">Need attention</span>
+        </div>
+        <div className="analytics-stat">
+          <span className="analytics-stat-num">{approvalQueue.length}</span>
+          <span className="analytics-stat-label">In review</span>
+        </div>
+      </section>
 
       <section className="analytics-section">
         <h3 className="analytics-section-title">Publishing volume</h3>

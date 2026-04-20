@@ -17,6 +17,7 @@ const LANDING_STYLES = `
   color:#111111;
   margin:0 0 22px;
   max-width:14ch;
+  text-wrap:balance;
 }
 
 .landing-hero-line em{
@@ -100,6 +101,7 @@ const LANDING_STYLES = `
   color:#111111;
   margin:0 0 14px;
   max-width:22ch;
+  text-wrap:balance;
 }
 
 .landing-section-body{

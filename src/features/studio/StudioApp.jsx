@@ -67,6 +67,7 @@ import { UndoToast } from "./components/UndoToast.jsx";
 import { PublishConfirmModal } from "./components/PublishConfirmModal.jsx";
 import { CommandPalette } from "./components/CommandPalette.jsx";
 import { FirstRunHint } from "./components/FirstRunHint.jsx";
+import { ShortcutsOverlay } from "./components/ShortcutsOverlay.jsx";
 
 import { Sidebar } from "./components/Sidebar.jsx";
 import { Topbar } from "./components/Topbar.jsx";
@@ -392,6 +393,7 @@ function StudioShell() {
 
       {/* First-run hint */}
       <FirstRunHint />
+      <ShortcutsOverlay />
     </div>
   );
 }

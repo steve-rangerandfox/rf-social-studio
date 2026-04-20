@@ -38,12 +38,12 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="s-logo">
-        <div className="logo-mark">RF</div>
-        <div>
-          <div className="logo-name">Ranger &amp; Fox</div>
-          <div className="logo-sub">Social Studio</div>
-        </div>
+      {/* Editorial wordmark lockup — replaces the RF circle. Same
+          treatment as the AuthGate mark so the signed-in chrome
+          stays coherent with the signed-out surface. */}
+      <div className="s-logo s-logo-mark">
+        <div className="logo-name">Ranger &amp; Fox</div>
+        <div className="logo-sub">Social Studio</div>
       </div>
 
       <div className="s-sect">

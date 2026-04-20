@@ -24,3 +24,6 @@ export const Landing = lazy(() =>
 export const About = lazy(() =>
   import("./components/About.jsx").then((m) => ({ default: m.About })),
 );
+export const NotFound = lazy(() =>
+  import("./components/NotFound.jsx").then((m) => ({ default: m.NotFound })),
+);

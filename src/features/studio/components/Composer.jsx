@@ -98,8 +98,8 @@ export function Composer({ row, onClose, onPosted, postNow }) {
   useEffect(() => { if(postNow) doPost(); }, [doPost, postNow]);
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={e=>e.stopPropagation()}>
+    <div className="composer-sheet-backdrop" onClick={onClose}>
+      <div className="composer-sheet" onClick={e=>e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="m-head">
           <div>
             <div className="m-title">{st==="done"?<>Published <Check size={14} style={{display:"inline",verticalAlign:"middle"}}/></>:postNow?"Posting now...":"Compose & Publish"}</div>

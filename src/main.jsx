@@ -10,6 +10,7 @@ import {
   AuthGate,
   DataDeletion,
   Landing,
+  NotFound,
   Pricing,
   PrivacyPolicy,
   TermsOfService,
@@ -52,6 +53,7 @@ createRoot(document.getElementById('root')).render(
                 <AuthGate />
               </ClerkProvider>
             } />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </BrowserRouter>

@@ -174,6 +174,7 @@ const PRICING_STYLES = `
   color:#111111;
   margin:0 0 22px;
   max-width:24ch;
+  text-wrap:balance;
 }
 
 .pricing-compare-table{

@@ -89,6 +89,7 @@ const AUTH_STYLES = `
   font:800 clamp(48px, 6vw, 78px)/0.92 "Bricolage Grotesque", sans-serif;
   letter-spacing:-0.065em;
   color:#111111;
+  text-wrap:balance;
 }
 
 .auth-body{
