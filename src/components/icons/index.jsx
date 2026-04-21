@@ -8,10 +8,16 @@ import React from "react";
 // API matches lucide: { size, color, className, style, ...rest } so
 // drop-in replacement is mechanical.
 
-function asProps({ size = 14, color, className, style, ...rest }) {
+// Minimum icon size floor. Canva / Figma / Linear all land in the
+// 18-24px range for UI affordance icons — below 16px an icon reads
+// as decorative noise, not a control. We floor every icon to 16px;
+// call sites passing smaller sizes are clamped.
+const MIN_ICON_SIZE = 16;
+function asProps({ size = 18, color, className, style, ...rest }) {
+  const s = Math.max(size, MIN_ICON_SIZE);
   return {
-    width: size,
-    height: size,
+    width: s,
+    height: s,
     viewBox: "0 0 16 16",
     fill: "none",
     stroke: color || "currentColor",

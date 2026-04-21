@@ -1900,15 +1900,12 @@ input,textarea,select,button{font-family:inherit}
 .nav-drawer-close{position:absolute;top:12px;right:12px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(24,23,20,0.12);border-radius:var(--radius-sm);background:rgba(255,255,255,0.6);color:var(--t-text-sub);cursor:pointer;z-index:1;transition:background var(--duration-fast) var(--ease-out)}
 .nav-drawer-close:hover{background:var(--t-surface);color:var(--t-text)}
 
-/* ─── Redesign sweep: unify type language ─────────────────────────────
-   Previously the studio leaned on tracked-uppercase mono kickers as an
-   "editorial" voice. Feedback flagged it as sloppy — too many caps in
-   too many sizes. This block normalizes every tracked-caps label to
-   sentence-case Switzer at a 13px floor, and converts all ink/paper
-   chromes to the cool neutral palette.
-
-   Overrides (not per-rule edits) so the churn is contained to one
-   block and reversible. */
+/* ─── Redesign sweep: unify type language + size floors ──────────────
+   Canva reference established the floor: 14px body/label, 16px icons,
+   36px buttons. Below those sizes UI reads as amateur / cramped.
+   This block pins every tracked-caps label to sentence-case Switzer
+   at a 14px floor and normalizes chromes to the cool neutral palette.
+   Overrides (not per-rule edits) so the churn is contained. */
 .time-lbl, .lbl, .analytics-kicker, .analytics-section-title,
 .analytics-chart-label, .inspector-group-title, .stage-col-label,
 .stage-summary-meta, .stage-select-label, .stage-mini-key,
@@ -1924,13 +1921,65 @@ input,textarea,select,button{font-family:inherit}
 .crosspost-variant-head, .settings-tab-num, .readiness-num,
 .month-anchor-num {
   font-family: 'Switzer', 'Helvetica Neue', Arial, sans-serif !important;
-  font-size: 13px !important;
+  font-size: 14px !important;
   font-weight: 500 !important;
   letter-spacing: -0.005em !important;
   text-transform: none !important;
   color: #71717a !important;
   opacity: 1 !important;
 }
+
+/* ─── Global size floors (Canva-parity) ──────────────────────────────
+   No body / label / pill / chip text below 14px. */
+.s-lbl, .m-item, .m-ct, .th, .vt-btn, .tb-month, .tb-year, .logo-name,
+.logo-sub, .stats-compact-item, .nav-label, .team-name,
+.dt-date, .dt-time, .dt-zone, .dt-empty-title, .dt-empty-sub,
+.dt-badge-month, .cal-wd-cell, .cal-day-btn, .cal-nav-label,
+.conn-row, .conn-name, .conn-handle, .asset-name,
+.asset-search, .asset-tab, .asset-focus-title,
+.rf-toast-msg, .rf-toast-action, .rf-toast-glyph,
+.cmd-palette-input, .cmd-palette-item, .cmd-palette-item-shortcut,
+.cmd-palette-empty, .cmd-palette-item-label,
+.cal-post, .cal-post-label, .cal-post-time, .cal-post-dot,
+.cal-panel-item-title, .cal-panel-item-time, .cal-panel-sub,
+.note-display, .note-in, .plat-pill, .status-pill, .s-dot,
+.row-option-label, .row-option-desc, .row-option-text,
+.row-disabled-reason, .popover-menu-item,
+.btn, .btn-sm, .btn-primary, .btn-ghost,
+.inp, .txa, .field, .field .lbl, .field input, .field textarea,
+.sd-video-time, .video-badge,
+.settings-tab, .settings-field-label, .settings-field-sub,
+.settings-field-value, .settings-member-name, .settings-member-role,
+.dp-title, .dp-meta, .dp-body, .dp-body-text,
+.comments-body, .comment-text, .comment-author,
+.ops-search, .ops-search-trigger, .ops-option-mark,
+.empty-state-title, .empty-state-sub,
+.add-post-input, .add-post-title {
+  font-size: max(14px, 1em) !important;
+}
+
+/* Hero/display sizes stay — never float hero text down to 14px. */
+.auth-title, .public-title, .landing-hero-line, .landing-section-title,
+.pricing-name, .pricing-price-num, .pricing-compare-title,
+.analytics-hero-title, .analytics-stat-num, .list-month-title,
+.list-month-year, .month-anchor-label, .month-anchor-year,
+.m-title, .shortcuts-title, .detail-panel-title,
+.settings-panel-title, .cal-title, .cal-panel-day,
+.dp-title, .asset-title, .empty-state-title { font-size: unset !important; }
+
+/* Button floor: 36px min-height so buttons are tappable-tier. */
+.btn, .btn-primary, .btn-ghost, .vt-btn {
+  min-height: 36px !important;
+  font-size: 14px !important;
+  padding: 9px 16px !important;
+}
+.btn-sm { min-height: 32px !important; font-size: 14px !important; padding: 7px 14px !important; }
+
+/* Settings tab number: show as Switzer numeric prefix (not uppercase mono) */
+.settings-tab.on .settings-tab-num { color: #6366f1 !important; }
+
+/* Toast glyph stays monospace but sentence-safe */
+.rf-toast-glyph { text-transform: none !important; letter-spacing: 0 !important; }
 
 /* Settings tab number: show as Switzer numeric prefix (not uppercase mono) */
 .settings-tab.on .settings-tab-num { color: #6366f1 !important; }
