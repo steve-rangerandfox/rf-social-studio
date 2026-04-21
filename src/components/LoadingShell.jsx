@@ -20,7 +20,7 @@ function Dot({ delay }) {
         width: 8,
         height: 8,
         borderRadius: "50%",
-        background: "#181714",
+        background: "#09090b",
         margin: "0 3px",
         animation: `rf-spinner-pulse 1.1s ${delay}s infinite ease-in-out both`,
       }}
@@ -37,8 +37,8 @@ export function LoadingShell({ variant = "page", label = "Loading\u2026" }) {
         alignItems: "center",
         justifyContent: "center",
         gap: 14,
-        background: "#F3EEE5",
-        color: "#5E574C",
+        background: "#ffffff",
+        color: "#71717a",
         fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif',
       }
     : {
@@ -49,9 +49,9 @@ export function LoadingShell({ variant = "page", label = "Loading\u2026" }) {
         alignItems: "center",
         justifyContent: "center",
         gap: 12,
-        background: "rgba(251, 250, 246, 0.72)",
+        background: "rgba(255, 255, 255, 0.78)",
         backdropFilter: "blur(4px)",
-        color: "#5E574C",
+        color: "#71717a",
         fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif',
         borderRadius: "inherit",
       };
@@ -66,10 +66,9 @@ export function LoadingShell({ variant = "page", label = "Loading\u2026" }) {
       </div>
       <span
         style={{
-          fontSize: 11,
-          fontFamily: '"JetBrains Mono", monospace',
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
+          fontSize: 13,
+          fontFamily: '"Switzer", sans-serif',
+          letterSpacing: "-0.005em",
         }}
       >
         {label}

@@ -5,6 +5,7 @@ import {
   formatRelativeStamp,
   uid,
 } from "../shared.js";
+import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 
 export function AssetLibrary({ onClose, onSelect }) {
   const [assets, setAssets] = useState([
@@ -16,6 +17,8 @@ export function AssetLibrary({ onClose, onSelect }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedId, setSelectedId] = useState(null);
+  const [activeUploads, setActiveUploads] = useState([]);
+  const [uploadError, setUploadError] = useState("");
   const fRef = useRef(null);
 
   useEffect(() => {
@@ -24,23 +27,49 @@ export function AssetLibrary({ onClose, onSelect }) {
     }
   }, [assets, selectedId]);
 
-  const upload = (files) => Array.from(files).forEach(f => {
-    const id = uid();
-    const url = f.type.startsWith("image/") ? URL.createObjectURL(f) : null;
-    setAssets((current) => [
-      {
-        id,
-        name: f.name,
-        type: f.type.startsWith("image/") ? "image" : "video",
-        url,
-        emoji: f.type.startsWith("image/") ? "IMG" : "VID",
-        favorite: false,
-        addedAt: new Date().toISOString(),
-      },
-      ...current,
-    ]);
-    setSelectedId(id);
-  });
+  const upload = (files) => {
+    Array.from(files).forEach(async (f) => {
+      try {
+        checkFileSize(f);
+      } catch (err) {
+        setUploadError(err.message);
+        return;
+      }
+      const id = uid();
+      const previewUrl = URL.createObjectURL(f);
+      const isVideo = f.type.startsWith("video/");
+      setUploadError("");
+      setActiveUploads((prev) => [...prev, { id, name: f.name, progress: 0 }]);
+      setAssets((current) => [
+        {
+          id,
+          name: f.name,
+          type: isVideo ? "video" : "image",
+          url: previewUrl,
+          emoji: isVideo ? "VID" : "IMG",
+          favorite: false,
+          addedAt: new Date().toISOString(),
+          _uploading: true,
+        },
+        ...current,
+      ]);
+      setSelectedId(id);
+
+      try {
+        const publicUrl = await uploadAssetWithProgress(f, (p) => {
+          setActiveUploads((prev) => prev.map((u) => u.id === id ? { ...u, progress: p } : u));
+        });
+        setAssets((current) => current.map((a) => a.id === id ? { ...a, url: publicUrl, _uploading: false } : a));
+        URL.revokeObjectURL(previewUrl);
+        setActiveUploads((prev) => prev.filter((u) => u.id !== id));
+      } catch (err) {
+        setUploadError(err?.message || "Upload failed");
+        setAssets((current) => current.filter((a) => a.id !== id));
+        URL.revokeObjectURL(previewUrl);
+        setActiveUploads((prev) => prev.filter((u) => u.id !== id));
+      }
+    });
+  };
 
   const filteredAssets = assets.filter((asset) => {
     const matchesQuery = !query.trim() || asset.name.toLowerCase().includes(query.trim().toLowerCase());
@@ -92,9 +121,29 @@ export function AssetLibrary({ onClose, onSelect }) {
 
         <div className="asset-upload" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();upload(e.dataTransfer.files);}} onClick={()=>fRef.current?.click()}>
           <input ref={fRef} type="file" accept="image/*,video/*,image/gif" multiple style={{display:"none"}} onChange={e=>upload(e.target.files)}/>
-          <div style={{opacity:0.4,marginBottom:6}}><Upload size={20}/></div><div style={{fontSize:12,color:T.textSub}}>Upload brand assets</div>
-          <div style={{fontSize:10,color:T.textDim,marginTop:2,fontFamily:"'JetBrains Mono',monospace"}}>Images · Videos · GIFs</div>
+          <div style={{opacity:0.55,marginBottom:6}}><Upload size={20}/></div>
+          <div style={{fontSize:13,color:T.textSub,fontWeight:500}}>Upload brand assets</div>
+          <div style={{fontSize:12,color:T.textDim,marginTop:4}}>Images up to 25 MB · Videos up to 100 MB</div>
         </div>
+
+        {activeUploads.length > 0 && (
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:10,padding:"8px 10px",background:"#fafafa",border:"1px solid #e4e4e7",borderRadius:8}}>
+            {activeUploads.map((u) => (
+              <div key={u.id} style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{flex:1,fontSize:13,color:"#09090b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.name}</div>
+                <div style={{flex:1,height:4,background:"#e4e4e7",borderRadius:99,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${Math.round(u.progress*100)}%`,background:"#09090b",transition:"width 140ms ease"}}/>
+                </div>
+                <div style={{fontSize:12,color:"#71717a",fontVariantNumeric:"tabular-nums",width:34,textAlign:"right"}}>{Math.round(u.progress*100)}%</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {uploadError && (
+          <div style={{marginTop:10,padding:"8px 10px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,fontSize:13,color:"#dc2626"}}>
+            {uploadError}
+          </div>
+        )}
 
         {selectedAsset && (
           <div className="asset-focus">

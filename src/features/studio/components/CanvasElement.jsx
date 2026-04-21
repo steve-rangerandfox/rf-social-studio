@@ -290,8 +290,8 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
         )}
         {data.url && <div className="canvas-ov" style={{background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.05) 50%,rgba(0,0,0,0.3) 100%)"}}/>}
         {data.url && isVid && (
-          <button className="mute-toggle" style={{zIndex:60}} onClick={e=>{e.stopPropagation();setMuted(v=>!v);}}>
-            {muted ? 'Mute' : 'Unmute'}
+          <button className="mute-toggle" style={{zIndex:60,opacity:1}} onClick={e=>{e.stopPropagation();setMuted(v=>!v);}} title={muted ? "Unmute" : "Mute"}>
+            {muted ? <VolumeX size={12}/> : <Volume2 size={12}/>}
           </button>
         )}
       </>
@@ -406,8 +406,8 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
             </div>
           )}
           {!isSelected && (
-            <button className="mute-toggle" onClick={e=>{e.stopPropagation();onUpdate({muted:!data.muted});}}>
-              {data.muted!==false?'Mute':'Sound'}
+            <button className="mute-toggle" onClick={e=>{e.stopPropagation();onUpdate({muted:!data.muted});}} title={data.muted!==false ? "Unmute" : "Mute"}>
+              {data.muted!==false ? <VolumeX size={12}/> : <Volume2 size={12}/>}
             </button>
           )}
         </div>

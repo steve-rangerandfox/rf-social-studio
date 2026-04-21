@@ -6,90 +6,88 @@
 // are ink-black, brown, and brown-grey respectively — not the colors
 // the names suggest. New code should use the canonical keys added
 // below them (ink / neutralWarm / textSub) where possible.
+// Mirrors studio.css :root. Values reset to Linear/Arc-tier near-white
+// neutrals; warm-paper + orange tokens repointed to the new cool
+// palette. Names kept stable so callsites don't churn.
 export const T = {
-  bg: "#F3EEE5",
-  surface: "#FEFCF8",
-  s2: "#F7F1E8",
-  s3: "#ECE1D3",
-  border: "#D8CABA",
-  border2: "#BAAA96",
-  ink: "#181714",
-  inkHover: "#2E2C28",
-  inkFog: "rgba(24,23,20,0.05)",
-  // @deprecated legacy aliases — resolve to ink, not mint. Prefer T.ink.
-  mint: "#181714",
-  mintDim: "#11100E",
-  mintFog: "rgba(24,23,20,0.05)",
-  text: "#181714",
-  textSub: "#4E473E",
-  // Single source of truth — matches --t-text-dim in studio.css. Prior
-  // value #746B5E drifted and rendered thinner (AA edge) on warm bg.
-  textDim: "#5E574C",
-  red: "#DC2626",
-  amber: "#C96A12",
-  blue: "#3F5963",
-  // @deprecated — value is a brand brown, not pink. Used for the IG
-  // analytics bar. Prefer a future `--chart-ig` or `--platform-ig`.
-  pink: "#6D5C55",
-  orange: "#E56A0B",
-  orangeBright: "#FF7A00",
-  gold: "#F0B24D",
-  lilac: "#D99BFF",
-  cyan: "#82C7FF",
-  // @deprecated — value is a brown-grey, not purple. Prefer --text-sub.
-  purple: "#5E554E",
-  // Canonical semantic values (prefer these in new code).
-  success: "#3D8C5C",
-  warning: "#C96A12",
-  danger: "#DC2626",
-  info: "#5BA8B5",
-  posterGrad: "linear-gradient(135deg, #FF7A00 0%, #F0B24D 24%, #D99BFF 58%, #82C7FF 100%)",
-  posterGradSoft: "linear-gradient(135deg, rgba(255,122,0,0.18) 0%, rgba(240,178,77,0.14) 24%, rgba(217,155,255,0.12) 58%, rgba(130,199,255,0.16) 100%)",
+  bg: "#fafafa",
+  surface: "#ffffff",
+  s2: "#f4f4f5",
+  s3: "#e4e4e7",
+  border: "#e4e4e7",
+  border2: "#d4d4d8",
+  ink: "#09090b",
+  inkHover: "#18181b",
+  inkFog: "rgba(9,9,11,0.04)",
+  mint: "#09090b",
+  mintDim: "#18181b",
+  mintFog: "rgba(9,9,11,0.04)",
+  text: "#09090b",
+  textSub: "#52525b",
+  textDim: "#71717a",
+  red: "#dc2626",
+  amber: "#d97706",
+  blue: "#2563eb",
+  pink: "#52525b",
+  // Orange tokens retained as names; values now point to the cool
+  // violet accent. Single-use signature only.
+  orange: "#4f46e5",
+  orangeBright: "#6366f1",
+  gold: "#d4d4d8",
+  lilac: "#a5b4fc",
+  cyan: "#93c5fd",
+  purple: "#52525b",
+  success: "#16a34a",
+  warning: "#d97706",
+  danger: "#dc2626",
+  info: "#0ea5e9",
+  posterGrad: "linear-gradient(135deg, #4f46e5 0%, #6366f1 60%, #818cf8 100%)",
+  posterGradSoft: "linear-gradient(135deg, rgba(79,70,229,0.08) 0%, rgba(99,102,241,0.06) 100%)",
 };
 
 export const PLATFORMS = {
-  ig_post: { label: "Instagram Post", short: "IG Post", color: "#49433B", bg: "rgba(73,67,59,0.07)" },
-  ig_story: { label: "Instagram Story", short: "Story", color: "#6E655D", bg: "rgba(110,101,93,0.07)" },
-  ig_reel: { label: "Instagram Reel", short: "Reel", color: "#49433B", bg: "rgba(73,67,59,0.07)" },
-  tiktok: { label: "TikTok", short: "TikTok", color: "#1A1A2E", bg: "rgba(26,26,46,0.07)" },
-  facebook: { label: "Facebook", short: "Facebook", color: "#1877F2", bg: "rgba(24,119,242,0.07)" },
-  linkedin: { label: "LinkedIn", short: "LinkedIn", color: "#4B5F66", bg: "rgba(75,95,102,0.08)" },
+  ig_post: { label: "Instagram Post", short: "IG Post", color: "#09090b", bg: "rgba(9,9,11,0.05)" },
+  ig_story: { label: "Instagram Story", short: "Story", color: "#52525b", bg: "rgba(82,82,91,0.05)" },
+  ig_reel: { label: "Instagram Reel", short: "Reel", color: "#09090b", bg: "rgba(9,9,11,0.05)" },
+  tiktok: { label: "TikTok", short: "TikTok", color: "#09090b", bg: "rgba(9,9,11,0.05)" },
+  facebook: { label: "Facebook", short: "Facebook", color: "#1877f2", bg: "rgba(24,119,242,0.06)" },
+  linkedin: { label: "LinkedIn", short: "LinkedIn", color: "#0a66c2", bg: "rgba(10,102,194,0.06)" },
 };
 
 export const STATUSES = {
   idea: {
     label: "Idea",
-    dot: "#B5ADA0",
+    dot: "#a1a1aa",
     next: "draft",
     description: "A spark — captured but not yet developed. Move to Draft when you start writing.",
   },
   draft: {
     label: "Draft",
-    dot: "#5B7FA6",
+    dot: "#3b82f6",
     next: "needs_review",
     description: "In progress — caption being written, media being attached. Move to Needs Review when ready for a teammate to look.",
   },
   needs_review: {
-    label: "In Review",
-    dot: "#E56A0B",
+    label: "In review",
+    dot: "#f59e0b",
     next: "approved",
     description: "Waiting on a teammate to approve. Move to Approved when someone signs off (or approve it yourself if you're solo).",
   },
   approved: {
     label: "Approved",
-    dot: "#3D8C5C",
+    dot: "#16a34a",
     next: "scheduled",
     description: "Ready to publish. Set a schedule date or hit Post Now to push it live.",
   },
   scheduled: {
     label: "Scheduled",
-    dot: "#5BA8B5",
+    dot: "#0ea5e9",
     next: "posted",
-    description: "Queued for a future date. Will publish automatically (when scheduled posting is wired up).",
+    description: "Queued for a future date. Will publish automatically.",
   },
   posted: {
     label: "Posted",
-    dot: "#181714",
+    dot: "#09090b",
     next: "idea",
     description: "Live on the platform. Done.",
   },

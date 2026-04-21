@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Check, Close as X, Upload } from "../../../components/icons/index.jsx";
 import { T, PLATFORMS, toPTDisplay } from "../shared.js";
 import { publishToInstagram, publishToLinkedIn } from "../../../lib/api-client.js";
-import { uploadAsset } from "../../../lib/supabase.js";
+import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 import { CaptionEditor } from "./CaptionEditor.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 
@@ -14,6 +14,7 @@ export function Composer({ row, onClose, onPosted, postNow }) {
   const [drag,    setDrag]    = useState(false);
   const [st,      setSt]      = useState(postNow?"uploading":"idle");
   const [errMsg,  setErrMsg]  = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
   const fRef = useRef(null);
   const p = PLATFORMS[plat];
@@ -25,6 +26,13 @@ export function Composer({ row, onClose, onPosted, postNow }) {
   const addFiles = (newFiles) => {
     if (!newFiles || newFiles.length === 0) return;
     const incoming = Array.from(newFiles);
+    try {
+      incoming.forEach(checkFileSize);
+    } catch (err) {
+      setErrMsg(err.message);
+      return;
+    }
+    setErrMsg("");
     if (!isLI) {
       // Single file for IG
       const f = incoming[0];
@@ -67,7 +75,8 @@ export function Composer({ row, onClose, onPosted, postNow }) {
       // Step 1: Upload to Supabase Storage to get a public HTTPS URL
       const file = files[0]; // IG only supports single file (carousel is a future feature)
       const isVideo = file.type.startsWith("video/");
-      const publicUrl = await uploadAsset(file);
+      setUploadProgress(0);
+      const publicUrl = await uploadAssetWithProgress(file, (p) => setUploadProgress(p));
 
       // Step 2: Determine media type for Instagram
       let mediaType = "IMAGE";
@@ -156,10 +165,14 @@ export function Composer({ row, onClose, onPosted, postNow }) {
           </>}
           {postNow && (st==="uploading" || st==="publishing") && (
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,padding:"32px 0"}}>
-              <div className="pd" style={{width:12,height:12}}/>
               <div style={{fontSize:14,color:T.textSub}}>
-                {st==="uploading" ? "Uploading media\u2026" : `Publishing to ${p.label}\u2026`}
+                {st==="uploading" ? `Uploading \u2014 ${Math.round(uploadProgress*100)}%` : `Publishing to ${p.label}\u2026`}
               </div>
+              {st==="uploading" && (
+                <div style={{width:240,height:4,background:"#e4e4e7",borderRadius:99,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${Math.round(uploadProgress*100)}%`,background:"#09090b",transition:"width 140ms ease"}}/>
+                </div>
+              )}
             </div>
           )}
           {postNow && st==="error" && (
@@ -170,9 +183,18 @@ export function Composer({ row, onClose, onPosted, postNow }) {
         </div>
         <div className="m-foot">
           {(st==="uploading"||st==="publishing")&&!postNow&&(
-            <div className="pr"><div className="pd"/><span className="pt">
-              {st==="uploading" ? "Uploading media\u2026" : `Publishing to ${p.label}\u2026`}
-            </span></div>
+            <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0}}>
+              <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:4}}>
+                <div style={{fontSize:13,color:T.textSub}}>
+                  {st==="uploading" ? `Uploading \u2014 ${Math.round(uploadProgress*100)}%` : `Publishing to ${p.label}\u2026`}
+                </div>
+                {st==="uploading" && (
+                  <div style={{height:3,background:"#e4e4e7",borderRadius:99,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${Math.round(uploadProgress*100)}%`,background:"#09090b",transition:"width 140ms ease"}}/>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
           {st==="done"&&<div className="sr"><div className="si"><Check size={12}/></div><span className="st2">Live on {p.label}</span></div>}
           {st==="error"&&!postNow&&<span className="er2"><X size={12} style={{display:"inline",verticalAlign:"middle"}}/> {errMsg}</span>}

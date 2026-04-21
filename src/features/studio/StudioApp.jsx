@@ -24,20 +24,20 @@ function viewFallback(scope) {
         fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif',
       }}
     >
-      <div style={{ fontFamily: '"Bricolage Grotesque", sans-serif', fontSize: 22, fontWeight: 700, color: "#181714" }}>
+      <div style={{ fontFamily: '"Bricolage Grotesque", "Switzer", sans-serif', fontSize: 22, fontWeight: 700, color: "#09090b", letterSpacing: "-0.02em" }}>
         {scope} hit a snag
       </div>
-      <div style={{ fontSize: 14, maxWidth: 360, textAlign: "center", lineHeight: 1.6 }}>
+      <div style={{ fontSize: 14, maxWidth: 380, textAlign: "center", lineHeight: 1.55 }}>
         The {scope.toLowerCase()} view failed to render. Your drafts are untouched — try reloading just this view.
       </div>
       <button
         style={{
-          padding: "7px 16px",
-          background: "#181714",
-          color: "#FEFCF8",
+          padding: "9px 18px",
+          background: "#09090b",
+          color: "#ffffff",
           border: "none",
-          borderRadius: 999,
-          fontSize: 13,
+          borderRadius: 10,
+          fontSize: 14,
           fontWeight: 600,
           cursor: "pointer",
         }}

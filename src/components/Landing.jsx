@@ -8,35 +8,35 @@ import { PublicLayout } from "./PublicLayout.jsx";
 const LANDING_STYLES = `
 .landing-hero{
   margin-top:8px;
-  margin-bottom:48px;
+  margin-bottom:56px;
 }
 
 .landing-hero-line{
-  font:800 clamp(56px, 9vw, 112px)/0.92 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.06em;
-  color:#111111;
-  margin:0 0 22px;
-  max-width:14ch;
+  font:700 clamp(48px, 8vw, 88px)/1.02 "Bricolage Grotesque", "Switzer", sans-serif;
+  letter-spacing:-0.04em;
+  color:#09090b;
+  margin:0 0 20px;
+  max-width:16ch;
   text-wrap:balance;
 }
 
 .landing-hero-line em{
   font-style:normal;
-  color:#5e584f;
+  color:#71717a;
   font-weight:500;
 }
 
 .landing-hero-pitch{
-  font-size:18px;
+  font-size:17px;
   line-height:1.55;
-  color:#5e584f;
-  max-width:50ch;
-  margin:0 0 28px;
+  color:#52525b;
+  max-width:54ch;
+  margin:0 0 32px;
 }
 
 .landing-cta-row{
   display:flex;
-  gap:12px;
+  gap:10px;
   align-items:center;
   flex-wrap:wrap;
 }
@@ -45,75 +45,75 @@ const LANDING_STYLES = `
   display:inline-flex;
   align-items:center;
   gap:8px;
-  padding:14px 22px;
-  border-radius:999px;
-  font:700 14px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  padding:11px 18px;
+  border-radius:10px;
+  font:600 14px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
   text-decoration:none;
   border:1px solid transparent;
-  transition:background 140ms ease, border-color 140ms ease, color 140ms ease;
+  transition:background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .landing-cta-primary{
-  background:#181714;
-  color:#fbfaf6;
+  background:#09090b;
+  color:#ffffff;
 }
 
 .landing-cta-primary:hover{
-  background:#2e2c28;
+  background:#27272a;
 }
 
+/* Ghost CTA — on hover, darken the border but keep text readable.
+   Previously swapped bg to ink which clashed with ink text. */
 .landing-cta-ghost{
-  background:transparent;
-  border-color:rgba(24,23,20,0.18);
-  color:#181714;
+  background:#ffffff;
+  border-color:#e4e4e7;
+  color:#09090b;
 }
 
 .landing-cta-ghost:hover{
-  border-color:#181714;
+  background:#fafafa;
+  border-color:#d4d4d8;
+  color:#09090b;
 }
 
 .landing-cta-meta{
-  font:600 11px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.14em;
-  text-transform:uppercase;
-  color:#8b8377;
-  margin-left:8px;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
+  margin-left:4px;
 }
 
 .landing-section{
-  margin-top:64px;
-  padding-top:24px;
-  border-top:1px solid rgba(24,23,20,0.1);
+  margin-top:72px;
+  padding-top:28px;
+  border-top:1px solid #e4e4e7;
 }
 
 .landing-section-num{
-  font:600 11px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.16em;
-  text-transform:uppercase;
-  color:#FF7A00;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#6366f1;
   margin-bottom:14px;
   display:block;
 }
 
 .landing-section-title{
-  font:700 clamp(28px, 4vw, 38px)/1.05 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.04em;
-  color:#111111;
+  font:700 clamp(28px, 4vw, 36px)/1.1 "Bricolage Grotesque", "Switzer", sans-serif;
+  letter-spacing:-0.03em;
+  color:#09090b;
   margin:0 0 14px;
-  max-width:22ch;
+  max-width:24ch;
   text-wrap:balance;
 }
 
 .landing-section-body{
   font-size:16px;
   line-height:1.65;
-  color:#2e2c28;
-  max-width:60ch;
+  color:#3f3f46;
+  max-width:62ch;
   margin:0;
 }
 
 .landing-feature-grid{
-  margin-top:24px;
+  margin-top:28px;
   display:grid;
   grid-template-columns:repeat(2, minmax(0, 1fr));
   gap:24px;
@@ -121,56 +121,51 @@ const LANDING_STYLES = `
 
 .landing-feature{
   padding:20px 0 0;
-  border-top:1px solid rgba(24,23,20,0.1);
+  border-top:1px solid #e4e4e7;
 }
 
 .landing-feature-num{
-  font:600 10px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.14em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
   display:block;
   margin-bottom:8px;
 }
 
 .landing-feature-name{
-  font:700 18px/1.2 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.025em;
-  color:#111111;
+  font:600 18px/1.3 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  letter-spacing:-0.015em;
+  color:#09090b;
   margin:0 0 6px;
 }
 
 .landing-feature-pitch{
   font-size:14px;
   line-height:1.55;
-  color:#5e584f;
+  color:#52525b;
   margin:0;
 }
 
 .landing-quote{
-  margin:48px 0 0;
-  padding:20px 0 0;
-  border-top:1px solid rgba(24,23,20,0.1);
+  margin:56px 0 0;
+  padding:24px 0 0;
+  border-top:1px solid #e4e4e7;
 }
 
 .landing-quote-text{
-  font:500 22px/1.4 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.025em;
-  color:#2e2c28;
+  font:500 20px/1.45 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  letter-spacing:-0.015em;
+  color:#18181b;
   margin:0 0 12px;
-  max-width:36ch;
+  max-width:40ch;
 }
 
 .landing-quote-attr{
-  font:600 10px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.16em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
 }
 
 @media (max-width:640px){
   .landing-feature-grid{ grid-template-columns:1fr; }
-  .landing-hero-line{ font-size:48px; }
 }
 `;
 

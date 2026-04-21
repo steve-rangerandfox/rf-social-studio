@@ -21,8 +21,9 @@ const AUTH_STYLES = `
   min-height:100vh;
   display:grid;
   grid-template-columns:minmax(280px, 0.95fr) minmax(420px, 0.9fr);
-  background:linear-gradient(180deg, #f8f4ed 0%, #f1ece2 100%);
-  color:#181714;
+  background:#ffffff;
+  color:#09090b;
+  font-family:"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
 .auth-panel{
@@ -31,29 +32,25 @@ const AUTH_STYLES = `
   display:flex;
   flex-direction:column;
   justify-content:space-between;
-  border-right:1px solid rgba(24,23,20,0.08);
+  border-right:1px solid #e4e4e7;
+  background:#fafafa;
 }
 
-/* Editorial wordmark lockup — replaces the circular badge. The Bricolage
-   display + JBM caption combo is the same vocabulary as the studio chrome,
-   so the auth screen reads as the same authored system. */
 .auth-mark{
   display:flex;
   flex-direction:column;
-  gap:4px;
+  gap:2px;
 }
 
 .auth-mark-name{
-  font:800 28px/0.95 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.045em;
-  color:#111111;
+  font:700 20px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  letter-spacing:-0.02em;
+  color:#09090b;
 }
 
 .auth-mark-sub{
-  font:600 10px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.16em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 13px/1.4 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
 }
 
 .auth-hero{
@@ -66,37 +63,35 @@ const AUTH_STYLES = `
   display:inline-flex;
   align-items:center;
   gap:8px;
-  padding:8px 12px;
-  border:1px solid rgba(24,23,20,0.08);
+  padding:6px 12px;
+  border:1px solid #e4e4e7;
   border-radius:999px;
-  background:rgba(251,250,246,0.78);
-  color:#4d463d;
-  font:600 11px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.1em;
-  text-transform:uppercase;
+  background:#ffffff;
+  color:#52525b;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
 }
 
 .auth-kicker-dot{
   width:6px;
   height:6px;
   border-radius:50%;
-  background:#FF7A00;
+  background:#6366f1;
 }
 
 .auth-title{
-  margin-top:22px;
-  max-width:10ch;
-  font:800 clamp(48px, 6vw, 78px)/0.92 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.065em;
-  color:#111111;
+  margin-top:24px;
+  max-width:12ch;
+  font:700 clamp(44px, 5.5vw, 68px)/1.02 "Bricolage Grotesque", "Switzer", sans-serif;
+  letter-spacing:-0.035em;
+  color:#09090b;
   text-wrap:balance;
 }
 
 .auth-body{
   margin-top:20px;
-  max-width:470px;
-  color:#5e584f;
-  font:400 17px/1.7 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
+  max-width:480px;
+  color:#52525b;
+  font:400 16px/1.65 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
 .auth-features{
@@ -110,13 +105,13 @@ const AUTH_STYLES = `
   margin:0;
   display:flex;
   flex-direction:column;
-  gap:16px;
+  gap:14px;
 }
 
 .auth-features-list li{
-  font:400 15px/1.6 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
-  color:#5e584f;
-  padding-left:20px;
+  font:400 14px/1.55 "Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
+  color:#52525b;
+  padding-left:22px;
   position:relative;
 }
 
@@ -124,44 +119,38 @@ const AUTH_STYLES = `
   content:"";
   position:absolute;
   left:0;
-  top:11px;
-  width:6px;
-  height:6px;
-  border-radius:50%;
-  background:#181714;
+  top:8px;
+  width:12px;
+  height:7px;
+  border-left:1.5px solid #09090b;
+  border-bottom:1.5px solid #09090b;
+  transform:rotate(-45deg);
 }
 
 .auth-features-list li strong{
-  color:#181714;
+  color:#09090b;
   font-weight:600;
-  font-family:"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
 }
 
-/* Footer is now an editorial colophon-style lockup — pull-quote +
-   typographic mark, set against a fine top rule. Replaces the
-   conventional "Sign in to continue. Authentication is handled
-   securely…" boilerplate. */
 .auth-footnote{
   position:relative;
   max-width:480px;
   padding-top:24px;
-  border-top:1px solid rgba(24,23,20,0.1);
+  border-top:1px solid #e4e4e7;
   display:flex;
   flex-direction:column;
-  gap:8px;
+  gap:6px;
 }
 
 .auth-footnote-quote{
-  font:500 16px/1.55 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.02em;
-  color:#2e2c28;
+  font:500 15px/1.55 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  letter-spacing:-0.005em;
+  color:#3f3f46;
 }
 
 .auth-footnote-attribution{
-  font:600 10px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.16em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
 }
 
 .auth-stage{
@@ -170,6 +159,7 @@ const AUTH_STYLES = `
   align-items:center;
   justify-content:center;
   padding:42px;
+  background:#ffffff;
 }
 
 .auth-card-wrap{
@@ -220,13 +210,13 @@ const AUTH_STYLES = `
 
 const signInAppearance = {
   variables: {
-    colorPrimary: "#FF7A00",
-    colorText: "#181714",
-    colorTextSecondary: "#5E584F",
-    colorBackground: "#FBFAF6",
-    colorInputBackground: "#F7F4EE",
-    colorInputText: "#181714",
-    borderRadius: "18px",
+    colorPrimary: "#09090b",
+    colorText: "#09090b",
+    colorTextSecondary: "#52525b",
+    colorBackground: "#ffffff",
+    colorInputBackground: "#ffffff",
+    colorInputText: "#09090b",
+    borderRadius: "10px",
     fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif',
   },
   elements: {
@@ -235,127 +225,129 @@ const signInAppearance = {
     },
     cardBox: {
       width: "100%",
-      boxShadow: "0 22px 70px rgba(24,23,20,0.12)",
-      border: "1px solid rgba(24,23,20,0.10)",
-      background: "rgba(251,250,246,0.96)",
-      backdropFilter: "blur(16px)",
-      borderRadius: "26px",
+      boxShadow: "0 12px 40px rgba(9,9,11,0.08)",
+      border: "1px solid #e4e4e7",
+      background: "#ffffff",
+      backdropFilter: "none",
+      borderRadius: "16px",
     },
     headerTitle: {
-      fontFamily: '"Bricolage Grotesque", sans-serif',
-      fontSize: "40px",
-      lineHeight: "0.94",
-      letterSpacing: "-0.065em",
-      fontWeight: "800",
-      color: "#111111",
+      fontFamily: '"Bricolage Grotesque", "Switzer", sans-serif',
+      fontSize: "28px",
+      lineHeight: "1.15",
+      letterSpacing: "-0.025em",
+      fontWeight: "700",
+      color: "#09090b",
     },
     headerSubtitle: {
       fontSize: "14px",
-      color: "#5E584F",
-      lineHeight: "1.6",
+      color: "#52525b",
+      lineHeight: "1.55",
     },
     socialButtonsBlockButton: {
-      minHeight: "52px",
-      borderRadius: "999px",
-      border: "1px solid rgba(24,23,20,0.12)",
-      boxShadow: "0 8px 20px rgba(24,23,20,0.05)",
-      background: "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,241,232,0.96))",
+      minHeight: "44px",
+      borderRadius: "10px",
+      border: "1px solid #e4e4e7",
+      boxShadow: "none",
+      background: "#ffffff",
       fontSize: "14px",
-      fontWeight: "700",
-      transition: "background 120ms ease, border-color 120ms ease, transform 120ms ease",
+      fontWeight: "500",
+      transition: "background 120ms ease, border-color 120ms ease",
+      "&:hover": {
+        background: "#fafafa",
+        borderColor: "#d4d4d8",
+      },
     },
     socialButtonsBlockButtonText: {
-      color: "#181714",
-      fontWeight: "600",
+      color: "#09090b",
+      fontWeight: "500",
     },
     socialButtonsBlockButtonArrow: {
-      color: "#5E584F",
+      color: "#71717a",
     },
     socialButtonsProviderIcon: {
       width: "18px",
       height: "18px",
     },
     dividerLine: {
-      background: "rgba(24,23,20,0.08)",
+      background: "#e4e4e7",
     },
     dividerText: {
-      color: "#8B8377",
-      fontFamily: '"JetBrains Mono", monospace',
-      fontSize: "10px",
-      letterSpacing: "0.12em",
-      textTransform: "uppercase",
+      color: "#71717a",
+      fontFamily: '"Switzer", sans-serif',
+      fontSize: "13px",
+      letterSpacing: "0",
+      textTransform: "none",
     },
     formFieldLabel: {
-      color: "#5E584F",
-      fontSize: "11px",
-      fontWeight: "600",
-      fontFamily: '"JetBrains Mono", monospace',
-      letterSpacing: "0.1em",
-      textTransform: "uppercase",
+      color: "#3f3f46",
+      fontSize: "13px",
+      fontWeight: "500",
+      fontFamily: '"Switzer", sans-serif',
+      letterSpacing: "0",
+      textTransform: "none",
     },
     formFieldInput: {
-      minHeight: "50px",
-      borderRadius: "16px",
-      border: "1px solid rgba(24,23,20,0.08)",
-      background: "#F7F4EE",
+      minHeight: "42px",
+      borderRadius: "10px",
+      border: "1px solid #e4e4e7",
+      background: "#ffffff",
       boxShadow: "none",
+      fontSize: "14px",
     },
     formButtonPrimary: {
-      minHeight: "52px",
-      borderRadius: "999px",
-      // Single-color CTA — strips the gradient (kept once, on the brand
-      // mark in marketing surfaces). Premium products commit to one
-      // brand color on primary actions; the gradient is reserved as a
-      // signature surface.
-      background: "#181714",
-      boxShadow: "0 12px 28px rgba(24,23,20,0.18)",
+      minHeight: "44px",
+      borderRadius: "10px",
+      background: "#09090b",
+      boxShadow: "none",
       fontSize: "14px",
-      fontWeight: "700",
-      color: "#FBFAF6",
-      transition: "background 140ms ease, box-shadow 140ms ease, transform 140ms ease",
+      fontWeight: "600",
+      color: "#ffffff",
+      transition: "background 120ms ease",
       "&:hover": {
-        background: "#2E2C28",
+        background: "#27272a",
       },
     },
     footer: {
-      background: "linear-gradient(180deg, rgba(240,234,225,0.42) 0%, rgba(240,234,225,0.72) 100%)",
-      borderTop: "1px solid rgba(24,23,20,0.06)",
+      background: "#fafafa",
+      borderTop: "1px solid #e4e4e7",
     },
     footerActionText: {
-      color: "#5E584F",
+      color: "#52525b",
     },
     footerActionLink: {
-      color: "#181714",
+      color: "#09090b",
       fontWeight: "600",
     },
     identityPreviewText: {
-      color: "#5E584F",
+      color: "#52525b",
     },
     formResendCodeLink: {
-      color: "#181714",
+      color: "#09090b",
       fontWeight: "600",
     },
     otpCodeFieldInput: {
-      borderRadius: "16px",
-      border: "1px solid rgba(24,23,20,0.08)",
-      background: "#F7F4EE",
+      borderRadius: "10px",
+      border: "1px solid #e4e4e7",
+      background: "#ffffff",
     },
     alertText: {
-      color: "#DC2626",
+      color: "#dc2626",
     },
     formFieldWarningText: {
-      color: "#9B7441",
+      color: "#d97706",
     },
     formFieldSuccessText: {
-      color: "#5E6659",
+      color: "#16a34a",
     },
     badge: {
       borderRadius: "999px",
-      background: "rgba(155,116,65,0.1)",
-      color: "#9B7441",
-      fontFamily: '"JetBrains Mono", monospace',
-      textTransform: "uppercase",
-      letterSpacing: "0.08em",
+      background: "#f4f4f5",
+      color: "#52525b",
+      fontFamily: '"Switzer", sans-serif',
+      textTransform: "none",
+      letterSpacing: "0",
+      fontSize: "13px",
     },
   },
 };

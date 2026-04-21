@@ -12,142 +12,135 @@ const PUBLIC_STYLES = `
 
 .public-shell{
   min-height:100vh;
-  background:linear-gradient(180deg, #f8f4ed 0%, #f1ece2 100%);
-  color:#181714;
+  background:#ffffff;
+  color:#09090b;
   font-family:"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif;
+  font-feature-settings:"ss01", "cv11";
 }
 
 .public-inner{
   max-width:740px;
   margin:0 auto;
-  padding:64px 24px 96px;
+  padding:72px 24px 96px;
 }
 
 .public-mark{
   display:flex;
   flex-direction:column;
-  gap:4px;
-  margin-bottom:48px;
-}
-
-.public-mark-name{
-  font:800 22px/0.95 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.04em;
-  color:#111111;
+  gap:2px;
+  margin-bottom:56px;
   text-decoration:none;
 }
 
+.public-mark-name{
+  font:700 20px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  letter-spacing:-0.02em;
+  color:#09090b;
+}
+
 .public-mark-sub{
-  font:600 10px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.16em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 13px/1.4 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  letter-spacing:-0.005em;
+  color:#71717a;
 }
 
 .public-eyebrow{
   display:inline-flex;
   align-items:center;
   gap:8px;
-  padding:6px 10px;
-  border:1px solid rgba(24,23,20,0.1);
+  padding:6px 12px;
+  border:1px solid #e4e4e7;
   border-radius:999px;
-  background:rgba(251,250,246,0.7);
-  font:600 10px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.14em;
-  text-transform:uppercase;
-  color:#4d463d;
-  margin-bottom:18px;
+  background:#fafafa;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#52525b;
+  margin-bottom:20px;
 }
 
 .public-eyebrow-dot{
-  width:5px;
-  height:5px;
+  width:6px;
+  height:6px;
   border-radius:50%;
-  background:#181714;
+  background:#6366f1;
 }
 
 .public-title{
-  font:800 clamp(40px, 5vw, 56px)/0.95 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.05em;
-  color:#111111;
-  margin:0 0 14px;
+  font:700 clamp(40px, 5vw, 56px)/1.02 "Bricolage Grotesque", "Switzer", sans-serif;
+  letter-spacing:-0.035em;
+  color:#09090b;
+  margin:0 0 16px;
   text-wrap:balance;
 }
 
 .public-meta{
-  font:500 12px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.12em;
-  text-transform:uppercase;
-  color:#8b8377;
-  margin:0 0 32px;
+  font:500 14px/1.4 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
+  margin:0 0 40px;
 }
 
 .public-rule{
   height:1px;
-  background:rgba(24,23,20,0.1);
-  margin:0 0 36px;
+  background:#e4e4e7;
+  margin:0 0 40px;
 }
 
 .public-body{
   font-size:15px;
-  line-height:1.75;
-  color:#2e2c28;
+  line-height:1.7;
+  color:#3f3f46;
 }
 
 .public-body h2{
-  font:700 19px/1.25 "Bricolage Grotesque", sans-serif;
+  font:600 22px/1.25 "Switzer", "Helvetica Neue", Arial, sans-serif;
   letter-spacing:-0.02em;
-  color:#111111;
-  margin:32px 0 10px;
+  color:#09090b;
+  margin:36px 0 12px;
 }
 
-.public-body p{ margin:0 0 14px; }
+.public-body p{ margin:0 0 16px; }
 
 .public-body ul, .public-body ol{
-  margin:0 0 14px;
-  padding-left:20px;
+  margin:0 0 16px;
+  padding-left:22px;
 }
 
 .public-body li{ margin-bottom:6px; }
 
 .public-body strong{
-  color:#111111;
+  color:#09090b;
   font-weight:600;
 }
 
 .public-body a{
-  color:#181714;
+  color:#09090b;
   text-decoration:underline;
-  text-decoration-color:rgba(24,23,20,0.25);
+  text-decoration-color:#d4d4d8;
   text-underline-offset:3px;
 }
 
 .public-body a:hover{
-  text-decoration-color:#181714;
+  text-decoration-color:#09090b;
 }
 
 .public-colophon{
-  margin-top:64px;
+  margin-top:72px;
   padding-top:24px;
-  border-top:1px solid rgba(24,23,20,0.1);
+  border-top:1px solid #e4e4e7;
   display:flex;
-  align-items:flex-end;
+  align-items:center;
   justify-content:space-between;
   gap:24px;
   flex-wrap:wrap;
 }
 
 .public-colophon-mark{
-  font:600 12px/1.4 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.02em;
-  color:#2e2c28;
+  font:500 13px/1.4 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#52525b;
 }
 
 .public-colophon-meta{
-  font:600 10px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.16em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
 }
 
 @media (max-width:640px){

@@ -11,7 +11,7 @@ const PRICING_STYLES = `
 .pricing-grid{
   display:grid;
   grid-template-columns:repeat(3, minmax(0, 1fr));
-  gap:18px;
+  gap:16px;
   margin:8px 0 12px;
 }
 
@@ -19,79 +19,73 @@ const PRICING_STYLES = `
   display:flex;
   flex-direction:column;
   gap:14px;
-  padding:24px;
-  border:1px solid rgba(24,23,20,0.1);
-  border-radius:18px;
-  background:rgba(255,255,255,0.5);
+  padding:28px 24px;
+  border:1px solid #e4e4e7;
+  border-radius:16px;
+  background:#ffffff;
   position:relative;
 }
 
 .pricing-card.is-featured{
-  border-color:rgba(24,23,20,0.4);
-  background:rgba(255,255,255,0.85);
-  box-shadow:0 12px 32px rgba(24,23,20,0.06);
+  border-color:#09090b;
+  background:#ffffff;
+  box-shadow:0 12px 40px rgba(9,9,11,0.08);
 }
 
 .pricing-tag{
-  font:600 10px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.16em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
 }
 
-/* Editorial accent — featured tag carries the signature orange.
-   Single use per page keeps the surface calm. */
-.pricing-card.is-featured .pricing-tag{ color:#FF7A00; }
+.pricing-card.is-featured .pricing-tag{ color:#6366f1; }
 
 .pricing-name{
-  font:800 28px/0.95 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.04em;
-  color:#111111;
+  font:600 22px/1.2 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  letter-spacing:-0.02em;
+  color:#09090b;
   margin:0;
 }
 
 .pricing-price{
   display:flex;
   align-items:baseline;
-  gap:6px;
+  gap:4px;
   margin:0;
 }
 
 .pricing-price-num{
-  font:800 38px/1 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.05em;
-  color:#111111;
+  font:700 40px/1 "Bricolage Grotesque", "Switzer", sans-serif;
+  letter-spacing:-0.03em;
+  color:#09090b;
 }
 
 .pricing-price-unit{
-  font:500 12px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.08em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 14px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
 }
 
 .pricing-pitch{
   font-size:14px;
   line-height:1.55;
-  color:#5e584f;
+  color:#52525b;
   margin:0;
 }
 
 .pricing-features{
   list-style:none;
-  padding:14px 0 0;
+  padding:16px 0 0;
   margin:0;
-  border-top:1px solid rgba(24,23,20,0.08);
+  border-top:1px solid #e4e4e7;
   display:flex;
   flex-direction:column;
-  gap:9px;
+  gap:10px;
 }
 
 .pricing-features li{
-  font-size:13px;
+  font-size:14px;
   line-height:1.5;
-  color:#2e2c28;
-  padding-left:18px;
+  color:#09090b;
+  padding-left:22px;
   position:relative;
 }
 
@@ -99,14 +93,24 @@ const PRICING_STYLES = `
   content:"";
   position:absolute;
   left:0;
-  top:8px;
-  width:8px;
-  height:1px;
-  background:#181714;
+  top:7px;
+  width:12px;
+  height:7px;
+  border-left:1.5px solid #09090b;
+  border-bottom:1.5px solid #09090b;
+  transform:rotate(-45deg);
+  border-radius:0.5px;
 }
 
-.pricing-features li.is-off{ color:#8b8377; }
-.pricing-features li.is-off::before{ background:#c9c2b6; }
+.pricing-features li.is-off{ color:#a1a1aa; }
+.pricing-features li.is-off::before{
+  border:none;
+  top:10px;
+  width:10px;
+  height:1px;
+  background:#d4d4d8;
+  transform:none;
+}
 
 .pricing-cta{
   margin-top:auto;
@@ -116,85 +120,76 @@ const PRICING_STYLES = `
 .pricing-cta a{
   display:block;
   text-align:center;
-  padding:13px 18px;
-  border-radius:999px;
-  font:700 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  letter-spacing:0;
+  padding:12px 18px;
+  border-radius:10px;
+  font:600 14px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
   text-decoration:none;
-  border:1px solid rgba(24,23,20,0.18);
-  color:#181714;
-  background:rgba(255,255,255,0.6);
-  transition:background 140ms ease, border-color 140ms ease, color 140ms ease;
+  border:1px solid #e4e4e7;
+  color:#09090b;
+  background:#ffffff;
+  transition:background 120ms ease, border-color 120ms ease;
 }
 
 .pricing-cta a:hover{
-  border-color:#181714;
-  background:#181714;
-  color:#fbfaf6;
+  background:#fafafa;
+  border-color:#d4d4d8;
 }
 
 .pricing-cta.is-primary a{
-  background:#181714;
-  color:#fbfaf6;
-  border-color:#181714;
+  background:#09090b;
+  color:#ffffff;
+  border-color:#09090b;
 }
 
 .pricing-cta.is-primary a:hover{
-  background:#2e2c28;
+  background:#27272a;
+  color:#ffffff;
 }
 
 .pricing-trial{
-  font:500 12px/1.5 "JetBrains Mono", monospace;
-  letter-spacing:0.08em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 14px/1.5 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
   margin:0;
 }
 
-/* Comparison block — single editorial table positioned vs Buffer.
-   Designed as a typeset row pattern (no borders, no zebra stripes). */
 .pricing-compare{
-  margin-top:64px;
-  padding-top:24px;
-  border-top:1px solid rgba(24,23,20,0.12);
+  margin-top:72px;
+  padding-top:28px;
+  border-top:1px solid #e4e4e7;
 }
 
 .pricing-compare-num{
-  font:600 11px/1 "JetBrains Mono", monospace;
-  letter-spacing:0.16em;
-  text-transform:uppercase;
-  color:#FF7A00;
+  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#6366f1;
   margin-bottom:14px;
   display:block;
 }
 
 .pricing-compare-title{
-  font:700 clamp(24px, 3.4vw, 32px)/1.05 "Bricolage Grotesque", sans-serif;
-  letter-spacing:-0.035em;
-  color:#111111;
-  margin:0 0 22px;
-  max-width:24ch;
+  font:700 clamp(24px, 3.4vw, 32px)/1.1 "Bricolage Grotesque", "Switzer", sans-serif;
+  letter-spacing:-0.025em;
+  color:#09090b;
+  margin:0 0 24px;
+  max-width:28ch;
   text-wrap:balance;
 }
 
 .pricing-compare-table{
   display:grid;
-  grid-template-columns:minmax(140px, 1.2fr) 1fr 1fr;
+  grid-template-columns:minmax(160px, 1.3fr) 1fr 1fr;
   gap:0;
-  border-top:1px solid rgba(24,23,20,0.1);
+  border-top:1px solid #e4e4e7;
 }
 
 .pricing-compare-head{
   display:contents;
-  font:600 10px/1.4 "JetBrains Mono", monospace;
-  letter-spacing:0.14em;
-  text-transform:uppercase;
-  color:#8b8377;
+  font:500 13px/1.4 "Switzer", "Helvetica Neue", Arial, sans-serif;
+  color:#71717a;
 }
 
 .pricing-compare-head span{
-  padding:14px 12px 10px;
-  border-bottom:1px solid rgba(24,23,20,0.1);
+  padding:14px 14px 12px;
+  border-bottom:1px solid #e4e4e7;
 }
 
 .pricing-compare-row{
@@ -202,20 +197,20 @@ const PRICING_STYLES = `
 }
 
 .pricing-compare-row > span{
-  padding:14px 12px;
-  border-bottom:1px solid rgba(24,23,20,0.06);
+  padding:14px 14px;
+  border-bottom:1px solid #f4f4f5;
   font-size:14px;
   line-height:1.45;
-  color:#2e2c28;
+  color:#3f3f46;
 }
 
 .pricing-compare-row > span:first-child{
   font-weight:600;
-  color:#111111;
+  color:#09090b;
 }
 
 .pricing-compare-row > span.is-us{
-  color:#181714;
+  color:#09090b;
   font-weight:500;
 }
 

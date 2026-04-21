@@ -70,8 +70,8 @@ export class ErrorBoundary extends Component {
           gap: 18,
           padding: 32,
           fontFamily: '"Switzer", "Helvetica Neue", Arial, system-ui, sans-serif',
-          background: "linear-gradient(180deg, #f8f4ed 0%, #f1ece2 100%)",
-          color: "#181714",
+          background: "#ffffff",
+          color: "#09090b",
         }}
       >
         <div
@@ -80,28 +80,26 @@ export class ErrorBoundary extends Component {
             alignItems: "center",
             gap: 8,
             padding: "6px 12px",
-            border: "1px solid rgba(24,23,20,0.12)",
+            border: "1px solid #e4e4e7",
             borderRadius: 999,
-            background: "rgba(251,250,246,0.78)",
-            fontFamily: '"JetBrains Mono", monospace',
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-            color: "#4d463d",
+            background: "#fafafa",
+            fontFamily: '"Switzer", sans-serif',
+            fontSize: 13,
+            fontWeight: 500,
+            color: "#52525b",
           }}
         >
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#FF7A00" }} />
-          {kicker} \u00B7 Recoverable
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1" }} />
+          {kicker} · Recoverable
         </div>
         <div
           style={{
-            fontFamily: '"Bricolage Grotesque", sans-serif',
-            fontSize: "clamp(32px, 4vw, 44px)",
-            fontWeight: 800,
-            letterSpacing: "-0.045em",
-            lineHeight: 1.02,
-            color: "#111111",
+            fontFamily: '"Bricolage Grotesque", "Switzer", sans-serif',
+            fontSize: "clamp(28px, 3.6vw, 40px)",
+            fontWeight: 700,
+            letterSpacing: "-0.025em",
+            lineHeight: 1.1,
+            color: "#09090b",
             textAlign: "center",
             maxWidth: "20ch",
           }}
@@ -111,8 +109,8 @@ export class ErrorBoundary extends Component {
         <div
           style={{
             fontSize: 15,
-            color: "#5E584F",
-            maxWidth: 460,
+            color: "#52525b",
+            maxWidth: 480,
             textAlign: "center",
             lineHeight: 1.65,
           }}
@@ -123,12 +121,12 @@ export class ErrorBoundary extends Component {
           <button
             style={{
               padding: "11px 22px",
-              background: "#181714",
-              color: "#FBFAF6",
+              background: "#09090b",
+              color: "#ffffff",
               border: "none",
-              borderRadius: 999,
-              fontSize: 13,
-              fontWeight: 700,
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 600,
               cursor: "pointer",
             }}
             onClick={this.reset}
@@ -138,12 +136,12 @@ export class ErrorBoundary extends Component {
           <button
             style={{
               padding: "11px 22px",
-              background: "transparent",
-              color: "#181714",
-              border: "1px solid rgba(24,23,20,0.18)",
-              borderRadius: 999,
-              fontSize: 13,
-              fontWeight: 600,
+              background: "#ffffff",
+              color: "#09090b",
+              border: "1px solid #e4e4e7",
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 500,
               cursor: "pointer",
             }}
             onClick={() => window.location.reload()}
@@ -156,10 +154,10 @@ export class ErrorBoundary extends Component {
             style={{
               marginTop: 16,
               fontFamily: '"JetBrains Mono", monospace',
-              fontSize: 11,
-              color: "#9B7441",
-              background: "rgba(255,247,232,0.72)",
-              border: "1px solid rgba(155,116,65,0.22)",
+              fontSize: 12,
+              color: "#dc2626",
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
               borderRadius: 8,
               padding: "12px 16px",
               maxWidth: 640,

@@ -38,6 +38,7 @@ import { CanvasElement, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./
 import { StoryDesignerTour } from "./StoryDesignerTour.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
+import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 
 const CANVAS_PRESETS = [
   { key: "ig_story", label: "IG Story", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
@@ -460,6 +461,8 @@ export function StoryDesigner({ row, onClose, onSave }) {
   // Convenience: single selectedId for backward compat in properties panel
   const selectedId = selectedIds.size === 1 ? [...selectedIds][0] : null;
   const [zoom,        setZoom]        = useState(1.8);
+  const [activeUploads, setActiveUploads] = useState([]);
+  const [uploadError, setUploadError] = useState("");
   const [canvasPreset, setCanvasPreset] = useState("ig_story");
   const [postState,   setPostState]   = useState("idle");
   const [aiLoading,   setAiLoading]   = useState(false);
@@ -613,64 +616,138 @@ export function StoryDesigner({ row, onClose, onSave }) {
     pushElements(els => [...els, el]); setSelectedIds(new Set([el.id]));
   };
 
-  const fileToDataURL = (file) => new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.readAsDataURL(file);
-  });
-
   const addMedia = async (file, dropX, dropY) => {
     if (!file) return;
-    const url    = await fileToDataURL(file);
+    try {
+      checkFileSize(file);
+    } catch (err) {
+      setUploadError(err.message);
+      return;
+    }
+
     const isGif  = file.type === "image/gif";
     const isVid  = !isGif && file.type.startsWith("video/");
     const mType  = isGif ? 'gif' : isVid ? 'video' : 'image';
-    const makeEl = (w, h) => {
-      const el = {
-        id:uid(),
-        type:"image",
-        url,
-        x: dropX ?? 56,
-        y: dropY ?? 140,
-        scale:1,
-        width: w,
-        height: h,
-        locked:false,
-        mediaType: mType,
-        loop:true,
-        muted:true,
-        autoPlay:true,
-        trimLabel: file.name.split('.').pop().toUpperCase(),
-      };
-      pushElements(els => [...els, el]); setSelectedIds(new Set([el.id]));
+
+    // Show a local preview URL while the upload runs so the user sees
+    // the media immediately. The element's real `url` is the Supabase
+    // public URL (stored on completion). Never persist the blob URL —
+    // it doesn't survive reloads and can't be used by the publisher.
+    const previewUrl = URL.createObjectURL(file);
+    const elementId = uid();
+    setUploadError("");
+    setActiveUploads((prev) => [...prev, { id: elementId, name: file.name, progress: 0 }]);
+
+    const makeEl = (w, h, url) => ({
+      id: elementId,
+      type: "image",
+      url,
+      x: dropX ?? 56,
+      y: dropY ?? 140,
+      scale: 1,
+      width: w,
+      height: h,
+      locked: false,
+      mediaType: mType,
+      loop: true,
+      muted: true,
+      autoPlay: true,
+      trimLabel: file.name.split('.').pop().toUpperCase(),
+      _uploading: true,
+    });
+
+    // Place the element with the preview URL first so it renders.
+    const placeElement = (w, h) => {
+      pushElements((els) => [...els, makeEl(w, h, previewUrl)]);
+      setSelectedIds(new Set([elementId]));
     };
+
     if (!isVid) {
       const img = new window.Image();
-      img.onload = () => { const fitted = fitMediaBox(img.naturalWidth, img.naturalHeight); makeEl(fitted.width, fitted.height); };
-      img.src = url;
+      img.onload = () => {
+        const fitted = fitMediaBox(img.naturalWidth, img.naturalHeight);
+        placeElement(fitted.width, fitted.height);
+      };
+      img.src = previewUrl;
     } else {
-      makeEl(160, 90);
+      placeElement(160, 284);
+    }
+
+    try {
+      const publicUrl = await uploadAssetWithProgress(file, (p) => {
+        setActiveUploads((prev) => prev.map((u) => u.id === elementId ? { ...u, progress: p } : u));
+      });
+      // Swap the preview URL for the real public URL + clear the flag.
+      pushElements((els) => els.map((el) => el.id === elementId ? { ...el, url: publicUrl, _uploading: false } : el));
+      URL.revokeObjectURL(previewUrl);
+      setActiveUploads((prev) => prev.filter((u) => u.id !== elementId));
+    } catch (err) {
+      setUploadError(err?.message || "Upload failed");
+      pushElements((els) => els.filter((el) => el.id !== elementId));
+      URL.revokeObjectURL(previewUrl);
+      setActiveUploads((prev) => prev.filter((u) => u.id !== elementId));
     }
   };
 
   const setBg = async (file) => {
     if (!file) return;
-    const url    = await fileToDataURL(file);
-    const isGif  = file.type === "image/gif";
-    const isVid  = !isGif && file.type.startsWith("video/");
-    pushElements(els => els.map(e => e.id === "bg" ? { ...e, url, mediaType: isGif ? 'gif' : isVid ? 'video' : 'image' } : e));
+    try {
+      checkFileSize(file);
+    } catch (err) {
+      setUploadError(err.message);
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
+    const isGif = file.type === "image/gif";
+    const isVid = !isGif && file.type.startsWith("video/");
+    const mType = isGif ? 'gif' : isVid ? 'video' : 'image';
+    const uploadId = uid();
+    setUploadError("");
+    setActiveUploads((prev) => [...prev, { id: uploadId, name: `Background \u2014 ${file.name}`, progress: 0 }]);
+    pushElements(els => els.map(e => e.id === "bg" ? { ...e, url: previewUrl, mediaType: mType } : e));
+    try {
+      const publicUrl = await uploadAssetWithProgress(file, (p) => {
+        setActiveUploads((prev) => prev.map((u) => u.id === uploadId ? { ...u, progress: p } : u));
+      });
+      pushElements(els => els.map(e => e.id === "bg" ? { ...e, url: publicUrl } : e));
+      URL.revokeObjectURL(previewUrl);
+      setActiveUploads((prev) => prev.filter((u) => u.id !== uploadId));
+    } catch (err) {
+      setUploadError(err?.message || "Upload failed");
+      setActiveUploads((prev) => prev.filter((u) => u.id !== uploadId));
+    }
   };
 
   // Replace an existing media element's source, keeping position/size/scale
   const replaceMedia = async (elementId, file) => {
     if (!file) return;
-    const url = await fileToDataURL(file);
+    try {
+      checkFileSize(file);
+    } catch (err) {
+      setUploadError(err.message);
+      return;
+    }
+    const previewUrl = URL.createObjectURL(file);
     const isGif = file.type === "image/gif";
     const isVid = !isGif && file.type.startsWith("video/");
     const mType = isGif ? 'gif' : isVid ? 'video' : 'image';
+    const uploadId = uid();
+    setUploadError("");
+    setActiveUploads((prev) => [...prev, { id: uploadId, name: file.name, progress: 0 }]);
     pushElements(els => els.map(e =>
-      e.id === elementId ? { ...e, url, mediaType: mType, trimLabel: file.name.split('.').pop().toUpperCase() } : e
+      e.id === elementId ? { ...e, url: previewUrl, mediaType: mType, trimLabel: file.name.split('.').pop().toUpperCase() } : e
     ));
+    try {
+      const publicUrl = await uploadAssetWithProgress(file, (p) => {
+        setActiveUploads((prev) => prev.map((u) => u.id === uploadId ? { ...u, progress: p } : u));
+      });
+      pushElements(els => els.map(e => e.id === elementId ? { ...e, url: publicUrl } : e));
+      URL.revokeObjectURL(previewUrl);
+      setActiveUploads((prev) => prev.filter((u) => u.id !== uploadId));
+    } catch (err) {
+      setUploadError(err?.message || "Upload failed");
+      setActiveUploads((prev) => prev.filter((u) => u.id !== uploadId));
+    }
   };
 
   // Canvas-level drop: add media or set background
@@ -1456,6 +1533,28 @@ export function StoryDesigner({ row, onClose, onSave }) {
           </div>
         </div>
         <StoryDesignerTour />
+
+        {(activeUploads.length > 0 || uploadError) && (
+          <div style={{position:"fixed",bottom:20,right:20,display:"flex",flexDirection:"column",gap:8,zIndex:60,maxWidth:320}}>
+            {activeUploads.map((u) => (
+              <div key={u.id} style={{background:"#ffffff",border:"1px solid #e4e4e7",borderRadius:10,padding:"10px 12px",boxShadow:"0 8px 24px rgba(9,9,11,0.12)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:6}}>
+                  <div style={{fontSize:13,color:"#09090b",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.name}</div>
+                  <div style={{fontSize:12,color:"#71717a",fontVariantNumeric:"tabular-nums"}}>{Math.round(u.progress*100)}%</div>
+                </div>
+                <div style={{height:4,background:"#e4e4e7",borderRadius:99,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${Math.round(u.progress*100)}%`,background:"#09090b",transition:"width 140ms ease"}}/>
+                </div>
+              </div>
+            ))}
+            {uploadError && (
+              <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 12px",fontSize:13,color:"#dc2626",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                <span>{uploadError}</span>
+                <button onClick={() => setUploadError("")} style={{background:"transparent",border:"none",color:"#dc2626",cursor:"pointer",fontSize:14,lineHeight:1,padding:0}}>×</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
