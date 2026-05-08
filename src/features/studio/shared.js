@@ -6,9 +6,9 @@
 // are ink-black, brown, and brown-grey respectively — not the colors
 // the names suggest. New code should use the canonical keys added
 // below them (ink / neutralWarm / textSub) where possible.
-// Mirrors studio.css :root. Values reset to Linear/Arc-tier near-white
-// neutrals; warm-paper + orange tokens repointed to the new cool
-// palette. Names kept stable so callsites don't churn.
+// Mirrors studio.css :root. Linear/Arc-tier near-white neutrals with
+// a single hot-orange signature accent (Relay palette). Names kept
+// stable so callsites don't churn.
 export const T = {
   bg: "#fafafa",
   surface: "#ffffff",
@@ -25,24 +25,28 @@ export const T = {
   text: "#09090b",
   textSub: "#52525b",
   textDim: "#71717a",
+  textFaint: "#a1a1aa",
   red: "#dc2626",
   amber: "#d97706",
   blue: "#2563eb",
   pink: "#52525b",
-  // Orange tokens retained as names; values now point to the cool
-  // violet accent. Single-use signature only.
-  orange: "#4f46e5",
-  orangeBright: "#6366f1",
-  gold: "#d4d4d8",
-  lilac: "#a5b4fc",
+  // Hot-orange single-use accent.
+  orange: "#ff5a1f",
+  orangeBright: "#ff7a3d",
+  accent: "#ff5a1f",
+  accentBright: "#ff7a3d",
+  accentTint: "#ffb38a",
+  accentFaint: "#fff0e6",
+  gold: "#ffb38a",
+  lilac: "#ffb38a",
   cyan: "#93c5fd",
   purple: "#52525b",
   success: "#16a34a",
   warning: "#d97706",
   danger: "#dc2626",
   info: "#0ea5e9",
-  posterGrad: "linear-gradient(135deg, #4f46e5 0%, #6366f1 60%, #818cf8 100%)",
-  posterGradSoft: "linear-gradient(135deg, rgba(79,70,229,0.08) 0%, rgba(99,102,241,0.06) 100%)",
+  posterGrad: "linear-gradient(135deg, #ff5a1f 0%, #ff7a3d 60%, #ffb38a 100%)",
+  posterGradSoft: "linear-gradient(135deg, rgba(255,90,31,0.08) 0%, rgba(255,122,61,0.06) 100%)",
 };
 
 export const PLATFORMS = {
