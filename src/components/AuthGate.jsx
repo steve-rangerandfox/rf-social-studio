@@ -75,7 +75,7 @@ const AUTH_STYLES = `
   width:6px;
   height:6px;
   border-radius:50%;
-  background:#6366f1;
+  background:#ff5a1f;
 }
 
 .auth-title{

@@ -37,7 +37,7 @@ const PRICING_STYLES = `
   color:#71717a;
 }
 
-.pricing-card.is-featured .pricing-tag{ color:#6366f1; }
+.pricing-card.is-featured .pricing-tag{ color:#ff5a1f; }
 
 .pricing-name{
   font:600 22px/1.2 "Switzer", "Helvetica Neue", Arial, sans-serif;
@@ -160,7 +160,7 @@ const PRICING_STYLES = `
 
 .pricing-compare-num{
   font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  color:#6366f1;
+  color:#ff5a1f;
   margin-bottom:14px;
   display:block;
 }

@@ -90,7 +90,7 @@ const LANDING_STYLES = `
 
 .landing-section-num{
   font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  color:#6366f1;
+  color:#ff5a1f;
   margin-bottom:14px;
   display:block;
 }
