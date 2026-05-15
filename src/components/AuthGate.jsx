@@ -399,7 +399,7 @@ export function AuthGate() {
 
           <section className="auth-stage">
             <div className="auth-card-wrap">
-              <SignIn appearance={signInAppearance} afterSignInUrl="/app" afterSignUpUrl="/app" signUpUrl="/app/sign-up" />
+              <SignIn appearance={signInAppearance} fallbackRedirectUrl="/app" signUpFallbackRedirectUrl="/app" signUpUrl="/app/sign-up" />
             </div>
           </section>
         </div>
