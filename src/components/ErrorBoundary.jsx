@@ -89,7 +89,7 @@ export class ErrorBoundary extends Component {
             color: "#52525b",
           }}
         >
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1" }} />
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff5a1f" }} />
           {kicker} · Recoverable
         </div>
         <div
