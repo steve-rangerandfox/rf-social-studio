@@ -40,6 +40,11 @@ import {
   handleStudioDocumentPut,
 } from "./handlers/studio-document.js";
 import {
+  handleStudioFontsGet,
+  handleStudioFontsPost,
+  handleStudioFontsDelete,
+} from "./handlers/studio-fonts.js";
+import {
   handleInstagramStart,
   handleInstagramExchange,
 } from "./handlers/instagram-auth.js";
@@ -623,6 +628,47 @@ export async function handleApiRequest(req, res, overrides = {}) {
     res.setHeader("Allow", "GET, PUT, OPTIONS");
     res.end();
     endTimer({ reqId, status: 405, route: "/api/studio-document" });
+    return;
+  }
+
+  if (url.pathname === "/api/studio-fonts") {
+    if (req.method === "GET") {
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) { endTimer({ reqId, status: 401, route: "/api/studio-fonts" }); return; }
+      if (!await checkRateLimit(res, auth.userId, "studio-fonts:GET", { maxRequests: 60, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/studio-fonts" }); return; }
+      try {
+        return await handleStudioFontsGet(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/studio-fonts", method: "GET", status: res.statusCode });
+      }
+    }
+
+    if (req.method === "POST") {
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) { endTimer({ reqId, status: 401, route: "/api/studio-fonts" }); return; }
+      if (!await checkRateLimit(res, auth.userId, "studio-fonts:POST", { maxRequests: 10, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/studio-fonts" }); return; }
+      try {
+        return await handleStudioFontsPost(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/studio-fonts", method: "POST", status: res.statusCode });
+      }
+    }
+
+    if (req.method === "DELETE") {
+      const auth = requireRequestAuth(req, res, env);
+      if (!auth) { endTimer({ reqId, status: 401, route: "/api/studio-fonts" }); return; }
+      if (!await checkRateLimit(res, auth.userId, "studio-fonts:DELETE", { maxRequests: 30, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/studio-fonts" }); return; }
+      try {
+        return await handleStudioFontsDelete(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/studio-fonts", method: "DELETE", status: res.statusCode });
+      }
+    }
+
+    res.statusCode = 405;
+    res.setHeader("Allow", "GET, POST, DELETE, OPTIONS");
+    res.end();
+    endTimer({ reqId, status: 405, route: "/api/studio-fonts" });
     return;
   }
 

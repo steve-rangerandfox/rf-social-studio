@@ -1,4 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
+
+import {
+  deleteStudioFont,
+  fetchStudioFonts,
+  uploadStudioFont,
+} from "../../../lib/api-client.js";
 import {
   AArrowDown,
   AIMark,
@@ -327,45 +333,65 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
 }
 
 // ─── Custom Font Manager ─────────────────────────────────────────
-const CUSTOM_FONTS_KEY = "rf_studio_custom_fonts";
+// Fonts live in a Supabase Storage bucket keyed by the user's id. The
+// browser registers each font face from the public bucket URL on load,
+// so @font-face works without bundling the binary in any document.
 
-function loadCustomFonts() {
+const MIME_BY_EXT = {
+  woff2: "font/woff2",
+  woff: "font/woff",
+  ttf: "font/ttf",
+  otf: "font/otf",
+};
+
+function deriveFontName(filename) {
+  const raw = String(filename || "").replace(/\.(woff2?|ttf|otf|eot)$/i, "").replace(/[-_]/g, " ");
+  return raw.charAt(0).toUpperCase() + raw.slice(1) || "Custom font";
+}
+
+function registerFontFace(name, url) {
   try {
-    const stored = JSON.parse(localStorage.getItem(CUSTOM_FONTS_KEY) || "[]");
-    if (!Array.isArray(stored)) return [];
-    // Re-register each font face on load
-    stored.forEach((f) => {
-      const face = new FontFace(f.name, `url(${f.dataUrl})`);
-      face.load().then(() => document.fonts.add(face)).catch(() => {});
+    const face = new FontFace(name, `url(${url})`);
+    return face.load().then(() => {
+      document.fonts.add(face);
+      return face;
     });
-    return stored;
-  } catch { return []; }
+  } catch {
+    return Promise.resolve(null);
+  }
 }
 
-function saveCustomFonts(fonts) {
-  try { localStorage.setItem(CUSTOM_FONTS_KEY, JSON.stringify(fonts)); } catch { /* storage full */ }
+function toCustomFontView(font) {
+  return {
+    id: font.id,
+    name: font.name,
+    label: font.name,
+    url: font.url,
+    fileName: font.fileName,
+    group: "custom",
+  };
 }
 
-async function installFontFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result;
-      // Derive font name from filename: "My Font Bold.woff2" → "My Font Bold"
-      const rawName = file.name.replace(/\.(woff2?|ttf|otf|eot)$/i, "").replace(/[-_]/g, " ");
-      const fontName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-      try {
-        const face = new FontFace(fontName, `url(${dataUrl})`);
-        await face.load();
-        document.fonts.add(face);
-        resolve({ id: uid(), name: fontName, label: fontName, dataUrl, fileName: file.name, group: "custom" });
-      } catch (err) {
-        reject(new Error(`Could not load "${file.name}" as a font: ${err.message}`));
-      }
-    };
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
+async function uploadFontFile(file) {
+  const ext = (/\.(woff2|woff|ttf|otf)$/i.exec(file.name) || [])[1]?.toLowerCase();
+  if (!ext) {
+    throw new Error(`Unsupported font format. Use .woff2, .woff, .ttf, or .otf.`);
+  }
+  const contentType = file.type || MIME_BY_EXT[ext];
+  const buffer = await file.arrayBuffer();
+  // btoa can't take a Uint8Array directly; chunk to avoid call-stack
+  // overflow on large fonts.
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  const dataBase64 = btoa(binary);
+  const name = deriveFontName(file.name);
+  const font = await uploadStudioFont({ name, fileName: file.name, contentType, dataBase64 });
+  await registerFontFace(font.name, font.url);
+  return toCustomFontView(font);
 }
 
 // ─── Persistent Template Storage ─────────────────────────────────
@@ -496,30 +522,46 @@ export function StoryDesigner({ row, onClose, onSave }) {
   const vidFileRef = useRef(null);
   const fontFileRef = useRef(null);
 
-  // Custom fonts
-  const [customFonts, setCustomFonts] = useState(() => loadCustomFonts());
+  // Custom fonts (cloud-backed via /api/studio-fonts)
+  const [customFonts, setCustomFonts] = useState([]);
   const [fontInstalling, setFontInstalling] = useState(false);
   const [fontError, setFontError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchStudioFonts()
+      .then((fonts) => {
+        if (cancelled || !Array.isArray(fonts)) return;
+        const views = fonts.map(toCustomFontView);
+        setCustomFonts(views);
+        // Register each face so the renderer can use it immediately.
+        views.forEach((f) => registerFontFace(f.name, f.url));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const handleFontUpload = async (file) => {
     if (!file) return;
     setFontInstalling(true);
     setFontError(null);
     try {
-      const font = await installFontFile(file);
-      const updated = [...customFonts, font];
-      setCustomFonts(updated);
-      saveCustomFonts(updated);
+      const font = await uploadFontFile(file);
+      setCustomFonts((cur) => [...cur, font]);
     } catch (err) {
       setFontError(err.message);
     }
     setFontInstalling(false);
   };
 
-  const removeCustomFont = (fontId) => {
-    const updated = customFonts.filter(f => f.id !== fontId);
-    setCustomFonts(updated);
-    saveCustomFonts(updated);
+  const removeCustomFont = async (fontId) => {
+    setCustomFonts((cur) => cur.filter((f) => f.id !== fontId));
+    try {
+      await deleteStudioFont(fontId);
+    } catch {
+      // Best-effort delete — the next mount will re-fetch the real list
+      // and self-heal if the server says the font still exists.
+    }
   };
 
   const preset = CANVAS_PRESETS.find(p => p.key === canvasPreset) || CANVAS_PRESETS[0];

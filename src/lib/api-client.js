@@ -251,3 +251,22 @@ export function saveStudioDocument(document, version = null) {
     body: JSON.stringify(payload),
   });
 }
+
+// ─── Custom fonts (Supabase Storage) ───────────────────────────────
+
+export function fetchStudioFonts() {
+  return requestJson("/api/studio-fonts", { method: "GET" }).then((d) => d.fonts || []);
+}
+
+export function uploadStudioFont({ name, fileName, contentType, dataBase64 }) {
+  return requestJson("/api/studio-fonts", {
+    method: "POST",
+    body: JSON.stringify({ name, fileName, contentType, dataBase64 }),
+  }, { timeoutMs: 30000 }).then((d) => d.font);
+}
+
+export function deleteStudioFont(id) {
+  return requestJson(`/api/studio-fonts?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}

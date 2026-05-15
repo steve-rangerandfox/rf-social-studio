@@ -1,5 +1,17 @@
 import { log } from "./log.js";
 
+export function hasStudioPersistence(env) {
+  return Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);
+}
+
+// Exposed for callers that need the Supabase Storage API (e.g. the
+// studio-fonts handler). Same client instance the table layer uses;
+// service-role key, no end-user JWT.
+export async function getStudioStorageClient(env) {
+  const client = await getClient(env);
+  return client?.storage || null;
+}
+
 let cachedClient = null;
 let cachedKey = "";
 let cachedAt = 0;
@@ -12,10 +24,6 @@ const MAX_RETRIES = 1;
 
 function getConfigKey(env) {
   return `${env.supabaseUrl || ""}::${env.supabaseServiceRoleKey || ""}`;
-}
-
-export function hasStudioPersistence(env) {
-  return Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);
 }
 
 async function getClient(env) {
