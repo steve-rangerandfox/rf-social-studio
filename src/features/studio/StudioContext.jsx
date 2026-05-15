@@ -257,15 +257,10 @@ export function StudioProvider({ children }) {
     const timeoutId = window.setTimeout(() => {
       const savedAt = new Date().toISOString();
       const nextDocument = { ...studioDoc, lastSavedAt: savedAt };
-      const saved = persistStudioDocument(nextDocument, storageScope);
-      if (!saved) {
-        setSaveState((current) => ({
-          status: "error",
-          error: "Browser storage is full. Your latest changes are not safely persisted yet.",
-          lastSavedAt: current.lastSavedAt,
-        }));
-        return;
-      }
+      // localStorage is a fast read-after-write cache; IndexedDB is its
+      // automatic fallback. The server is the actual source of truth, so
+      // a full localStorage quota is non-fatal — keep going to the cloud.
+      persistStudioDocument(nextDocument, storageScope);
       saveStudioDocument(nextDocument, documentVersionRef.current)
         .then((payload) => {
           if (payload?.version != null) {
