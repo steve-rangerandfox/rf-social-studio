@@ -1,283 +1,370 @@
-import React from "react";
-import { PublicLayout } from "./PublicLayout.jsx";
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import "./landing.css";
+import { Kicker, HeroArt, CalendarArt, ComposerArt, ChaosArt } from "./LandingArt.jsx";
 
-// Public landing page. Editorial front door — same chrome as the
-// legal pages (PublicLayout) but with marketing-tier typography
-// blocks. No tracking pixels, no animated hero — calm by default.
+// Public landing — Relay editorial marketing site, ported from the
+// design handoff. The prototype's Tweaks panel + accent/density toggles
+// (design-tool scaffolding) and the placeholder social-proof logos are
+// dropped. Pricing mirrors the real tiers in Pricing.jsx /
+// server/entitlements.js — NOT the prototype's $79/$149 placeholders.
 
-const LANDING_STYLES = `
-.landing-hero{
-  margin-top:8px;
-  margin-bottom:56px;
+const PRIMARY_CTA = "Start a 14-day trial";
+
+// Reveal-on-scroll, with a safety net so nothing stays hidden.
+function useReveal() {
+  useEffect(() => {
+    const els = document.querySelectorAll(".lp-reveal");
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) { e.target.classList.add("is-in"); io.unobserve(e.target); }
+        });
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.01 },
+    );
+    els.forEach((el) => io.observe(el));
+    const fallback = setTimeout(() => {
+      document.querySelectorAll(".lp-reveal:not(.is-in)").forEach((el) => el.classList.add("is-in"));
+    }, 1400);
+    return () => { io.disconnect(); clearTimeout(fallback); };
+  }, []);
 }
 
-.landing-hero-line{
-  font:700 clamp(48px, 8vw, 88px)/1.02 "Bricolage Grotesque", "Switzer", sans-serif;
-  letter-spacing:-0.04em;
-  color:#09090b;
-  margin:0 0 20px;
-  max-width:16ch;
-  text-wrap:balance;
+function Nav() {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  return (
+    <nav className={"lp-nav" + (scrolled ? " is-scrolled" : "")}>
+      <div className="lp-container">
+        <div className="lp-nav-row">
+          <a href="#top" className="lp-logo">
+            <span className="lp-logo-mark">RF</span>
+            <span>Relay</span>
+          </a>
+          <div className="lp-nav-links">
+            <a href="#workflow" className="lp-nav-link">Workflow</a>
+            <a href="#detail" className="lp-nav-link">Details</a>
+            <a href="#pricing" className="lp-nav-link">Pricing</a>
+            <Link to="/app" className="lp-nav-link">Sign in</Link>
+            <Link to="/app" className="lp-nav-cta">{PRIMARY_CTA} →</Link>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
 }
 
-.landing-hero-line em{
-  font-style:normal;
-  color:#71717a;
-  font-weight:500;
+function Hero() {
+  return (
+    <section className="lp-hero" id="top">
+      <div className="lp-container">
+        <div className="lp-hero-grid">
+          <div className="lp-hero-copy lp-reveal">
+            <Kicker num="01" label="Editorial calendar for studios" />
+            <h1>
+              the calendar for studios that run client work.{" "}
+              <em>your queue, finally readable.</em>
+            </h1>
+            <p className="lp-hero-sub">
+              One workspace for boutique studios managing Instagram, LinkedIn, and
+              TikTok for brand clients. One queue, one composer, no tab-switching.
+            </p>
+            <div className="lp-hero-ctas">
+              <Link to="/app" className="lp-btn lp-btn-primary lp-btn-large">
+                {PRIMARY_CTA} <span className="lp-btn-arrow">→</span>
+              </Link>
+              <a href="#workflow" className="lp-btn lp-btn-ghost lp-btn-large">
+                See the workflow ↓
+              </a>
+            </div>
+            <div className="lp-hero-fineprint">
+              No credit card<span className="lp-dot" />14 days, all features<span className="lp-dot" />built by a studio that uses it daily
+            </div>
+          </div>
+          <div className="lp-reveal">
+            <HeroArt />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
-.landing-hero-pitch{
-  font-size:17px;
-  line-height:1.55;
-  color:#52525b;
-  max-width:54ch;
-  margin:0 0 32px;
+function Problem() {
+  return (
+    <section className="lp-section lp-pad" id="problem">
+      <div className="lp-container">
+        <div className="lp-problem-grid">
+          <div className="lp-reveal">
+            <Kicker num="02" label="What we lived in before" />
+            <p className="lp-problem-lead">
+              Spreadsheets for briefs. Notion for drafts. Later for scheduling. Slack for approvals. <em>Three different tools for the client to look at the work in.</em> None of them designed for how a studio actually runs.
+            </p>
+            <p className="lp-problem-body">
+              We built RF Social Studio because we run a production studio and were living in that stack. It&rsquo;s a single workspace for your team to plan, write, review and publish — without switching tabs or losing your mind in the cells of a sheet.
+            </p>
+          </div>
+          <div className="lp-reveal">
+            <ChaosArt />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
-.landing-cta-row{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  flex-wrap:wrap;
+function Workflow() {
+  return (
+    <section className="lp-section lp-pad-lg" id="workflow">
+      <div className="lp-container">
+        <div className="lp-reveal" style={{ maxWidth: 720, marginBottom: 80 }}>
+          <Kicker num="03" label="The workflow" />
+          <h2 className="lp-pricing-h" style={{ fontSize: "clamp(32px, 4vw, 48px)", margin: "22px 0 14px" }}>
+            three views. one source of truth.
+          </h2>
+          <p className="lp-pricing-sub" style={{ margin: 0 }}>
+            A queue you can read at a glance. A calendar that holds the month. A composer that branches one master into every channel without copy-paste.
+          </p>
+        </div>
+
+        <div className="lp-pair lp-reveal">
+          <div className="lp-pair-copy">
+            <Kicker num="3.1" label="Queue" />
+            <h3 className="lp-pair-h">every post, every client, one row.</h3>
+            <p className="lp-pair-body">
+              Row-per-post, ordered by date. Status pill, channels, assignee — readable at a glance. No kanban, no card drag, no modal popups. Click any row and the composer opens beside it.
+            </p>
+            <div className="lp-pair-feature">Inline create · keyboard nav · 16-row month at a glance</div>
+          </div>
+          <div className="lp-pair-art"><HeroArt /></div>
+        </div>
+
+        <div className="lp-pair lp-pair-r lp-reveal">
+          <div className="lp-pair-copy">
+            <Kicker num="3.2" label="Calendar" />
+            <h3 className="lp-pair-h">the month, holding its shape.</h3>
+            <p className="lp-pair-body">
+              Same data, different angle. A calendar that respects the studio&rsquo;s rhythm — quiet weeks read quiet, busy weeks read busy. Status colors are the same six in every view, so the system holds.
+            </p>
+            <div className="lp-pair-feature">Month · week · day · drag to reschedule</div>
+          </div>
+          <div className="lp-pair-art"><CalendarArt /></div>
+        </div>
+
+        <div className="lp-pair lp-reveal">
+          <div className="lp-pair-copy">
+            <Kicker num="3.3" label="Composer" />
+            <h3 className="lp-pair-h">one master caption. branched per channel, on purpose.</h3>
+            <p className="lp-pair-body">
+              Write the post once. Step two is a tabbed view of every channel — Instagram, LinkedIn, TikTok — each pre-mirroring the master, each editable without touching the others. A small dot tells you which ones you&rsquo;ve customized.
+            </p>
+            <div className="lp-pair-feature">Per-channel limits · live preview · ✦ caption assist on demand</div>
+          </div>
+          <div className="lp-pair-art"><ComposerArt /></div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
-.landing-cta{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:11px 18px;
-  border-radius:10px;
-  font:600 14px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  text-decoration:none;
-  border:1px solid transparent;
-  transition:background 120ms ease, border-color 120ms ease, color 120ms ease;
+const DETAIL_ITEMS = [
+  { n: "04.1", t: "Command palette", p: "Every action, one keystroke away. ⌘K opens commands across navigation, filter, status and publish — no menus, no hunt." },
+  { n: "04.2", t: "Calendar view", p: "Month, week, day. Quiet weeks read quiet. Drag a card to reschedule; the composer follows." },
+  { n: "04.3", t: "Bulk operations", p: "Multi-select across clients. Change status, reassign, reschedule in one action. Ten-second undo on everything." },
+  { n: "04.4", t: "Offline-first", p: "Works on the train. Every edit persists locally and syncs the moment you're back." },
+  { n: "04.5", t: "Story designer", p: "A small canvas tool for designing Instagram stories without leaving the workspace." },
+  { n: "04.6", t: "Team & assignees", p: "Every post belongs to a person. Avatar in the row, color in the calendar, no wondering who's on what." },
+];
+
+function DetailIcon({ i }) {
+  const props = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (i) {
+    case 0: return (<svg {...props}><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M8 11l2 2-2 2" /><path d="M12 15h4" /></svg>);
+    case 1: return (<svg {...props}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18" /><path d="M8 3v4M16 3v4" /><circle cx="8" cy="14" r="1.2" fill="currentColor" /><circle cx="13" cy="14" r="1.2" fill="currentColor" /></svg>);
+    case 2: return (<svg {...props}><rect x="3" y="4" width="14" height="3" rx="1" /><rect x="3" y="10" width="14" height="3" rx="1" /><rect x="3" y="16" width="14" height="3" rx="1" /><path d="M20 5l1.5 1.5" /><path d="M20 11l1.5 1.5" /><path d="M20 17l1.5 1.5" /></svg>);
+    case 3: return (<svg {...props}><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0" /><path d="M3 12h18" /><path d="M12 3a14 14 0 0 1 0 18" /><path d="M12 3a14 14 0 0 0 0 18" /><path d="M5 8l3 1.5" /></svg>);
+    case 4: return (<svg {...props}><rect x="6" y="3" width="12" height="18" rx="2" /><circle cx="12" cy="9" r="2" /><path d="M9 15l3-2 3 2" /></svg>);
+    case 5: return (<svg {...props}><circle cx="9" cy="9" r="3.5" /><circle cx="17" cy="11" r="2.5" /><path d="M3 19c0-3 3-5 6-5s6 2 6 5" /><path d="M14 19c0-2 2-3 3-3s3 1 3 3" /></svg>);
+    default: return null;
+  }
 }
 
-.landing-cta-primary{
-  background:#09090b;
-  color:#ffffff;
+function Detail() {
+  return (
+    <section className="lp-section lp-dark lp-pad-lg" id="detail">
+      <div className="lp-container">
+        <div className="lp-reveal" style={{ maxWidth: 640, marginBottom: 0 }}>
+          <Kicker num="04" label="Depth, without the feature list" />
+          <h2 className="lp-dark-h">the things you only notice on day three.</h2>
+          <p className="lp-dark-sub">
+            The obvious surfaces sell the tool. These are the small ones that make studios stay.
+          </p>
+        </div>
+        <div className="lp-detail-grid lp-reveal">
+          {DETAIL_ITEMS.map((it, i) => (
+            <div className="lp-detail" key={it.n}>
+              <div className="lp-detail-num">{it.n}</div>
+              <div className="lp-detail-icon"><DetailIcon i={i} /></div>
+              <h3>{it.t}</h3>
+              <p>{it.p}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
-.landing-cta-primary:hover{
-  background:#27272a;
-}
-
-/* Ghost CTA — on hover, darken the border but keep text readable.
-   Previously swapped bg to ink which clashed with ink text. */
-.landing-cta-ghost{
-  background:#ffffff;
-  border-color:#e4e4e7;
-  color:#09090b;
-}
-
-.landing-cta-ghost:hover{
-  background:#fafafa;
-  border-color:#d4d4d8;
-  color:#09090b;
-}
-
-.landing-cta-meta{
-  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  color:#71717a;
-  margin-left:4px;
-}
-
-.landing-section{
-  margin-top:72px;
-  padding-top:28px;
-  border-top:1px solid #e4e4e7;
-}
-
-.landing-section-num{
-  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  color:#ff5a1f;
-  margin-bottom:14px;
-  display:block;
-}
-
-.landing-section-title{
-  font:700 clamp(28px, 4vw, 36px)/1.1 "Bricolage Grotesque", "Switzer", sans-serif;
-  letter-spacing:-0.03em;
-  color:#09090b;
-  margin:0 0 14px;
-  max-width:24ch;
-  text-wrap:balance;
-}
-
-.landing-section-body{
-  font-size:16px;
-  line-height:1.65;
-  color:#3f3f46;
-  max-width:62ch;
-  margin:0;
-}
-
-.landing-feature-grid{
-  margin-top:28px;
-  display:grid;
-  grid-template-columns:repeat(2, minmax(0, 1fr));
-  gap:24px;
-}
-
-.landing-feature{
-  padding:20px 0 0;
-  border-top:1px solid #e4e4e7;
-}
-
-.landing-feature-num{
-  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  color:#71717a;
-  display:block;
-  margin-bottom:8px;
-}
-
-.landing-feature-name{
-  font:600 18px/1.3 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  letter-spacing:-0.015em;
-  color:#09090b;
-  margin:0 0 6px;
-}
-
-.landing-feature-pitch{
-  font-size:14px;
-  line-height:1.55;
-  color:#52525b;
-  margin:0;
-}
-
-.landing-quote{
-  margin:56px 0 0;
-  padding:24px 0 0;
-  border-top:1px solid #e4e4e7;
-}
-
-.landing-quote-text{
-  font:500 20px/1.45 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  letter-spacing:-0.015em;
-  color:#18181b;
-  margin:0 0 12px;
-  max-width:40ch;
-}
-
-.landing-quote-attr{
-  font:500 13px/1 "Switzer", "Helvetica Neue", Arial, sans-serif;
-  color:#71717a;
-}
-
-@media (max-width:640px){
-  .landing-feature-grid{ grid-template-columns:1fr; }
-}
-`;
-
-const FEATURES = [
+// Real tiers — mirrors Pricing.jsx / server/entitlements.js.
+const TIERS = [
   {
-    num: "01",
-    name: "Calendar",
-    pitch: "A month read like a typeset publication, not a Jira board. Chips show platform and time at a glance.",
+    name: "Free", tag: "Start here", amt: "$0", unit: "forever",
+    pitch: "Plan, draft, and preview without spending a cent.",
+    feats: ["Up to 5 scheduled posts", "1 connected account", "Calendar, queue, grid views"],
+    cta: { label: "Sign in to start", to: "/app" }, pro: false, primary: false,
   },
   {
-    num: "02",
-    name: "Studio queue",
-    pitch: "Status as a quiet left rule, not a loud pill. Drag to reorder. J/K to move row by row.",
+    name: "Essentials", tag: "Most popular", amt: "$5", unit: "/ month",
+    pitch: "AI captions, cross-post variants, and brand learning from a URL.",
+    feats: ["Up to 100 scheduled posts", "3 connected accounts", "AI captions + variants", "Brand learning from website", "14-day free trial — no card"],
+    cta: { label: PRIMARY_CTA, to: "/app?upgrade=essentials" }, pro: true, primary: true,
   },
   {
-    num: "03",
-    name: "Story designer",
-    pitch: "9:16 canvas with snap, layers, and instant preview. Built to shape stories, not configure software.",
-  },
-  {
-    num: "04",
-    name: "AI captions",
-    pitch: "Captions that sound like you, sourced from a brand profile you control. Cross-post variants in one click.",
-  },
-  {
-    num: "05",
-    name: "Monthly strategy",
-    pitch: "Generate the month\u2019s posting plan from your brand and last month\u2019s rhythm. Edit, then publish.",
-  },
-  {
-    num: "06",
-    name: "One-click approve",
-    pitch: "Approve a draft and the studio finds the next available slot. No hunting, no second-guessing.",
+    name: "Team", tag: "For studios", amt: "$10", unit: "/ seat / month",
+    pitch: "Monthly strategy generation, unlimited posts, and seats for the studio.",
+    feats: ["Unlimited scheduled posts", "All connections, all platforms", "AI monthly strategy generator", "Approval flow + comments", "14-day free trial — no card"],
+    cta: { label: PRIMARY_CTA, to: "/app?upgrade=team" }, pro: false, primary: false,
   },
 ];
 
-export function Landing() {
+function Pricing() {
   return (
-    <PublicLayout
-      eyebrow="Social Studio"
-      colophonMeta="Ranger &amp; Fox \u00B7 House voice 2026"
-    >
-      <style>{LANDING_STYLES}</style>
-
-      <section className="landing-hero">
-        <h1 className="landing-hero-line">
-          Calm operations for a <em>sharper content system.</em>
-        </h1>
-        <p className="landing-hero-pitch">
-          One workspace for planning, designing, and publishing across Instagram,
-          LinkedIn, TikTok, and Facebook. Editorial rhythm by default &mdash;
-          dense when you need it.
-        </p>
-        <div className="landing-cta-row">
-          <a className="landing-cta landing-cta-primary" href="/app">Open the studio</a>
-          <a className="landing-cta landing-cta-ghost" href="/pricing">See pricing</a>
-          <span className="landing-cta-meta">Free tier \u00B7 No card required</span>
+    <section className="lp-section lp-pad-lg" id="pricing">
+      <div className="lp-container">
+        <div className="lp-reveal" style={{ maxWidth: 720, marginBottom: 64 }}>
+          <Kicker num="05" label="Pricing" />
+          <h2 className="lp-pricing-h">priced like a studio tool, not a platform.</h2>
+          <p className="lp-pricing-sub">Three flat tiers, no per-post fees. Paid plans include a 14-day trial — no card up front.</p>
         </div>
-      </section>
-
-      <section className="landing-section">
-        <span className="landing-section-num">01 \u00B7 What it is</span>
-        <h2 className="landing-section-title">Six surfaces. One authored system.</h2>
-        <p className="landing-section-body">
-          Most social tools chase feature parity. We chased a working studio &mdash;
-          the kind a small team can run a brand from without losing the thread.
-          Calendar, queue, grid, story canvas, asset library, analytics. They share
-          a vocabulary so the work flows between them.
-        </p>
-
-        <div className="landing-feature-grid">
-          {FEATURES.map((f) => (
-            <article key={f.num} className="landing-feature">
-              <span className="landing-feature-num">{f.num}</span>
-              <h3 className="landing-feature-name">{f.name}</h3>
-              <p className="landing-feature-pitch">{f.pitch}</p>
-            </article>
+        <div className="lp-price-grid lp-reveal">
+          {TIERS.map((t) => (
+            <div className={"lp-price" + (t.pro ? " is-pro" : "")} key={t.name}>
+              {t.pro && <div className="lp-price-flag">{t.tag}</div>}
+              <div className="lp-price-name">{t.name}</div>
+              <div className="lp-price-amt">{t.amt}<span>{t.unit}</span></div>
+              <div className="lp-price-tag">{t.pitch}</div>
+              <ul className="lp-price-feats">
+                {t.feats.map((f) => <li key={f}>{f}</li>)}
+              </ul>
+              <Link to={t.cta.to} className={"lp-btn lp-price-cta " + (t.primary ? "lp-btn-primary" : "lp-btn-ghost")}>
+                {t.cta.label}{t.primary && <span className="lp-btn-arrow"> →</span>}
+              </Link>
+            </div>
           ))}
         </div>
-      </section>
-
-      <section className="landing-section">
-        <span className="landing-section-num">02 \u00B7 Who it\u2019s for</span>
-        <h2 className="landing-section-title">In-house teams who care how their channel reads.</h2>
-        <p className="landing-section-body">
-          We built it for the way a small studio actually works: a person
-          drafting, a person reviewing, an owner pressing publish. Approval flow,
-          comments, and ownership are first-class &mdash; not an enterprise
-          add-on you negotiate for. If you publish under a brand that has a
-          point of view, this is your tool.
+        <p className="lp-price-fineprint lp-reveal">
+          Free forever for solo planning. Trials don&rsquo;t require a card. Switch tiers or cancel anytime from Settings → Billing.
+          {" "}
+          <Link to="/pricing" className="lp-compare-link">See the full comparison →</Link>
         </p>
-      </section>
-
-      <section className="landing-section">
-        <span className="landing-section-num">03 \u00B7 What it costs</span>
-        <h2 className="landing-section-title">Three flat tiers. No per-post fees.</h2>
-        <p className="landing-section-body">
-          Free for solo planning. <strong>$5/mo</strong> for AI captions and
-          variants. <strong>$10/mo per seat</strong> for the strategy generator
-          and your studio. 14-day trial on paid plans. Cancel from settings.
-        </p>
-        <div className="landing-cta-row" style={{ marginTop: 18 }}>
-          <a className="landing-cta landing-cta-primary" href="/pricing">Compare plans</a>
-        </div>
-      </section>
-
-      <div className="landing-quote">
-        <p className="landing-quote-text">
-          &ldquo;Editorial rhythm, calm by default &mdash; dense when you need it.&rdquo;
-        </p>
-        <p className="landing-quote-attr">House voice \u00B7 2026</p>
       </div>
-    </PublicLayout>
+    </section>
+  );
+}
+
+function Founder() {
+  return (
+    <section className="lp-section lp-pad" id="founder" style={{ background: "var(--surface)" }}>
+      <div className="lp-founder lp-reveal">
+        <Kicker num="06" label="Why we built it" />
+        <p className="lp-founder-quote">
+          We were managing Instagram for six brand clients out of a spreadsheet, three Slack threads and four browser tabs. It was embarrassing. RF Social Studio is what we actually use every day at Ranger &amp; Fox — we opened it to other studios because we figured we weren&rsquo;t the only ones living like that.
+        </p>
+        <div className="lp-founder-attr">
+          <span className="lp-founder-attr-line" />
+          <span><b style={{ color: "var(--ink)", fontWeight: 600 }}>Stephen Jelley</b>, Ranger &amp; Fox · co-founder</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Final() {
+  return (
+    <section className="lp-final">
+      <div className="lp-container">
+        <h2 className="lp-final-h">
+          built for studios. <em>priced for studios.</em><br />ready when you are.
+        </h2>
+        <div className="lp-final-cta">
+          <Link to="/app" className="lp-btn lp-btn-accent lp-btn-large">
+            {PRIMARY_CTA} <span className="lp-btn-arrow">→</span>
+          </Link>
+        </div>
+        <div className="lp-final-fine">
+          no credit card · no setup fee · just the tool
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="lp-footer">
+      <div className="lp-container">
+        <div className="lp-footer-row">
+          <div>
+            <a href="#top" className="lp-logo" style={{ fontSize: 16 }}>
+              <span className="lp-logo-mark">RF</span>
+              <span>Relay</span>
+            </a>
+            <div className="lp-footer-tag">
+              The editorial content calendar for studios that run client social.
+            </div>
+          </div>
+          <div className="lp-footer-links">
+            <a href="#workflow">Workflow</a>
+            <a href="#detail">Details</a>
+            <Link to="/pricing">Pricing</Link>
+            <Link to="/about">About</Link>
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/terms">Terms</Link>
+            <Link to="/data-deletion">Data deletion</Link>
+          </div>
+          <div className="lp-footer-made">
+            made by <a href="#top">Ranger &amp; Fox</a>
+          </div>
+        </div>
+        <div className="lp-footer-bot">
+          <span>© 2026 Ranger &amp; Fox Ltd</span>
+          <span>RF Social Studio</span>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export function Landing() {
+  useReveal();
+  return (
+    <div className="lp-root">
+      <div className="lp-grain" />
+      <Nav />
+      <Hero />
+      <Problem />
+      <Workflow />
+      <Detail />
+      <Pricing />
+      <Founder />
+      <Final />
+      <Footer />
+    </div>
   );
 }
