@@ -2285,3 +2285,6 @@ input,textarea,select,button{font-family:inherit}
   .cc2-body{grid-template-columns:1fr}
   .cc2-left,.cc2-right{display:none}
 }
+
+/* DetailPanel section numbering — extends the 01 / editorial motif. */
+.stage-col-num{font-family:var(--font-mono);font-weight:500;color:var(--accent);margin-right:6px;letter-spacing:0;text-transform:none}

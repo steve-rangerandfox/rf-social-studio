@@ -293,7 +293,7 @@ export function DetailPanel() {
 
           {/* Media upload (with platform dropdown on top) */}
           <section className="stage-section">
-            <div className="stage-col-label">Media</div>
+            <div className="stage-col-label"><span className="stage-col-num">01 /</span> Media</div>
             <div className="dp-platform-section">
               <div className="dp-platform-anchor" ref={platformDropdownRef}>
                 <button
@@ -451,7 +451,7 @@ export function DetailPanel() {
 
           {/* Caption editor */}
           <section className="stage-section">
-            <div className="stage-col-label">Caption</div>
+            <div className="stage-col-label"><span className="stage-col-num">02 /</span> Caption</div>
             <textarea
               className="stage-txa"
               value={row.caption || ""}
@@ -467,7 +467,7 @@ export function DetailPanel() {
 
           {/* Comments */}
           <section className="stage-section">
-            <div className="stage-col-label">Comments</div>
+            <div className="stage-col-label"><span className="stage-col-num">03 /</span> Comments</div>
             {(row.comments || []).length === 0 && (
               <div className="cal-panel-empty dp-comments-empty">No comments yet. Keep approvals and notes here.</div>
             )}
@@ -496,7 +496,7 @@ export function DetailPanel() {
 
           {/* Approval / Status */}
           <section className="stage-section">
-            <div className="stage-col-label">Approval</div>
+            <div className="stage-col-label"><span className="stage-col-num">04 /</span> Approval</div>
             <div className="stage-governance">
               <div className="stage-select" ref={approvalRef}>
                 <button className="stage-select-trigger" onClick={() => setIsApprovalOpen((c) => !c)}>
@@ -579,7 +579,7 @@ export function DetailPanel() {
 
           {/* Readiness checklist */}
           <section className="stage-section">
-            <div className="stage-col-label">Readiness</div>
+            <div className="stage-col-label"><span className="stage-col-num">05 /</span> Readiness</div>
             <div className="readiness-list">
               {checks.map((c, i) => (
                 <div key={i} className={`readiness-item`}>
