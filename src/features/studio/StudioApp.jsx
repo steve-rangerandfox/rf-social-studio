@@ -59,6 +59,9 @@ import {
 } from "./components/StudioSurfaces.jsx";
 import { AddPostModal } from "./components/AddPostModal.jsx";
 import { Composer } from "./components/Composer.jsx";
+import { BrandView } from "./components/BrandView.jsx";
+import { AssetsView } from "./components/AssetsView.jsx";
+const CarouselComposer = lazy(() => import("./components/CarouselComposer.jsx").then(m => ({ default: m.CarouselComposer })));
 const StoryDesigner = lazy(() => import("./components/StoryDesigner.jsx").then(m => ({ default: m.StoryDesigner })));
 import { MonthMiniMap } from "./components/MonthMiniMap.jsx";
 import { TokenExpiryBanner } from "./components/TokenExpiryBanner.jsx";
@@ -92,6 +95,8 @@ function StudioShell() {
     composer, setComposer,
     addPostDraft, setAddPostDraft,
     story, setStory,
+    carousel, setCarousel,
+    appearance,
     showAssets, setAssets,
     showConn, setShowConn,
     showSettings, setSettings, settingsInitialTab, openSettingsTab,
@@ -174,7 +179,7 @@ function StudioShell() {
   }, []);
 
   return (
-    <div className="app">
+    <div className={"app" + (appearance?.density === "dense" ? " density-dense" : "")}>
       <Sidebar />
 
       <NavDrawer open={navOpen} onClose={() => setNavOpen(false)} />
@@ -216,6 +221,20 @@ function StudioShell() {
             <Analytics rows={rows} />
           </ErrorBoundary>
         )}
+
+        {/* Brand Central view */}
+        {view === "brand" && (
+          <ErrorBoundary scope="Brand" fallback={viewFallback("Brand")}>
+            <BrandView />
+          </ErrorBoundary>
+        )}
+
+        {/* Assets view */}
+        {view === "assets" && (
+          <ErrorBoundary scope="Assets" fallback={viewFallback("Assets")}>
+            <AssetsView />
+          </ErrorBoundary>
+        )}
       </main>
 
       {/* Mini-map — only in year list view */}
@@ -242,6 +261,7 @@ function StudioShell() {
         <Composer
           row={composer.row}
           postNow={composer.postNow}
+          onOpenCarousel={() => { setCarousel({ row: composer.row }); setComposer(null); }}
           onClose={() => setComposer(null)}
           onPosted={({ mediaId, mediaUrl } = {}) => {
             update(composer.row.id, {
@@ -271,6 +291,12 @@ function StudioShell() {
             onClose={() => setStory(null)}
             onSave={els => update(story.id, { storyElements: els })}
           />
+        </Suspense>
+      )}
+
+      {carousel && (
+        <Suspense fallback={<LoadingShell variant="overlay" label="Loading carousel" />}>
+          <CarouselComposer row={carousel.row} onClose={() => setCarousel(null)} />
         </Suspense>
       )}
 

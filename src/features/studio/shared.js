@@ -49,6 +49,18 @@ export const T = {
   posterGradSoft: "linear-gradient(135deg, rgba(255,90,31,0.08) 0%, rgba(255,122,61,0.06) 100%)",
 };
 
+// Selectable accent themes (Appearance settings). Orange is the default
+// single-use signature; the others swap the --accent* vars wholesale on
+// :root. Hexes mirror the Relay design handoff.
+export const ACCENTS = {
+  orange:  { label: "Orange",  hex: "#ff5a1f", bright: "#ff7a3d", faint: "#fff0e6", tint: "#ffb38a" },
+  violet:  { label: "Violet",  hex: "#4f46e5", bright: "#6366f1", faint: "#eef2ff", tint: "#a5b4fc" },
+  emerald: { label: "Emerald", hex: "#059669", bright: "#10b981", faint: "#ecfdf5", tint: "#6ee7b7" },
+  cobalt:  { label: "Cobalt",  hex: "#2563eb", bright: "#3b82f6", faint: "#eff6ff", tint: "#93c5fd" },
+  ink:     { label: "Ink",     hex: "#09090b", bright: "#27272a", faint: "#f4f4f5", tint: "#a1a1aa" },
+};
+export const DEFAULT_APPEARANCE = { accent: "orange", density: "comfy" };
+
 export const PLATFORMS = {
   ig_post: { label: "Instagram Post", short: "IG Post", color: "#09090b", bg: "rgba(9,9,11,0.05)" },
   ig_story: { label: "Instagram Story", short: "Story", color: "#52525b", bg: "rgba(82,82,91,0.05)" },

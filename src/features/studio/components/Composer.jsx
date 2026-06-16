@@ -6,7 +6,7 @@ import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js
 import { CaptionEditor } from "./CaptionEditor.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 
-export function Composer({ row, onClose, onPosted, postNow }) {
+export function Composer({ row, onClose, onPosted, postNow, onOpenCarousel }) {
   const [plat,    setPlat]    = useState(row?.platform==="ig_story"?"ig_post":row?.platform||"ig_post");
   const [caption, setCaption] = useState(row?.caption||"");
   const [files,   setFiles]   = useState([]);
@@ -126,6 +126,13 @@ export function Composer({ row, onClose, onPosted, postNow }) {
                 ))}
               </div>
             </div>
+            {onOpenCarousel && (plat === "ig_post" || plat === "linkedin") && (
+              <div className="field">
+                <button type="button" className="btn btn-ghost" style={{width:"100%",justifyContent:"center"}} onClick={onOpenCarousel}>
+                  Design a carousel {row?.carouselSlides?.length ? `(${row.carouselSlides.length} slides)` : "→"}
+                </button>
+              </div>
+            )}
             <div className="field">
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div className="lbl">Media{isLI && files.length > 0 ? ` (${files.length}/${maxFiles})` : ""}</div>

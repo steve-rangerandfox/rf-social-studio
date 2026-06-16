@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AIMark, Close, Plus } from "../../../components/icons/index.jsx";
 import {
+  ACCENTS,
   PLATFORMS,
   T,
   TEAM,
   createTeamMember,
 } from "../shared.js";
+import { useStudio } from "../StudioContext.jsx";
 import {
   fetchBilling,
   learnBrandFromUrl,
@@ -20,7 +22,50 @@ const SETTINGS_TABS = [
   { key: "Brand", num: "02" },
   { key: "Team", num: "03" },
   { key: "Billing", num: "04" },
+  { key: "Appearance", num: "05" },
 ];
+
+// Accent + density live in the studio document (synced like everything
+// else). This tab is the home the floating "Tweaks" prototype panel
+// folds into — no extra always-on chrome.
+function AppearanceTab() {
+  const { appearance, updateAppearance } = useStudio();
+  return (
+    <div className="settings-stack">
+      <div className="settings-card">
+        <div className="settings-card-title">Accent</div>
+        <div className="settings-field-sub settings-mt-0">A single signature color — used once per surface (kicker, today marker, AI mark).</div>
+        <div className="appearance-swatches settings-mt-12">
+          {Object.entries(ACCENTS).map(([key, a]) => (
+            <button
+              key={key}
+              className={"appearance-swatch " + (appearance.accent === key ? "on" : "")}
+              style={{ background: a.hex }}
+              onClick={() => updateAppearance({ accent: key })}
+              title={a.label}
+              aria-label={a.label}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="settings-card settings-mt-8">
+        <div className="settings-card-title">Density</div>
+        <div className="settings-field-sub settings-mt-0">Comfy gives rows room to breathe; dense fits more on screen.</div>
+        <div className="plat-tabs settings-mt-12">
+          {[["comfy", "Comfy"], ["dense", "Dense"]].map(([k, l]) => (
+            <button
+              key={k}
+              className={"plat-tab " + (appearance.density === k ? "on" : "")}
+              onClick={() => updateAppearance({ density: k })}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function listToCsv(list) {
   return Array.isArray(list) ? list.join(", ") : "";
@@ -525,6 +570,8 @@ export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, br
           )}
 
           {tab === "Billing" && <BillingTab />}
+
+          {tab === "Appearance" && <AppearanceTab />}
 
           {tab==="Team"&&(
             <div className="settings-team-list">
