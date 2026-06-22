@@ -2303,3 +2303,10 @@ input,textarea,select,button{font-family:inherit}
 .vh-nav button:hover{background:var(--surface-1)}
 .vh-today{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.04em}
 @media (max-width:720px){.vh{flex-direction:column;align-items:flex-start;gap:14px}.vh-right{width:100%;justify-content:space-between}}
+
+/* Relay sidebar wordmark — RF mark + product name + studio name. */
+.s-wm-mark{width:30px;height:30px;border-radius:9px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px var(--font-display);letter-spacing:-0.03em;position:relative;flex-shrink:0;overflow:hidden}
+.s-wm-mark::after{content:"";position:absolute;top:6px;right:6px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.s-wm-text{line-height:1.1;min-width:0}
+.s-wm-name{font:700 15px var(--font-display);letter-spacing:-0.03em;color:var(--ink)}
+.s-wm-sub{font:500 10px var(--font-mono);color:var(--text-faint);letter-spacing:0.06em;text-transform:uppercase;margin-top:2px}

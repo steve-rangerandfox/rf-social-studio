@@ -4,6 +4,13 @@ import { useStudio } from "../StudioContext.jsx";
 import { SaveStatusBadge } from "../../../components/SaveStatusBadge.jsx";
 import { MONTHS_FULL } from "../shared.js";
 
+function ViewIcon({ view }) {
+  const p = { width: 14, height: 14, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" };
+  if (view === "calendar") return (<svg {...p}><rect x="2.5" y="3" width="11" height="10.5" rx="1.5" /><path d="M2.5 6h11M5.5 1.5v3M10.5 1.5v3" /></svg>);
+  if (view === "grid") return (<svg {...p}><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" /><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" /><rect x="9" y="9" width="4.5" height="4.5" rx="1" /></svg>);
+  return (<svg {...p}><path d="M3 4h10M3 8h10M3 12h10" /></svg>);
+}
+
 export function Topbar({ onOpenNav, onOpenStrategy }) {
   const {
     timeScale, month, year, view, setView,
@@ -49,9 +56,9 @@ export function Topbar({ onOpenNav, onOpenStrategy }) {
         <kbd>{"\u2318"}</kbd>K
       </button>
       <div className="view-toggle">
-        {[["list", "List", "1"], ["calendar", "Calendar", "2"], ["grid", "Grid", "3"], ["analytics", "Analytics", "4"], ["brand", "Brand", "5"], ["assets", "Assets", "6"]].map(([v, l, key]) => (
-          <button key={v} className={"vt-btn " + (view === v ? "on" : "")} onClick={() => setView(v)} title={`${l} (${key})`}>
-            <span className="vt-btn-num">0{key}</span>
+        {[["calendar", "Calendar"], ["list", "Queue"], ["grid", "Grid"]].map(([v, l]) => (
+          <button key={v} className={"vt-btn " + (view === v ? "on" : "")} onClick={() => setView(v)} title={l}>
+            <ViewIcon view={v} />
             <span className="vt-btn-label">{l}</span>
           </button>
         ))}
