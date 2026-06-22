@@ -64,9 +64,6 @@ html, body { margin: 0; padding: 0; }
 .lp-pad { padding: 96px 0; }
 .lp-pad-lg { padding: 128px 0; }
 .lp-pad-sm { padding: 56px 0; }
-.is-comfy .lp-pad { padding: 128px 0; }
-.is-comfy .lp-pad-lg { padding: 168px 0; }
-.is-comfy .lp-pad-sm { padding: 72px 0; }
 
 /* Kicker (mono section flag) ─────────────────────────────────────── */
 .lp-kicker {
@@ -381,39 +378,6 @@ html, body { margin: 0; padding: 0; }
 .lp-mini-status.review { color: var(--warning); }
 .lp-mini-status.draft { color: var(--status-draft); }
 
-/* Social proof strip ─────────────────────────────────────────────── */
-.lp-proof {
-  background: var(--surface);
-  border-top: 1px solid var(--surface-2);
-  border-bottom: 1px solid var(--surface-2);
-}
-.lp-proof-inner {
-  padding: 28px 32px;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 32px;
-  flex-wrap: wrap;
-}
-.lp-proof-label {
-  font-family: var(--font-mono);
-  font-size: 11px; letter-spacing: 0.06em;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  flex: 0 0 auto;
-  max-width: 240px; line-height: 1.5;
-}
-.lp-proof-logos {
-  display: flex; align-items: center; gap: 36px;
-  flex-wrap: wrap;
-}
-.lp-proof-logo {
-  font-family: var(--font-display);
-  font-weight: 700; font-size: 18px;
-  letter-spacing: -0.02em;
-  color: var(--text-sub);
-  opacity: 0.85;
-}
-.lp-proof-logo em { font-style: italic; font-weight: 600; }
-.lp-proof-logo.amp { color: var(--text-faint); font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0; }
 
 /* Problem section ────────────────────────────────────────────────── */
 .lp-problem-grid {
@@ -493,7 +457,6 @@ html, body { margin: 0; padding: 0; }
 }
 @media (max-width: 980px) { .lp-pair { grid-template-columns: 1fr; gap: 48px; } }
 .lp-pair + .lp-pair { margin-top: 144px; }
-.is-comfy .lp-pair + .lp-pair { margin-top: 192px; }
 .lp-pair-r .lp-pair-copy { order: 2; }
 .lp-pair-r .lp-pair-art { order: 1; }
 @media (max-width: 980px) {

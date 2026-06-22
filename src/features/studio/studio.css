@@ -2181,7 +2181,6 @@ input,textarea,select,button{font-family:inherit}
 .bc-color-hex{font-family:var(--font-mono);font-size:12px}
 .bc-btn{appearance:none;border:1px solid var(--surface-2);background:var(--surface);color:var(--ink);padding:8px 14px;border-radius:var(--radius-sm);font:500 13px var(--font-body);cursor:pointer}
 .bc-btn.ghost:hover{background:var(--surface-1)}
-.bc-btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
 .bc-x{width:22px;height:22px;border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:15px}
 .bc-x:hover{color:var(--danger)}
 .bc-donots{margin-top:14px}
