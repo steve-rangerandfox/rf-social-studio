@@ -304,7 +304,7 @@ function Final() {
         </h2>
         <div className="lp-final-cta">
           <Link to="/app" className="lp-btn lp-btn-accent lp-btn-large">
-            {PRIMARY_CTA} <span className="lp-btn-arrow">→</span>
+            {PRIMARY_CTA}
           </Link>
         </div>
         <div className="lp-final-fine">
