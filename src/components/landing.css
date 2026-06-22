@@ -922,3 +922,19 @@ html, body { margin: 0; padding: 0; }
 .lp-compare-link:hover{text-decoration:underline}
 
 .lp-root{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font-body)}
+
+/* Link-buttons are <a> (router Links), so the scoped `.lp-root a { color: inherit }`
+   reset outranks .lp-btn-* coloring and the primary CTA renders ink-on-ink.
+   Re-assert button text color with higher specificity. */
+.lp-root a.lp-btn-primary,
+.lp-root a.lp-btn-accent,
+.lp-root a.lp-nav-cta { color: #fff; }
+.lp-root a.lp-btn-ghost { color: var(--ink); }
+
+/* Link-buttons are <a> (router Links), so the scoped `.lp-root a { color: inherit }`
+   reset outranks .lp-btn-* coloring and the primary CTA renders ink-on-ink.
+   Re-assert button text color with higher specificity. */
+.lp-root a.lp-btn-primary,
+.lp-root a.lp-btn-accent,
+.lp-root a.lp-nav-cta { color: #fff; }
+.lp-root a.lp-btn-ghost { color: var(--ink); }
