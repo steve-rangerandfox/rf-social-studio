@@ -106,97 +106,47 @@ export function HeroArt() {
   );
 }
 
-// Calendar mini for workflow pair 2.
-export function CalendarArt() {
-  const days = [];
-  for (let i = 30; i <= 31; i++) days.push({ n: i, out: true });
-  for (let i = 1; i <= 30; i++) days.push({ n: i, out: false });
-  for (let i = 1; i <= 35 - days.length; i++) days.push({ n: i, out: true });
-
-  const events = {
-    2: [{ k: "posted", l: "Editorial note" }],
-    4: [{ k: "posted", l: "Motion tip 014" }],
-    7: [{ k: "posted", l: "We're hiring" }],
-    11: [{ k: "posted", l: "Nordlys case" }],
-    14: [{ k: "posted", l: "Studio note" }],
-    17: [{ k: "posted", l: "Motion tip 015" }],
-    21: [{ k: "posted", l: "Cove Bookshop" }],
-    23: [{ k: "scheduled", l: "Whitworth ID" }, { k: "scheduled", l: "Reel — logo" }],
-    24: [{ k: "approved", l: "v1 retro" }],
-    25: [{ k: "review", l: "BTS photo" }],
-    26: [{ k: "approved", l: "Hiring update" }],
-    28: [{ k: "draft", l: "Pairing study" }],
-    29: [{ k: "draft", l: "Releases" }],
-  };
-
+// Carousel designer mini — a designed slide + thumbnail rail.
+export function CarouselArt() {
+  const thumbs = [
+    "linear-gradient(135deg, #e8dccd 0%, #8a6f52 100%)",
+    "#fafafa",
+    "#09090b",
+    "#ff5a1f",
+  ];
   return (
-    <div className="lp-art">
-      <div className="lp-cal-top">
-        <span>studio</span>
-        <span style={{ color: "var(--text-faint)" }}>/</span>
-        <span style={{ color: "var(--ink)" }}>April</span>
-        <span>2026</span>
-        <div className="lp-cal-top-arrows">
-          <span className="lp-cal-arrow">{"‹"}</span>
-          <span className="lp-cal-arrow" style={{ padding: "0 8px", width: "auto" }}>Today</span>
-          <span className="lp-cal-arrow">{"›"}</span>
-        </div>
+    <div className="lp-art" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+      <div style={{ width: "100%", maxWidth: 300, aspectRatio: "1 / 1", borderRadius: 16, background: "linear-gradient(135deg, #e8dccd 0%, #8a6f52 100%)", color: "#09090b", padding: "9%", display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "var(--shadow-md)" }}>
+        <div style={{ font: "500 11px var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.06em", opacity: 0.8 }}>Ranger &amp; Fox · 014</div>
+        <div style={{ font: "700 clamp(22px, 3vw, 30px) var(--font-display)", letterSpacing: "-0.03em", lineHeight: 1.05 }}>Three notes on editorial calm.</div>
+        <div style={{ font: "500 10px var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.6 }}>Swipe to read</div>
       </div>
-      <div className="lp-cal-h">
-        <span className="lp-cal-h-m">April</span>
-        <span className="lp-cal-h-y">2026</span>
+      <div style={{ display: "flex", gap: 6 }}>
+        {thumbs.map((_, i) => (
+          <span key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === 0 ? "var(--accent)" : "var(--surface-3)" }} />
+        ))}
       </div>
-      <div className="lp-cal-grid">
-        {days.map((d, i) => {
-          const evs = !d.out ? (events[d.n] || []) : [];
-          const isToday = !d.out && d.n === 23;
-          return (
-            <div key={i} className={"lp-cal-day" + (d.out ? " is-out" : "") + (isToday ? " is-today" : "")}>
-              <div>{d.n}</div>
-              {evs.slice(0, 2).map((e, j) => (
-                <span key={j} className={"lp-cal-pill " + e.k}>{e.l}</span>
-              ))}
-            </div>
-          );
-        })}
+      <div style={{ display: "flex", gap: 8, width: "100%", maxWidth: 300 }}>
+        {thumbs.map((bg, i) => (
+          <div key={i} style={{ flex: 1, aspectRatio: "1 / 1", borderRadius: 8, background: bg, border: "1px solid var(--surface-2)" }} />
+        ))}
       </div>
     </div>
   );
 }
 
-// Composer mini for workflow pair 3.
-export function ComposerArt() {
+// Story designer mini — a 9:16 canvas with layered type.
+export function StoryArt() {
   return (
-    <div className="lp-art">
-      <div className="lp-comp">
-        <div className="lp-comp-stepper">
-          <div className="lp-comp-step done"><span className="n">1</span><span>Content</span></div>
-          <div className="lp-comp-line" />
-          <div className="lp-comp-step on"><span className="n">2</span><span>Customize per channel</span></div>
+    <div className="lp-art" style={{ display: "flex", justifyContent: "center" }}>
+      <div style={{ width: 210, aspectRatio: "9 / 16", borderRadius: 26, background: "linear-gradient(160deg, #1f2937 0%, #0f172a 100%)", color: "#f1f5f9", padding: 24, display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "var(--shadow-lg)", overflow: "hidden" }}>
+        <div style={{ font: "500 9px var(--font-mono)", textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.7 }}>Story · 9:16</div>
+        <div>
+          <div style={{ font: "700 clamp(22px, 4vw, 28px) var(--font-display)", letterSpacing: "-0.03em", lineHeight: 1.04 }}>The Whitworth, in public today.</div>
+          <div style={{ marginTop: 12, width: 36, height: 2, background: "var(--accent)" }} />
+          <div style={{ marginTop: 12, font: "400 12px var(--font-body)", opacity: 0.85 }}>Six months. One wordmark.</div>
         </div>
-
-        <div className="lp-comp-label">Channels</div>
-        <div className="lp-comp-channels">
-          <div className="lp-comp-chan on"><span style={{ width: 12, height: 12, borderRadius: 3, background: "var(--ig-gradient)", display: "inline-block" }} />Instagram</div>
-          <div className="lp-comp-chan"><span style={{ width: 12, height: 12, borderRadius: 3, background: "var(--platform-li)", color: "#fff", fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>in</span>LinkedIn</div>
-          <div className="lp-comp-chan"><span style={{ width: 12, height: 12, borderRadius: 3, background: "var(--ink)", display: "inline-block" }} />TikTok</div>
-        </div>
-
-        <div className="lp-comp-label" style={{ display: "flex", justifyContent: "space-between" }}>
-          <span>Instagram caption</span>
-          <span style={{ fontSize: 9, color: "var(--accent)", fontWeight: 500 }}>✦ Mirrors master</span>
-        </div>
-        <div className="lp-comp-cap">
-          New work — the Whitworth identity, in public today. A six-card carousel walking through the wordmark, the type system, and the supporting palette. <em>Swipe through for the full set →</em>
-        </div>
-        <div className="lp-comp-tags">
-          <span className="lp-comp-tag on">#client</span>
-          <span className="lp-comp-tag on">#release</span>
-          <span className="lp-comp-tag">#identity</span>
-          <span className="lp-comp-tag">#typography</span>
-          <span className="lp-comp-tag">#studio-work</span>
-          <span className="lp-comp-tag">#wordmark</span>
-        </div>
+        <div style={{ font: "500 9px var(--font-mono)", letterSpacing: "0.04em", opacity: 0.6 }}>Layers · snap · live preview</div>
       </div>
     </div>
   );
