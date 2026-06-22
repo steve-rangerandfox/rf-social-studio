@@ -38,12 +38,13 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      {/* Editorial wordmark lockup — replaces the RF circle. Same
-          treatment as the AuthGate mark so the signed-in chrome
-          stays coherent with the signed-out surface. */}
-      <div className="s-logo s-logo-mark">
-        <div className="logo-name">Ranger &amp; Fox</div>
-        <div className="logo-sub">Social Studio</div>
+      {/* Relay wordmark lockup — RF mark + product name + studio name. */}
+      <div className="s-logo">
+        <div className="s-wm-mark">RF</div>
+        <div className="s-wm-text">
+          <div className="s-wm-name">Relay</div>
+          <div className="s-wm-sub">Ranger &amp; Fox</div>
+        </div>
       </div>
 
       <div className="s-sect">
@@ -88,7 +89,7 @@ export function Sidebar() {
 
       <div className="s-sect">
         <div className="s-lbl"><span className="s-lbl-num">02 /</span> Studio</div>
-        {[["brand", "Brand central"], ["assets", "Assets"]].map(([v, l]) => (
+        {[["brand", "Brand central"], ["assets", "Assets"], ["analytics", "Analytics"]].map(([v, l]) => (
           <div key={v} className={"m-item " + (view === v ? "on" : "")} onClick={() => setView(v)}>
             <span>{l}</span>
           </div>
