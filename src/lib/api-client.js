@@ -109,11 +109,11 @@ export function generateCaption({ platform, prompt, brandProfile }) {
   }, { timeoutMs: 30000 });
 }
 
-export function publishToInstagram({ caption, mediaUrl, videoUrl, mediaType, rowId }) {
+export function publishToInstagram({ caption, mediaUrl, videoUrl, imageUrls, mediaType, rowId }) {
   return requestJson("/api/ig-publish", {
     method: "POST",
-    body: JSON.stringify({ caption, mediaUrl, videoUrl, mediaType, rowId }),
-  }, { timeoutMs: 60000 });
+    body: JSON.stringify({ caption, mediaUrl, videoUrl, imageUrls, mediaType, rowId }),
+  }, { timeoutMs: 90000 });
 }
 
 export function generateMonthlyStrategy({ year, month, postsPerWeek, platforms, existingRows, brandProfile }) {

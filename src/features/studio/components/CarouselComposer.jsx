@@ -1,0 +1,300 @@
+import React, { useState, useEffect } from "react";
+import { useStudio } from "../StudioContext.jsx";
+
+// Multi-slide carousel composer for the active post. IG (1:1) or
+// LinkedIn (1.25:1), up to 10 slides. Slides persist onto the row as
+// `carouselSlides`; publishing rendered slides is a follow-up (the
+// publish pipeline is single-media today).
+// ponytail: draft + persist only; wire slide rendering into the publish
+// flow when multi-image upload lands.
+
+const CC_LAYOUTS = [
+  { id: "title", label: "Title" },
+  { id: "number", label: "Number" },
+  { id: "photo", label: "Photo" },
+  { id: "quote", label: "Quote" },
+  { id: "cta", label: "CTA" },
+];
+
+const CC_BG_PRESETS = [
+  "#fafafa", "#09090b", "#ff5a1f", "#e8dccd",
+  "linear-gradient(135deg, #e8dccd 0%, #8a6f52 100%)",
+  "linear-gradient(135deg, #18181b 0%, #3f3f46 100%)",
+  "linear-gradient(160deg, #fde68a 0%, #ea580c 100%)",
+  "linear-gradient(135deg, #dbeafe 0%, #1e3a8a 100%)",
+];
+
+const CC_BRAND = ["#09090b", "#fafafa", "#ff5a1f", "#e8dccd", "#8a6f52", "#71717a"];
+
+function uniqueId(n) {
+  return "s" + Date.now() + "-" + n + "-" + Math.random().toString(36).slice(2, 7);
+}
+
+function defaultSlide(n) {
+  return {
+    id: uniqueId(n),
+    layout: n === 0 ? "title" : n === 1 ? "number" : "quote",
+    bg: n === 0 ? "linear-gradient(135deg, #e8dccd 0%, #8a6f52 100%)" : n === 1 ? "#fafafa" : "#09090b",
+    fg: n === 2 ? "#fafafa" : "#09090b",
+    title: n === 0 ? "Three notes\non editorial\ncalm." : n === 1 ? "01" : "The category whispers.\nWe speak.",
+    sub: n === 0 ? "A studio read · April 2026" : n === 1 ? "Start with the brief, not the feed." : "— studio notes, 014",
+    label: n === 0 ? "Ranger & Fox · 014" : n === 1 ? "A sharper brief" : "",
+  };
+}
+
+export function CarouselComposer({ row, onClose }) {
+  const { update, showToast } = useStudio();
+  const [slides, setSlides] = useState(() =>
+    row?.carouselSlides?.length ? row.carouselSlides : [defaultSlide(0), defaultSlide(1), defaultSlide(2)],
+  );
+  const [cur, setCur] = useState(0);
+  const [platform, setPlatform] = useState(row?.platform === "linkedin" ? "linkedin" : "instagram");
+
+  const slide = slides[cur] || slides[0];
+  const aspect = platform === "linkedin" ? "1.25 / 1" : "1 / 1";
+
+  // Debounced persist onto the row.
+  useEffect(() => {
+    if (!row) return;
+    const t = setTimeout(() => {
+      update(row.id, { carouselSlides: slides, mediaKind: "carousel" });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [slides, row, update]);
+
+  const patchSlide = (patch) => setSlides((ss) => ss.map((s, i) => (i === cur ? { ...s, ...patch } : s)));
+  const add = () => {
+    if (slides.length >= 10) { showToast("Carousels cap at 10 slides."); return; }
+    setSlides((ss) => [...ss, defaultSlide(ss.length)]);
+    setCur(slides.length);
+  };
+  const del = (i) => {
+    if (slides.length <= 1) return;
+    setSlides((ss) => ss.filter((_, j) => j !== i));
+    setCur((c) => Math.max(0, c - (i <= c ? 1 : 0)));
+  };
+  const move = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= slides.length) return;
+    setSlides((ss) => { const c = [...ss]; [c[i], c[j]] = [c[j], c[i]]; return c; });
+    setCur(j);
+  };
+
+  const saveAndClose = () => { showToast("Carousel saved to post."); onClose(); };
+
+  return (
+    <div className="cc2-root">
+      <div className="cc2-topbar">
+        <div className="cc2-top-l">
+          <button className="cc2-close" onClick={onClose} aria-label="Close">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+          </button>
+          <div className="cc2-breadcrumb">
+            <span className="cc2-bc-k">Post · {(row?.note || row?.caption || "Untitled").slice(0, 28)}</span>
+            <span className="cc2-bc-sep">/</span>
+            <span className="cc2-bc-cur">Carousel composer</span>
+          </div>
+        </div>
+        <div className="cc2-top-c">
+          <div className="cc2-plats">
+            {[["instagram", "Instagram", "1:1"], ["linkedin", "LinkedIn", "1.25:1"]].map(([k, l, r]) => (
+              <button key={k} className={"cc2-plat " + (platform === k ? "on" : "")} onClick={() => setPlatform(k)}>
+                <span className="cc2-plat-ratio">{r}</span>{l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="cc2-top-r">
+          <button className="btn btn-ghost" onClick={saveAndClose}>Save to post</button>
+        </div>
+      </div>
+
+      <div className="cc2-body">
+        <div className="cc2-left">
+          <div className="cc2-rail-t">Slides <span className="cc2-rail-n">{slides.length} / 10</span></div>
+          <div className="cc2-thumbs">
+            {slides.map((s, i) => (
+              <div key={s.id} className={"cc2-thumb " + (i === cur ? "on" : "")} onClick={() => setCur(i)}>
+                <div className="cc2-thumb-n">{String(i + 1).padStart(2, "0")}</div>
+                <div className="cc2-thumb-prev" style={{ background: s.bg, color: s.fg, aspectRatio: aspect }}>
+                  <div className="cc2-thumb-lbl">{(s.title || "").split("\n")[0].slice(0, 22)}</div>
+                </div>
+                <div className="cc2-thumb-ctrls">
+                  <button onClick={(e) => { e.stopPropagation(); move(i, -1); }} disabled={i === 0} title="Up">{"↑"}</button>
+                  <button onClick={(e) => { e.stopPropagation(); move(i, 1); }} disabled={i === slides.length - 1} title="Down">{"↓"}</button>
+                  <button onClick={(e) => { e.stopPropagation(); del(i); }} disabled={slides.length <= 1} title="Delete">{"×"}</button>
+                </div>
+              </div>
+            ))}
+            <button className="cc2-add" onClick={add} disabled={slides.length >= 10}>+ Add slide</button>
+          </div>
+        </div>
+
+        <div className="cc2-stage">
+          <div className="cc2-device" style={{ aspectRatio: aspect }}>
+            <div className="cc2-card" style={{ background: slide.bg, color: slide.fg }}>
+              <CarouselSlideRender slide={slide} />
+            </div>
+          </div>
+          <div className="cc2-nav">
+            <button onClick={() => setCur((c) => Math.max(0, c - 1))} disabled={cur === 0} aria-label="Previous slide">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="m10 3-5 5 5 5" /></svg>
+            </button>
+            <div className="cc2-dots">
+              {slides.map((_, i) => <div key={i} className={"cc2-dot " + (i === cur ? "on" : "")} onClick={() => setCur(i)} />)}
+            </div>
+            <button onClick={() => setCur((c) => Math.min(slides.length - 1, c + 1))} disabled={cur === slides.length - 1} aria-label="Next slide">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="m6 3 5 5-5 5" /></svg>
+            </button>
+          </div>
+          <div className="cc2-stage-foot">
+            Slide {cur + 1} of {slides.length} · {platform === "instagram" ? "Instagram · 1080×1080" : "LinkedIn · 1200×960"}
+          </div>
+        </div>
+
+        <div className="cc2-right">
+          <div className="cc2-pp-head">
+            <div className="cc2-pp-head-k">Slide {String(cur + 1).padStart(2, "0")}</div>
+            <div className="cc2-pp-head-t">{CC_LAYOUTS.find((l) => l.id === slide.layout)?.label || "Layout"}</div>
+          </div>
+
+          <div className="cc2-pp-section">
+            <div className="cc2-pp-section-t">Layout</div>
+            <div className="cc2-layouts">
+              {CC_LAYOUTS.map((l) => (
+                <button key={l.id} className={"cc2-layout " + (slide.layout === l.id ? "on" : "")} onClick={() => patchSlide({ layout: l.id })}>
+                  <LayoutMini kind={l.id} />
+                  <span>{l.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="cc2-pp-section">
+            <div className="cc2-pp-section-t">Copy</div>
+            <div className="cc2-copy-row">
+              <div className="cc2-pp-l">Kicker</div>
+              <input className="cc2-input" value={slide.label || ""} onChange={(e) => patchSlide({ label: e.target.value })} />
+            </div>
+            <div className="cc2-copy-row">
+              <div className="cc2-pp-l">Headline</div>
+              <textarea className="cc2-input" rows={3} value={slide.title || ""} onChange={(e) => patchSlide({ title: e.target.value })} />
+            </div>
+            <div className="cc2-copy-row">
+              <div className="cc2-pp-l">Sub</div>
+              <input className="cc2-input" value={slide.sub || ""} onChange={(e) => patchSlide({ sub: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="cc2-pp-section">
+            <div className="cc2-pp-section-t">Background</div>
+            <div className="cc2-bg-grid">
+              {CC_BG_PRESETS.map((b, i) => (
+                <button key={i} className={"cc2-bg-sw " + (slide.bg === b ? "on" : "")} style={{ background: b }}
+                  onClick={() => {
+                    const darkBg = /^#0|^#18|linear-gradient\(.*#(18|00|1c|1e)/i.test(b);
+                    patchSlide({ bg: b, fg: darkBg ? "#fafafa" : "#09090b" });
+                  }} />
+              ))}
+            </div>
+          </div>
+
+          <div className="cc2-pp-section">
+            <div className="cc2-pp-section-t">Text color</div>
+            <div className="cc2-brand">
+              {CC_BRAND.map((c) => (
+                <button key={c} className={"cc2-brand-sw " + (slide.fg === c ? "on" : "")} style={{ background: c }} onClick={() => patchSlide({ fg: c })} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LayoutMini({ kind }) {
+  const box = { position: "absolute", background: "currentColor" };
+  return (
+    <div className="cc2-lm">
+      {kind === "title" && <>
+        <div style={{ ...box, left: 6, top: 16, width: 20, height: 1.5 }} />
+        <div style={{ ...box, left: 6, top: 24, width: 30, height: 4 }} />
+        <div style={{ ...box, left: 6, top: 31, width: 26, height: 4 }} />
+        <div style={{ ...box, left: 6, bottom: 6, width: 14, height: 1 }} />
+      </>}
+      {kind === "number" && <>
+        <div style={{ position: "absolute", left: 6, top: 6, font: "700 22px 'Bricolage Grotesque'", color: "currentColor", letterSpacing: "-0.03em", lineHeight: 1 }}>01</div>
+        <div style={{ ...box, left: 6, bottom: 10, width: 30, height: 1.5 }} />
+      </>}
+      {kind === "photo" && <>
+        <div style={{ ...box, left: 0, top: 0, width: 48, height: 28, opacity: 0.25 }} />
+        <div style={{ ...box, left: 6, top: 34, width: 28, height: 3 }} />
+      </>}
+      {kind === "quote" && <>
+        <div style={{ position: "absolute", left: 6, top: 2, font: "700 18px 'Bricolage Grotesque'", color: "currentColor" }}>{"“"}</div>
+        <div style={{ ...box, left: 6, top: 20, width: 30, height: 2 }} />
+        <div style={{ ...box, left: 6, top: 25, width: 24, height: 2 }} />
+        <div style={{ ...box, left: 6, bottom: 8, width: 14, height: 1 }} />
+      </>}
+      {kind === "cta" && <>
+        <div style={{ ...box, left: 6, top: 10, width: 30, height: 2 }} />
+        <div style={{ ...box, left: 6, top: 26, width: 22, height: 8, borderRadius: 4 }} />
+      </>}
+    </div>
+  );
+}
+
+function CarouselSlideRender({ slide }) {
+  const { layout, title, sub, label, fg, bg } = slide;
+
+  if (layout === "title") return (
+    <div style={{ padding: "10%", display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%" }}>
+      <div style={{ font: "500 12px 'JetBrains Mono'", letterSpacing: "0.06em", textTransform: "uppercase", opacity: 0.8 }}>{label}</div>
+      <div>
+        <div style={{ font: "700 clamp(32px, 6vw, 72px) 'Bricolage Grotesque'", letterSpacing: "-0.035em", lineHeight: 1.02, whiteSpace: "pre-wrap" }}>{title}</div>
+        <div style={{ marginTop: 18, font: "500 14px 'JetBrains Mono'", opacity: 0.7 }}>{sub}</div>
+      </div>
+      <div style={{ font: "500 11px 'JetBrains Mono'", opacity: 0.55, letterSpacing: "0.08em", textTransform: "uppercase" }}>Swipe {"→"}</div>
+    </div>
+  );
+
+  if (layout === "number") return (
+    <div style={{ padding: "10%", display: "flex", flexDirection: "column", justifyContent: "center", height: "100%", gap: 20 }}>
+      <div style={{ font: "500 11px 'JetBrains Mono'", letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.6 }}>{label}</div>
+      <div style={{ font: "700 clamp(100px, 22vw, 240px) 'Bricolage Grotesque'", letterSpacing: "-0.06em", lineHeight: 0.88 }}>{title}</div>
+      <div style={{ font: "500 17px 'Switzer'", letterSpacing: "-0.01em", opacity: 0.8, maxWidth: "82%", lineHeight: 1.35 }}>{sub}</div>
+    </div>
+  );
+
+  if (layout === "photo") return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, background: "linear-gradient(135deg, #e8dccd 0%, #8a6f52 100%)" }} />
+      <div style={{ padding: "7% 10%", background: "#fafafa", color: "#09090b" }}>
+        <div style={{ font: "500 11px 'JetBrains Mono'", letterSpacing: "0.06em", textTransform: "uppercase", color: "#ff5a1f" }}>{label}</div>
+        <div style={{ font: "700 clamp(22px, 3.8vw, 36px) 'Bricolage Grotesque'", letterSpacing: "-0.03em", marginTop: 8, whiteSpace: "pre-wrap", lineHeight: 1.08 }}>{title}</div>
+        <div style={{ marginTop: 10, font: "400 14px 'Switzer'", color: "#52525b" }}>{sub}</div>
+      </div>
+    </div>
+  );
+
+  if (layout === "quote") return (
+    <div style={{ padding: "10%", display: "flex", flexDirection: "column", justifyContent: "center", height: "100%" }}>
+      <div style={{ font: "700 clamp(26px, 4.8vw, 52px) 'Bricolage Grotesque'", letterSpacing: "-0.03em", lineHeight: 1.1, whiteSpace: "pre-wrap" }}>{title}</div>
+      <div style={{ marginTop: 28, width: 44, height: 2, background: "currentColor", opacity: 0.5 }} />
+      <div style={{ marginTop: 14, font: "500 13px 'JetBrains Mono'", opacity: 0.7 }}>{sub}</div>
+    </div>
+  );
+
+  if (layout === "cta") return (
+    <div style={{ padding: "10%", display: "flex", flexDirection: "column", justifyContent: "center", height: "100%", gap: 20 }}>
+      <div style={{ font: "500 11px 'JetBrains Mono'", letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.6 }}>{label}</div>
+      <div style={{ font: "700 clamp(28px, 5vw, 52px) 'Bricolage Grotesque'", letterSpacing: "-0.03em", whiteSpace: "pre-wrap", lineHeight: 1.05 }}>{title}</div>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "14px 22px", background: fg, color: /^#(0|1|2|3)/i.test(bg) ? "#fafafa" : (fg === "#09090b" ? "#fafafa" : "#09090b"), borderRadius: 999, alignSelf: "flex-start", font: "600 15px 'Switzer'", letterSpacing: "-0.005em" }}>
+        {sub || "Read the piece"} {"→"}
+      </div>
+    </div>
+  );
+
+  return null;
+}

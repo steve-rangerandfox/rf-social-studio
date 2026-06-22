@@ -3,10 +3,11 @@ import { Check, Close as X, Upload } from "../../../components/icons/index.jsx";
 import { T, PLATFORMS, toPTDisplay } from "../shared.js";
 import { publishToInstagram, publishToLinkedIn } from "../../../lib/api-client.js";
 import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
+import { renderCarouselSlidesToFiles } from "../carouselRender.js";
 import { CaptionEditor } from "./CaptionEditor.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 
-export function Composer({ row, onClose, onPosted, postNow }) {
+export function Composer({ row, onClose, onPosted, postNow, onOpenCarousel }) {
   const [plat,    setPlat]    = useState(row?.platform==="ig_story"?"ig_post":row?.platform||"ig_post");
   const [caption, setCaption] = useState(row?.caption||"");
   const [files,   setFiles]   = useState([]);
@@ -20,6 +21,10 @@ export function Composer({ row, onClose, onPosted, postNow }) {
   const p = PLATFORMS[plat];
   const isLI = plat === "linkedin";
   const maxFiles = isLI ? 9 : 1;
+  // A designed carousel publishes as an IG carousel (rendered slides → images),
+  // so it replaces the single-file upload path when the platform is IG.
+  const carouselSlides = row?.carouselSlides;
+  const isCarousel = plat === "ig_post" && Array.isArray(carouselSlides) && carouselSlides.length >= 2;
 
   const schedDisp = row?.scheduledAt ? toPTDisplay(row.scheduledAt) : null;
 
@@ -65,6 +70,31 @@ export function Composer({ row, onClose, onPosted, postNow }) {
         const result = await publishToLinkedIn({ text, rowId: row?.id });
         setSt("done");
         onPosted?.({ mediaId: result.postUrn, mediaUrl: result.permalink });
+        return;
+      }
+
+      // Carousel: render each designed slide to an image, upload all, then
+      // publish them as a single IG carousel.
+      const slides = row?.carouselSlides;
+      if (plat === "ig_post" && Array.isArray(slides) && slides.length >= 2) {
+        setUploadProgress(0);
+        const slideFiles = await renderCarouselSlidesToFiles(slides);
+        const imageUrls = [];
+        for (let i = 0; i < slideFiles.length; i++) {
+          const u = await uploadAssetWithProgress(slideFiles[i], (prog) => {
+            setUploadProgress((i + prog) / slideFiles.length);
+          });
+          imageUrls.push(u);
+        }
+        setSt("publishing");
+        const result = await publishToInstagram({
+          caption: caption.trim(),
+          imageUrls,
+          mediaType: "CAROUSEL",
+          rowId: row?.id,
+        });
+        setSt("done");
+        onPosted?.({ mediaId: result.mediaId, mediaUrl: result.permalink || imageUrls[0] });
         return;
       }
 
@@ -126,14 +156,31 @@ export function Composer({ row, onClose, onPosted, postNow }) {
                 ))}
               </div>
             </div>
+            {onOpenCarousel && (plat === "ig_post" || plat === "linkedin") && (
+              <div className="field">
+                <button type="button" className="btn btn-ghost" style={{width:"100%",justifyContent:"center"}} onClick={onOpenCarousel}>
+                  Design a carousel {row?.carouselSlides?.length ? `(${row.carouselSlides.length} slides)` : "→"}
+                </button>
+              </div>
+            )}
             <div className="field">
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div className="lbl">Media{isLI && files.length > 0 ? ` (${files.length}/${maxFiles})` : ""}</div>
+                <div className="lbl">{isCarousel ? "Media · Carousel" : `Media${isLI && files.length > 0 ? ` (${files.length}/${maxFiles})` : ""}`}</div>
                 {isLI && fileUrls.length > 0 && (
                   <button className="btn btn-ghost" style={{padding:"3px 10px",fontSize:11}} onClick={()=>setShowPreview(true)}>Preview</button>
                 )}
               </div>
-              {files.length > 0 ? (
+              {isCarousel ? (
+                <div className="composer-carousel-summary">
+                  <div>
+                    <div className="ccs-title">Carousel ready</div>
+                    <div className="ccs-sub">{carouselSlides.length} slides · publishes as an Instagram carousel</div>
+                  </div>
+                  {onOpenCarousel && (
+                    <button type="button" className="btn btn-ghost" onClick={onOpenCarousel}>Edit slides</button>
+                  )}
+                </div>
+              ) : files.length > 0 ? (
                 isLI ? (
                   <div className="media-grid">
                     {fileUrls.map((url, i) => (
@@ -201,7 +248,7 @@ export function Composer({ row, onClose, onPosted, postNow }) {
           {st!=="done"&&!postNow&&<button className="btn btn-ghost" onClick={onClose}>Cancel</button>}
           {st==="done"?<button className="btn btn-ghost" onClick={onClose}>Close</button>
             :!postNow&&st!=="error"&&<button className="btn btn-primary" onClick={doPost} disabled={st==="uploading"||st==="publishing"}>
-              {(st==="uploading"||st==="publishing")?"Working...":"Publish Now"}
+              {(st==="uploading"||st==="publishing")?"Working...":(isCarousel?"Publish carousel":"Publish Now")}
             </button>}
           {st==="error"&&<button className="btn btn-primary" onClick={doPost}>Retry</button>}
         </div>

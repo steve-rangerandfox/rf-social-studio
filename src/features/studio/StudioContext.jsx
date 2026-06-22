@@ -26,6 +26,8 @@ import {
 import { addToSyncQueue, getSyncQueue, clearSyncQueue } from "../../lib/idb-store.js";
 import { useToast } from "../../components/Toaster.jsx";
 import {
+  ACCENTS,
+  DEFAULT_APPEARANCE,
   isRowNeedingAttention,
   loadTeam,
   MONTHS_FULL,
@@ -45,12 +47,16 @@ export const viewFromPath = {
   "/calendar": "calendar",
   "/grid": "grid",
   "/analytics": "analytics",
+  "/brand": "brand",
+  "/assets": "assets",
 };
 export const pathFromView = {
   list: "/",
   calendar: "/calendar",
   grid: "/grid",
   analytics: "/analytics",
+  brand: "/brand",
+  assets: "/assets",
 };
 
 const StudioContext = createContext(null);
@@ -91,6 +97,7 @@ export function StudioProvider({ children }) {
   const [composer, setComposer] = useState(null);
   const [addPostDraft, setAddPostDraft] = useState(null);
   const [story, setStory] = useState(null);
+  const [carousel, setCarousel] = useState(null);
   const [showAssets, setAssets] = useState(false);
   const [showConn, setShowConn] = useState(null);
   const [showSettings, setSettings] = useState(false);
@@ -166,6 +173,23 @@ export function StudioProvider({ children }) {
     () => normalizeBrandProfile(studioDoc.brandProfile || createDefaultBrandProfile()),
     [studioDoc],
   );
+
+  // Appearance settings (accent + density) travel inside the studio
+  // document so they sync across devices like everything else.
+  const appearance = useMemo(
+    () => ({ ...DEFAULT_APPEARANCE, ...(studioDoc.appearance || {}) }),
+    [studioDoc],
+  );
+
+  // Push the chosen accent onto :root so every --accent consumer follows.
+  useEffect(() => {
+    const a = ACCENTS[appearance.accent] || ACCENTS.orange;
+    const root = document.documentElement;
+    root.style.setProperty("--accent", a.hex);
+    root.style.setProperty("--accent-bright", a.bright);
+    root.style.setProperty("--accent-tint", a.tint);
+    root.style.setProperty("--accent-faint", a.faint);
+  }, [appearance.accent]);
 
   const allSorted = useMemo(() => [...filteredRows].sort((a, b) => {
     const da = a.scheduledAt ? new Date(a.scheduledAt) : new Date(0);
@@ -809,6 +833,7 @@ export function StudioProvider({ children }) {
     composer, setComposer,
     addPostDraft, setAddPostDraft,
     story, setStory,
+    carousel, setCarousel,
     showAssets, setAssets,
     showConn, setShowConn,
     showSettings, setSettings, settingsInitialTab, openSettingsTab,
@@ -860,6 +885,16 @@ export function StudioProvider({ children }) {
         }),
       }),
       () => createAuditEntry("brand_profile.updated", currentUser, "Brand profile edited"),
+    ),
+
+    // Appearance (accent + density)
+    appearance,
+    updateAppearance: (patch) => updateDocument(
+      (current) => ({
+        ...current,
+        appearance: { ...DEFAULT_APPEARANCE, ...current.appearance, ...patch },
+      }),
+      () => createAuditEntry("appearance.updated", currentUser, "Appearance settings changed", patch),
     ),
 
     // Export helper

@@ -20,7 +20,7 @@ const DEFAULT_COLLAPSED = { calendar: false, team: true, connections: true };
 export function Sidebar() {
   const {
     month, setMonth, timeScale, setTimeScale,
-    monthCounts, team, connections, view,
+    monthCounts, team, connections, view, setView,
     add, startInlineCreate, jumpToMonth, setShowConn, setSettings,
   } = useStudio();
 
@@ -82,6 +82,17 @@ export function Sidebar() {
             })}
           </>
         )}
+      </div>
+
+      <div className="s-div" />
+
+      <div className="s-sect">
+        <div className="s-lbl"><span className="s-lbl-num">02 /</span> Studio</div>
+        {[["brand", "Brand central"], ["assets", "Assets"]].map(([v, l]) => (
+          <div key={v} className={"m-item " + (view === v ? "on" : "")} onClick={() => setView(v)}>
+            <span>{l}</span>
+          </div>
+        ))}
       </div>
 
       <div className="s-div" />
