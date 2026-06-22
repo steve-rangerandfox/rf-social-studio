@@ -52,7 +52,7 @@ function Nav() {
             <a href="#detail" className="lp-nav-link">Details</a>
             <a href="#pricing" className="lp-nav-link">Pricing</a>
             <Link to="/app" className="lp-nav-link">Sign in</Link>
-            <Link to="/app" className="lp-nav-cta">{PRIMARY_CTA} →</Link>
+            <Link to="/app" className="lp-nav-cta">{PRIMARY_CTA}</Link>
           </div>
         </div>
       </div>
@@ -77,10 +77,10 @@ function Hero() {
             </p>
             <div className="lp-hero-ctas">
               <Link to="/app" className="lp-btn lp-btn-primary lp-btn-large">
-                {PRIMARY_CTA} <span className="lp-btn-arrow">→</span>
+                {PRIMARY_CTA}
               </Link>
               <a href="#workflow" className="lp-btn lp-btn-ghost lp-btn-large">
-                See the workflow ↓
+                See the workflow
               </a>
             </div>
             <div className="lp-hero-fineprint">
@@ -263,7 +263,7 @@ function Pricing() {
                 {t.feats.map((f) => <li key={f}>{f}</li>)}
               </ul>
               <Link to={t.cta.to} className={"lp-btn lp-price-cta " + (t.primary ? "lp-btn-primary" : "lp-btn-ghost")}>
-                {t.cta.label}{t.primary && <span className="lp-btn-arrow"> →</span>}
+                {t.cta.label}
               </Link>
             </div>
           ))}
@@ -304,7 +304,7 @@ function Final() {
         </h2>
         <div className="lp-final-cta">
           <Link to="/app" className="lp-btn lp-btn-accent lp-btn-large">
-            {PRIMARY_CTA} <span className="lp-btn-arrow">→</span>
+            {PRIMARY_CTA}
           </Link>
         </div>
         <div className="lp-final-fine">
