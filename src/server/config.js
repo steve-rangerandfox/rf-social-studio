@@ -20,8 +20,10 @@ export const IG_PENDING_TTL_MS = 10 * 60 * 1000; // 10 minutes
 export const REFRESH_LOCK_TTL_MS = 30 * 1000; // 30 seconds
 
 // Instagram Graph API publish limits (Meta-enforced).
-export const IG_PUBLISH_MEDIA_TYPES = ["IMAGE", "VIDEO", "REELS", "STORIES"];
+export const IG_PUBLISH_MEDIA_TYPES = ["IMAGE", "VIDEO", "REELS", "STORIES", "CAROUSEL"];
 export const IG_PUBLISH_MAX_CAPTION = 2200; // IG Graph API hard limit
+export const IG_CAROUSEL_MIN_ITEMS = 2; // Meta-enforced minimum carousel children
+export const IG_CAROUSEL_MAX_ITEMS = 10; // Meta-enforced maximum carousel children
 
 // In-memory Instagram sync cache size cap. Above this, we evict the oldest
 // 20% of entries. Primarily a safety valve against unbounded memory growth

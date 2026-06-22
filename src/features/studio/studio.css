@@ -2288,3 +2288,9 @@ input,textarea,select,button{font-family:inherit}
 
 /* DetailPanel section numbering — extends the 01 / editorial motif. */
 .stage-col-num{font-family:var(--font-mono);font-weight:500;color:var(--accent);margin-right:6px;letter-spacing:0;text-transform:none}
+
+/* Composer carousel summary — shown when a designed carousel replaces the
+   single-file upload (publishes as an IG carousel). */
+.composer-carousel-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--surface-2);border-radius:var(--radius-md);background:var(--surface-1)}
+.ccs-title{font:600 14px var(--font-body);color:var(--ink)}
+.ccs-sub{font:500 12px var(--font-mono);color:var(--text-dim);margin-top:2px}

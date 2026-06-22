@@ -206,7 +206,61 @@ export async function publishInstagramPost({
   return { mediaId: publishBody.id };
 }
 
-// Validates that the FB_REDIRECT_URI env var is properly formatted.
+// Publish a multi-image carousel. IG requires the three-step flow:
+//   1. one child container per image (is_carousel_item=true)
+//   2. one parent container (media_type=CAROUSEL, children=[ids])
+//   3. publish the parent container
+// imageUrls must be 2-10 public HTTPS image URLs.
+export async function publishInstagramCarousel({ userToken, imageUrls, caption }) {
+  if (!Array.isArray(imageUrls) || imageUrls.length < 2 || imageUrls.length > 10) {
+    throw new Error("Carousels need between 2 and 10 images");
+  }
+
+  // Step 1: a child container per image.
+  const childIds = [];
+  for (const imageUrl of imageUrls) {
+    const params = new URLSearchParams({
+      access_token: userToken,
+      image_url: imageUrl,
+      is_carousel_item: "true",
+    });
+    const res = await fetchWithTimeout(`${GRAPH_BASE}/me/media`, { method: "POST", body: params });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      throw new Error(data.error?.message || "Failed to create carousel item");
+    }
+    childIds.push(data.id);
+  }
+
+  // Step 2: the parent carousel container.
+  const carouselParams = new URLSearchParams({
+    access_token: userToken,
+    media_type: "CAROUSEL",
+    children: childIds.join(","),
+  });
+  if (caption) carouselParams.set("caption", caption);
+
+  const createRes = await fetchWithTimeout(`${GRAPH_BASE}/me/media`, { method: "POST", body: carouselParams });
+  const createBody = await createRes.json();
+  if (!createRes.ok || createBody.error) {
+    throw new Error(createBody.error?.message || "Failed to create carousel container");
+  }
+
+  // Step 3: publish.
+  const publishRes = await fetchWithTimeout(
+    `${GRAPH_BASE}/me/media_publish`,
+    {
+      method: "POST",
+      body: new URLSearchParams({ creation_id: createBody.id, access_token: userToken }),
+    },
+  );
+  const publishBody = await publishRes.json();
+  if (!publishRes.ok || publishBody.error) {
+    throw new Error(publishBody.error?.message || "Failed to publish carousel");
+  }
+
+  return { mediaId: publishBody.id };
+}
 // Unlike the old per-origin validation, this checks ONE canonical URL.
 export function validateCanonicalRedirectUri(redirectUri) {
   if (!redirectUri || typeof redirectUri !== "string") return false;

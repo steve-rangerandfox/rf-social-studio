@@ -23,6 +23,7 @@ import {
   fetchInstagramMedia,
   fetchInstagramProfile,
   publishInstagramPost,
+  publishInstagramCarousel,
   refreshInstagramToken,
 } from "./meta.js";
 import { createLogger, log, sanitizeLogValue } from "./log.js";
@@ -60,6 +61,8 @@ import {
   REFRESH_LOCK_TTL_MS,
   IG_PUBLISH_MEDIA_TYPES,
   IG_PUBLISH_MAX_CAPTION,
+  IG_CAROUSEL_MIN_ITEMS,
+  IG_CAROUSEL_MAX_ITEMS,
   IG_SYNC_CACHE_MAX,
   IG_SYNC_CACHE_EVICT_BATCH,
 } from "./config.js";
@@ -266,7 +269,7 @@ async function handleInstagramPublish(req, res, env, reqId, auth) {
     return errorJson(res, error.code || 400, "VALIDATION_ERROR", error.message);
   }
 
-  const { caption, mediaUrl, videoUrl, mediaType, rowId } = body || {};
+  const { caption, mediaUrl, videoUrl, imageUrls, mediaType, rowId } = body || {};
   const errors = [];
 
   if (!mediaType || !IG_PUBLISH_MEDIA_TYPES.includes(mediaType)) {
@@ -278,6 +281,14 @@ async function handleInstagramPublish(req, res, env, reqId, auth) {
       errors.push("mediaUrl is required for IMAGE posts");
     } else if (!isHttpsUrl(mediaUrl)) {
       errors.push("mediaUrl must be a valid public HTTPS URL");
+    }
+  } else if (mediaType === "CAROUSEL") {
+    if (!Array.isArray(imageUrls)) {
+      errors.push("imageUrls (array) is required for CAROUSEL posts");
+    } else if (imageUrls.length < IG_CAROUSEL_MIN_ITEMS || imageUrls.length > IG_CAROUSEL_MAX_ITEMS) {
+      errors.push(`CAROUSEL needs between ${IG_CAROUSEL_MIN_ITEMS} and ${IG_CAROUSEL_MAX_ITEMS} images`);
+    } else if (!imageUrls.every((u) => isHttpsUrl(u))) {
+      errors.push("every imageUrls entry must be a valid public HTTPS URL");
     }
   } else if (mediaType === "VIDEO" || mediaType === "REELS" || mediaType === "STORIES") {
     if (!videoUrl) {
@@ -309,13 +320,19 @@ async function handleInstagramPublish(req, res, env, reqId, auth) {
   }
 
   try {
-    const result = await publishInstagramPost({
-      userToken: session.igUserToken,
-      imageUrl: mediaType === "IMAGE" ? mediaUrl : undefined,
-      videoUrl: mediaType !== "IMAGE" ? videoUrl : undefined,
-      caption,
-      mediaType,
-    });
+    const result = mediaType === "CAROUSEL"
+      ? await publishInstagramCarousel({
+          userToken: session.igUserToken,
+          imageUrls,
+          caption,
+        })
+      : await publishInstagramPost({
+          userToken: session.igUserToken,
+          imageUrl: mediaType === "IMAGE" ? mediaUrl : undefined,
+          videoUrl: mediaType !== "IMAGE" ? videoUrl : undefined,
+          caption,
+          mediaType,
+        });
 
     logger("info", reqId, "instagram_published", {
       mediaId: result.mediaId,
