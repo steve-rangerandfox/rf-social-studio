@@ -3,28 +3,11 @@ import { useStudio } from "../StudioContext.jsx";
 import { YearlyKPISummary } from "./YearlyKPISummary.jsx";
 
 export function StatsBar() {
-  const {
-    view, timeScale, rows, year, sorted,
-    reviewC, readyC,
-  } = useStudio();
+  const { view, timeScale, rows, year } = useStudio();
 
-  if (view !== "list") return null;
+  // Month-scale stats now live in the editorial header inside ListView.
+  // Keep the year-scale KPI summary here.
+  if (view !== "list" || timeScale !== "year") return null;
 
-  if (timeScale === "year") {
-    return <YearlyKPISummary rows={rows} year={year} />;
-  }
-
-  return (
-    <div className="stats-compact">
-      <span className="stats-compact-item"><strong>{sorted.length}</strong> posts</span>
-      <span className="stats-compact-dot" />
-      <span className="stats-compact-item"><strong>{readyC}</strong> ready</span>
-      {reviewC > 0 && (
-        <>
-          <span className="stats-compact-dot" />
-          <span className="stats-compact-item stats-compact-attention"><strong>{reviewC}</strong> needs review</span>
-        </>
-      )}
-    </div>
-  );
+  return <YearlyKPISummary rows={rows} year={year} />;
 }

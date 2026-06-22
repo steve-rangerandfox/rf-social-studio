@@ -9,7 +9,7 @@ import { TOAST } from "../copy.js";
 
 export function ListView() {
   const {
-    view, timeScale, month, year,
+    view, timeScale, month, year, setMonth,
     sorted, grouped, sel, toggleSel, toggleAll,
     connections,
     update, remove, showToast,
@@ -118,9 +118,31 @@ export function ListView() {
   return (
     <div className="t-area">
       {timeScale === "month" && (
-        <div className="list-month-heading">
-          <span className="list-month-title">{MONTHS_FULL[month]}</span>
-          <span className="list-month-year">{year}</span>
+        <div className="vh">
+          <div className="vh-left">
+            <div className="vh-kicker">02 / queue <span className="vh-kicker-dim">· Ranger &amp; Fox</span></div>
+            <div className="vh-title">{MONTHS_FULL[month]} <em>{year}</em></div>
+            <div className="vh-sub">
+              {sorted.length === 0
+                ? "This month is open. The first post sets the tone."
+                : "Row-per-post, ordered by date. Click to open the composer."}
+            </div>
+          </div>
+          <div className="vh-right">
+            <div className="vh-stat">
+              <div className="vh-stat-n">{sorted.filter((r) => r.status === "posted").length}</div>
+              <div className="vh-stat-l">Posted</div>
+            </div>
+            <div className="vh-stat">
+              <div className="vh-stat-n">{sorted.filter((r) => r.status === "scheduled" || r.status === "approved").length}</div>
+              <div className="vh-stat-l">Queued</div>
+            </div>
+            <div className="vh-nav">
+              <button onClick={() => setMonth((m) => (m + 11) % 12)} aria-label="Previous month" title="Previous month">{"‹"}</button>
+              <button className="vh-today" onClick={() => setMonth(new Date().getMonth())}>Today</button>
+              <button onClick={() => setMonth((m) => (m + 1) % 12)} aria-label="Next month" title="Next month">{"›"}</button>
+            </div>
+          </div>
         </div>
       )}
 

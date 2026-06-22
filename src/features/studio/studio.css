@@ -329,11 +329,6 @@ input,textarea,select,button{font-family:inherit}
 .vt-btn.on .vt-btn-num{display:none}
 
 /* STATS */
-.stats-compact{display:flex;align-items:center;gap:8px;padding:8px 20px;border-bottom:1px solid rgba(24,23,20,0.08);background:transparent;width:100%}
-.stats-compact-item{font-size:var(--text-base);color:var(--t-text-sub);font-weight:400}
-.stats-compact-item strong{color:var(--t-text);font-weight:700}
-.stats-compact-attention strong{color:var(--t-amber)}
-.stats-compact-dot{width:3px;height:3px;border-radius:50%;background:var(--t-border2);flex-shrink:0}
 
 /* TABLE */
 .t-area{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding:12px 16px 24px}
@@ -1767,9 +1762,6 @@ input,textarea,select,button{font-family:inherit}
 .sidebar-add-btn{width:100%;margin-bottom:12px;padding:10px 16px;font-size:var(--text-base);justify-content:center}
 
 /* ─── LIST VIEW MONTH HEADING ─── */
-.list-month-heading{display:flex;align-items:baseline;gap:14px;padding:20px 28px 18px;margin:0 0 8px}
-.list-month-title{font-family:'Bricolage Grotesque',sans-serif;font-size:var(--text-4xl);font-weight:800;letter-spacing:-0.06em;line-height:0.95;color:var(--t-ink)}
-.list-month-year{font-family:'Bricolage Grotesque',sans-serif;font-size:var(--text-4xl);font-weight:300;letter-spacing:-0.06em;line-height:0.95;color:var(--t-text-dim)}
 
 /* ─── CALENDAR NAV ─── */
 .cal-nav-actions{display:flex;gap:8px}
@@ -2293,3 +2285,21 @@ input,textarea,select,button{font-family:inherit}
 .composer-carousel-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--surface-2);border-radius:var(--radius-md);background:var(--surface-1)}
 .ccs-title{font:600 14px var(--font-body);color:var(--ink)}
 .ccs-sub{font:500 12px var(--font-mono);color:var(--text-dim);margin-top:2px}
+
+/* Editorial list view header (Relay ss-view-head) — big month, kicker,
+   POSTED/QUEUED stats, and month nav. Replaces the compact stats bar. */
+.vh{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:22px 16px 16px;flex-wrap:wrap}
+.vh-left{min-width:0}
+.vh-kicker{font:500 13px var(--font-mono);color:var(--accent);margin-bottom:10px}
+.vh-kicker-dim{color:var(--text-faint)}
+.vh-title{font:700 clamp(30px,3.4vw,40px) var(--font-display);letter-spacing:-0.03em;color:var(--ink);line-height:1}
+.vh-title em{font-style:normal;color:var(--text-faint);font-weight:700;margin-left:8px}
+.vh-sub{font:400 14px var(--font-body);color:var(--text-sub);margin-top:10px;max-width:62ch}
+.vh-right{display:flex;align-items:center;gap:26px}
+.vh-stat-n{font:700 26px var(--font-display);letter-spacing:-0.02em;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+.vh-stat-l{font:500 11px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-faint);margin-top:4px}
+.vh-nav{display:flex;align-items:center;gap:4px;margin-left:6px}
+.vh-nav button{height:30px;min-width:30px;padding:0 8px;border:1px solid var(--surface-2);background:var(--surface);border-radius:var(--radius-sm);color:var(--ink);cursor:pointer;font:500 14px var(--font-body);display:inline-flex;align-items:center;justify-content:center;transition:background .12s}
+.vh-nav button:hover{background:var(--surface-1)}
+.vh-today{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.04em}
+@media (max-width:720px){.vh{flex-direction:column;align-items:flex-start;gap:14px}.vh-right{width:100%;justify-content:space-between}}
