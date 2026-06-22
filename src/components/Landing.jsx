@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "./landing.css";
-import { Kicker, HeroArt, CalendarArt, ComposerArt, ChaosArt } from "./LandingArt.jsx";
+import { Kicker, HeroArt, ChaosArt, CarouselArt, StoryArt } from "./LandingArt.jsx";
 
 // Public landing — Relay editorial marketing site, ported from the
 // design handoff. The prototype's Tweaks panel + accent/density toggles
@@ -126,47 +126,35 @@ function Workflow() {
         <div className="lp-reveal" style={{ maxWidth: 720, marginBottom: 80 }}>
           <Kicker num="03" label="The workflow" />
           <h2 className="lp-pricing-h" style={{ fontSize: "clamp(32px, 4vw, 48px)", margin: "22px 0 14px" }}>
-            three views. one source of truth.
+            design the post. don&rsquo;t just schedule it.
           </h2>
           <p className="lp-pricing-sub" style={{ margin: 0 }}>
-            A queue you can read at a glance. A calendar that holds the month. A composer that branches one master into every channel without copy-paste.
+            Most planners stop at a caption box. Relay has a full carousel composer and a story designer built in &mdash; so the creative happens where the calendar lives, with nothing exported to another app.
           </p>
         </div>
 
         <div className="lp-pair lp-reveal">
           <div className="lp-pair-copy">
-            <Kicker num="3.1" label="Queue" />
-            <h3 className="lp-pair-h">every post, every client, one row.</h3>
+            <Kicker num="3.1" label="Carousel designer" />
+            <h3 className="lp-pair-h">build the whole carousel, slide by slide.</h3>
             <p className="lp-pair-body">
-              Row-per-post, ordered by date. Status pill, channels, assignee — readable at a glance. No kanban, no card drag, no modal popups. Click any row and the composer opens beside it.
+              Five editorial layouts, your palette, drag to reorder. Design a 2&ndash;10 slide carousel and publish it straight to Instagram &mdash; no separate canvas tool, no re-upload, no leaving the studio.
             </p>
-            <div className="lp-pair-feature">Inline create · keyboard nav · 16-row month at a glance</div>
+            <div className="lp-pair-feature">Title · number · photo · quote · CTA layouts · live preview</div>
           </div>
-          <div className="lp-pair-art"><HeroArt /></div>
+          <div className="lp-pair-art"><CarouselArt /></div>
         </div>
 
         <div className="lp-pair lp-pair-r lp-reveal">
           <div className="lp-pair-copy">
-            <Kicker num="3.2" label="Calendar" />
-            <h3 className="lp-pair-h">the month, holding its shape.</h3>
+            <Kicker num="3.2" label="Story designer" />
+            <h3 className="lp-pair-h">stories, on a real canvas.</h3>
             <p className="lp-pair-body">
-              Same data, different angle. A calendar that respects the studio&rsquo;s rhythm — quiet weeks read quiet, busy weeks read busy. Status colors are the same six in every view, so the system holds.
+              A 9:16 editor with layers, snap, and live preview. Compose the story where you plan it, then send it live &mdash; the design and the schedule never leave the same place.
             </p>
-            <div className="lp-pair-feature">Month · week · day · drag to reschedule</div>
+            <div className="lp-pair-feature">Layers · snap-to-grid · type &amp; image · instant preview</div>
           </div>
-          <div className="lp-pair-art"><CalendarArt /></div>
-        </div>
-
-        <div className="lp-pair lp-reveal">
-          <div className="lp-pair-copy">
-            <Kicker num="3.3" label="Composer" />
-            <h3 className="lp-pair-h">one master caption. branched per channel, on purpose.</h3>
-            <p className="lp-pair-body">
-              Write the post once. Step two is a tabbed view of every channel — Instagram, LinkedIn, TikTok — each pre-mirroring the master, each editable without touching the others. A small dot tells you which ones you&rsquo;ve customized.
-            </p>
-            <div className="lp-pair-feature">Per-channel limits · live preview · ✦ caption assist on demand</div>
-          </div>
-          <div className="lp-pair-art"><ComposerArt /></div>
+          <div className="lp-pair-art"><StoryArt /></div>
         </div>
       </div>
     </section>
