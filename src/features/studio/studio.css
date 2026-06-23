@@ -2315,3 +2315,18 @@ input,textarea,select,button{font-family:inherit}
 .row-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:3px;font:500 11px var(--font-mono);line-height:1.2}
 .row-tag{color:var(--accent)}
 .row-meta-media{color:var(--text-faint)}
+
+/* ── Relay handoff fidelity: editorial kicker labels ──────────────────
+   The sidebar section labels and table-column headers are intentionally
+   small mono-uppercase in the design — below the global 14px floor, which
+   we override ONLY for these specific kicker labels (not buttons/inputs). */
+.s-lbl, .s-lbl-toggle {
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--text-dim) !important;
+}
+.s-lbl-num { font-size: 11px !important; }
+.th { font-size: 11px !important; letter-spacing: 0.06em; }
