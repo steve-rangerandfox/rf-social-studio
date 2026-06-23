@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import url('https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600,700&display=swap');
 
 :root {
@@ -2310,3 +2310,8 @@ input,textarea,select,button{font-family:inherit}
 .s-wm-text{line-height:1.1;min-width:0}
 .s-wm-name{font:700 15px var(--font-display);letter-spacing:-0.03em;color:var(--ink)}
 .s-wm-sub{font:500 10px var(--font-mono);color:var(--text-faint);letter-spacing:0.06em;text-transform:uppercase;margin-top:2px}
+
+/* Row meta line — hashtag kickers + reel/carousel note (Relay rows). */
+.row-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:3px;font:500 11px var(--font-mono);line-height:1.2}
+.row-tag{color:var(--accent)}
+.row-meta-media{color:var(--text-faint)}
