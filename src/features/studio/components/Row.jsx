@@ -12,7 +12,7 @@ import { useOutsideClick } from "../useOutsideClick.js";
 import { AlertTriangle, Close as X, GripVertical } from "../../../components/icons/index.jsx";
 
 export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, onSelect, isSelected, isFocused, dragHandlers, hasConnectedAccount = false }) {
-  const p = PLATFORMS[row.platform], s = STATUSES[row.status];
+  const s = STATUSES[row.status];
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPlatformOpen, setIsPlatformOpen] = useState(false);
@@ -30,6 +30,7 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
     : Array.isArray(row.carouselSlides) && row.carouselSlides.length >= 2
       ? `· ${row.carouselSlides.length}-card carousel`
       : "";
+  const platforms = Array.isArray(row.platforms) && row.platforms.length ? row.platforms : [row.platform];
 
   const availableTransitions = getAvailableTransitions(row, hasConnectedAccount);
 
@@ -144,26 +145,33 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
         )}
       </div>
 
-      {/* Platform pill */}
+      {/* Channels (multi-select) */}
       <div onClick={(e) => e.stopPropagation()} ref={platformRef} className="row-dropdown-anchor">
-        <button className="plat-pill" onClick={() => setIsPlatformOpen((c) => !c)} title={p.label}>
-          <PlatformIcon platform={row.platform} size={18} />
+        <button className="plat-pill" onClick={() => setIsPlatformOpen((c) => !c)} title={platforms.map((pl) => PLATFORMS[pl]?.short).join(", ")}>
+          {platforms.map((pl) => <PlatformIcon key={pl} platform={pl} size={18} />)}
         </button>
         {isPlatformOpen && (
           <div className="popover-menu">
-            {Object.entries(PLATFORMS).map(([key, platform]) => (
-              <button
-                key={key}
-                className={"popover-menu-item " + (row.platform === key ? "active" : "")}
-                onClick={() => { onChange({ platform: key }); setIsPlatformOpen(false); }}
-              >
-                <span className="row-option-content">
-                  <PlatformIcon platform={key} size={16} />
-                  {platform.label}
-                </span>
-                {row.platform === key ? <span className="ops-option-mark">Current</span> : null}
-              </button>
-            ))}
+            {Object.entries(PLATFORMS).filter(([key]) => key !== "ig_story").map(([key, platform]) => {
+              const on = platforms.includes(key);
+              return (
+                <button
+                  key={key}
+                  className={"popover-menu-item " + (on ? "active" : "")}
+                  onClick={() => {
+                    let next = on ? platforms.filter((x) => x !== key) : [...platforms, key];
+                    if (next.length === 0) next = [key];
+                    onChange({ platforms: next, platform: next[0] });
+                  }}
+                >
+                  <span className="row-option-content">
+                    <PlatformIcon platform={key} size={16} />
+                    {platform.label}
+                  </span>
+                  {on ? <span className="ops-option-mark">On</span> : null}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
