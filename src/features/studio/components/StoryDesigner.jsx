@@ -975,8 +975,8 @@ export function StoryDesigner({ row, onClose, onSave }) {
   const layersRev = [...elements].reverse();
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal s-modal" onClick={e=>e.stopPropagation()}>
+    <div className="overlay s-overlay-full" onClick={onClose}>
+      <div className="modal s-modal s-modal-full" onClick={e=>e.stopPropagation()}>
         <div className="m-head" style={{flexShrink:0}}>
           <div><div className="m-title">Story Designer</div><div className="m-sub">{row?.note}</div></div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
