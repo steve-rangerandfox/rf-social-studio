@@ -23,6 +23,13 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
   const statusDropdownRef = useRef(null);
 
   const needsAttention = isRowNeedingAttention(row);
+  // Editorial meta line under the title (Relay rows): hashtags + a media note.
+  const tags = Array.isArray(row.tags) ? row.tags : [];
+  const mediaNote = row.platform === "ig_reel"
+    ? "· reel"
+    : Array.isArray(row.carouselSlides) && row.carouselSlides.length >= 2
+      ? `· ${row.carouselSlides.length}-card carousel`
+      : "";
 
   const availableTransitions = getAvailableTransitions(row, hasConnectedAccount);
 
@@ -108,9 +115,19 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
             title={row.note}
           />
         ) : (
-          <div className="note-display" title={row.note || "Untitled post"}>
-            {row.note || "Untitled post"}
-          </div>
+          <>
+            <div className="note-display" title={row.note || "Untitled post"}>
+              {row.note || "Untitled post"}
+            </div>
+            {(tags.length > 0 || mediaNote) && (
+              <div className="row-meta">
+                {tags.slice(0, 3).map((t) => (
+                  <span key={t} className="row-tag">#{t}</span>
+                ))}
+                {mediaNote && <span className="row-meta-media">{mediaNote}</span>}
+              </div>
+            )}
+          </>
         )}
       </div>
 
