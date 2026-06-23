@@ -7,7 +7,7 @@ import { PublicLayout } from "./PublicLayout.jsx";
 export function NotFound() {
   return (
     <PublicLayout
-      eyebrow="404 \u00B7 Page"
+      eyebrow="404 · Page"
       title="We can't find that page."
       meta="The studio is open, though"
     >

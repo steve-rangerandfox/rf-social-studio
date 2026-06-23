@@ -23,7 +23,7 @@ export function CaptionEditor({ value, onChange, platform, note }) {
       </div>
       {showAI&&<AICaptionAssist variant="panel" platform={platform} note={note} onAccept={(t)=>{onChange(t);setShowAI(false);}}/>}
       <div className="mw">
-        <textarea ref={ref} className="txa" value={value} onChange={onCh} placeholder="Write your caption\u2026 use @ to tag"/>
+        <textarea ref={ref} className="txa" value={value} onChange={onCh} placeholder="Write your caption… use @ to tag"/>
         <div className="char-row"><span className={`char ${over?"over":warn?"warn":""}`}>{value.length}/{max}</span></div>
         {mq!==null&&res.length>0&&<div className="md">{res.map(m=><div key={m.id} className="mi" onClick={()=>pick(m)}><div className="ma">{m.name[0]}</div><div><div className="mn">{m.name}</div><div className="mh">@{m.handle}</div></div></div>)}</div>}
       </div>

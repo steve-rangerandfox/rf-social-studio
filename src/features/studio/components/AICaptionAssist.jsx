@@ -45,7 +45,7 @@ export function AICaptionAssist({ platform, note, onAccept, variant = "panel" })
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           onKeyDown={e => e.key === "Enter" && generate()}
-          placeholder="Describe what to write\u2026"
+          placeholder="Describe what to write…"
           style={{
             flex:1,background:"rgba(255,255,255,0.72)",border:`1px solid ${T.border}`,
             borderRadius:8,fontSize:11,padding:"7px 10px",outline:"none",color:T.text,
@@ -68,9 +68,9 @@ export function AICaptionAssist({ platform, note, onAccept, variant = "panel" })
       <div className="ai-header"><span className="ai-title">AI Caption Writer</span></div>
       <div style={{display:"flex",gap:8}}>
         <input className="inp" style={{flex:1,fontSize:12.5}} value={prompt} onChange={e=>setPrompt(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&generate()} placeholder="Describe what you\u2019re posting\u2026"/>
+          onKeyDown={e=>e.key==="Enter"&&generate()} placeholder="Describe what you’re posting…"/>
         <button className="btn btn-primary" style={{padding:"7px 12px",fontSize:12,flexShrink:0}}
-          onClick={generate} disabled={loading||!prompt.trim()}>{loading?"Writing\u2026":"Generate"}</button>
+          onClick={generate} disabled={loading||!prompt.trim()}>{loading?"Writing…":"Generate"}</button>
       </div>
     </div>
   );
