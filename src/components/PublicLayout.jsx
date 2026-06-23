@@ -156,9 +156,9 @@ export function PublicLayout({ eyebrow, title, meta, children, colophonMeta = "H
       <style>{PUBLIC_STYLES}</style>
       <div className="public-shell">
         <div className="public-inner">
-          <a href="/" className="public-mark" aria-label="Ranger & Fox Social Studio — home">
-            <span className="public-mark-name">Ranger &amp; Fox</span>
-            <span className="public-mark-sub">Social Studio</span>
+          <a href="/" className="public-mark" aria-label="Relay — home">
+            <span className="public-mark-name">Relay</span>
+            <span className="public-mark-sub">Ranger &amp; Fox</span>
           </a>
 
           {eyebrow && (
@@ -176,7 +176,7 @@ export function PublicLayout({ eyebrow, title, meta, children, colophonMeta = "H
           <div className="public-body">{children}</div>
 
           <div className="public-colophon">
-            <div className="public-colophon-mark">Ranger &amp; Fox Social Studio</div>
+            <div className="public-colophon-mark">Relay</div>
             <div className="public-colophon-meta">{colophonMeta}</div>
           </div>
         </div>

@@ -10,7 +10,7 @@ export function About() {
     >
       <PublicSection title="What we are building">
         <p>
-          RF Social Studio is a social-content workspace shaped to feel like a
+          Relay is a social-content workspace shaped to feel like a
           working studio &mdash; planning, drafting, designing, and publishing
           inside one calm space, not five tabs strung together. It started as
           the in-house tool at Ranger &amp; Fox, the motion studio behind the

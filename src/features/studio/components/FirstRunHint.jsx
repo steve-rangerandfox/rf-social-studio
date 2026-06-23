@@ -22,7 +22,7 @@ export function FirstRunHint() {
   return (
     <aside className="first-run-hint" role="complementary" aria-label="Getting started">
       <div className="first-run-hint-header">
-        <span className="first-run-hint-title">Welcome to Social Studio</span>
+        <span className="first-run-hint-title">Welcome to Relay</span>
         <button className="first-run-hint-close" onClick={dismiss} aria-label="Dismiss">
           <X size={12} />
         </button>
