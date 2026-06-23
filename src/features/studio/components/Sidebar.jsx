@@ -100,7 +100,7 @@ export function Sidebar() {
 
       <div className="s-team">
         <button className="s-lbl s-lbl-toggle" onClick={() => toggleSection("team")}>
-          <span><span className="s-lbl-num">02 /</span> Team</span>
+          <span><span className="s-lbl-num">03 /</span> Team</span>
           <ChevronDown size={10} className={`s-lbl-chevron${collapsed.team ? " collapsed" : ""}`} />
         </button>
         {!collapsed.team && team.map(t => (
@@ -116,7 +116,7 @@ export function Sidebar() {
 
       <div className="s-bottom">
         <button className="s-lbl s-lbl-toggle" onClick={() => toggleSection("connections")}>
-          <span><span className="s-lbl-num">03 /</span> Connections</span>
+          <span><span className="s-lbl-num">04 /</span> Connections</span>
           <ChevronDown size={10} className={`s-lbl-chevron${collapsed.connections ? " collapsed" : ""}`} />
         </button>
         {!collapsed.connections && (
