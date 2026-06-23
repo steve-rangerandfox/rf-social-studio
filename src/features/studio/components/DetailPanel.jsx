@@ -315,7 +315,7 @@ export function DetailPanel() {
                         aria-selected={row.platform === key}
                         className={`dp-platform-option${row.platform === key ? " active" : ""}`}
                         onClick={() => {
-                          onChange({ platform: key });
+                          onChange({ platform: key, platforms: [key, ...(Array.isArray(row.platforms) ? row.platforms : []).filter((pl) => pl !== key)] });
                           setPlatformDropdownOpen(false);
                         }}
                       >

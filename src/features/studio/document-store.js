@@ -151,7 +151,14 @@ function normalizeAuditEntry(entry) {
 
 export function normalizeRow(row, actor = "system") {
   const now = new Date().toISOString();
-  const platform = Object.hasOwn(PLATFORMS, row.platform) ? row.platform : "ig_post";
+  // Multi-channel: `platforms` is the full set; `platform` is the canonical
+  // primary (publish/calendar/filters use it). Keep them consistent.
+  let platforms = Array.isArray(row.platforms)
+    ? row.platforms.filter((pl) => Object.hasOwn(PLATFORMS, pl))
+    : [];
+  let platform = Object.hasOwn(PLATFORMS, row.platform) ? row.platform : "ig_post";
+  if (!platforms.length) platforms = [platform];
+  if (!platforms.includes(platform)) platform = platforms[0];
   const status = Object.hasOwn(STATUSES, row.status) ? row.status : "idea";
 
   return {
@@ -160,6 +167,7 @@ export function normalizeRow(row, actor = "system") {
     note: clampNote(row.note),
     caption: clampCaption(row.caption, platform),
     platform,
+    platforms,
     status,
     assignee: row.assignee ?? null,
     comments: Array.isArray(row.comments) ? row.comments : [],
