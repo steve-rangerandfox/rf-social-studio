@@ -1,4 +1,4 @@
-// StatusMachine — proper status transition system for RF Social Studio
+// StatusMachine — proper status transition system for Relay
 // Replaces the single-click cycle with validated, forward-only transitions.
 
 export const STATUS_ORDER = ['idea', 'draft', 'needs_review', 'approved', 'scheduled', 'posted'];

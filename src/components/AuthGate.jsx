@@ -366,8 +366,8 @@ export function AuthGate() {
         <div className="auth-shell">
           <section className="auth-panel">
             <div className="auth-mark">
-              <div className="auth-mark-name">Ranger &amp; Fox</div>
-              <div className="auth-mark-sub">Social Studio</div>
+              <div className="auth-mark-name">Relay</div>
+              <div className="auth-mark-sub">Ranger &amp; Fox</div>
             </div>
 
             <div className="auth-hero">

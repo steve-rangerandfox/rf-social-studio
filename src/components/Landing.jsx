@@ -107,7 +107,7 @@ function Problem() {
               Spreadsheets for briefs. Notion for drafts. Later for scheduling. Slack for approvals. <em>Three different tools for the client to look at the work in.</em> None of them designed for how a studio actually runs.
             </p>
             <p className="lp-problem-body">
-              We built RF Social Studio because we run a production studio and were living in that stack. It&rsquo;s a single workspace for your team to plan, write, review and publish — without switching tabs or losing your mind in the cells of a sheet.
+              We built Relay because we run a production studio and were living in that stack. It&rsquo;s a single workspace for your team to plan, write, review and publish — without switching tabs or losing your mind in the cells of a sheet.
             </p>
           </div>
           <div className="lp-reveal">
@@ -272,7 +272,7 @@ function Founder() {
       <div className="lp-founder lp-reveal">
         <Kicker num="06" label="Why we built it" />
         <p className="lp-founder-quote">
-          We were managing Instagram for six brand clients out of a spreadsheet, three Slack threads and four browser tabs. It was embarrassing. RF Social Studio is what we actually use every day at Ranger &amp; Fox — we opened it to other studios because we figured we weren&rsquo;t the only ones living like that.
+          We were managing Instagram for six brand clients out of a spreadsheet, three Slack threads and four browser tabs. It was embarrassing. Relay is what we actually use every day at Ranger &amp; Fox — we opened it to other studios because we figured we weren&rsquo;t the only ones living like that.
         </p>
         <div className="lp-founder-attr">
           <span className="lp-founder-attr-line" />
@@ -332,7 +332,7 @@ function Footer() {
         </div>
         <div className="lp-footer-bot">
           <span>© 2026 Ranger &amp; Fox Ltd</span>
-          <span>RF Social Studio</span>
+          <span>Relay</span>
         </div>
       </div>
     </footer>

@@ -506,7 +506,7 @@ export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, br
         <div className="settings-panel-header">
           <div>
             <div id="settings-panel-title" className="settings-panel-title">Settings</div>
-            <div className="settings-panel-sub">Social Studio preferences</div>
+            <div className="settings-panel-sub">Relay preferences</div>
           </div>
           <button className="m-x" onClick={handleClose} title="Close (Esc)" aria-label="Close">
             <Close size={15}/>

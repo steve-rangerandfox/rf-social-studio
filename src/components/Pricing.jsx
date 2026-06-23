@@ -331,7 +331,7 @@ export function Pricing() {
         <div className="pricing-compare-table" role="table">
           <div className="pricing-compare-head" role="row">
             <span role="columnheader">Feature</span>
-            <span role="columnheader">RF Social Studio</span>
+            <span role="columnheader">Relay</span>
             <span role="columnheader">Buffer</span>
           </div>
           {COMPARISON.map((row) => (

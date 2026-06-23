@@ -17,7 +17,7 @@ export function PrivacyPolicy() {
       </PublicSection>
 
       <PublicSection title="How we use it">
-        <p>Your data is used exclusively to power RF Social Studio features:</p>
+        <p>Your data is used exclusively to power Relay features:</p>
         <ul>
           <li>Displaying your Instagram feed in the Grid view</li>
           <li>Showing your profile information in the connection panel</li>

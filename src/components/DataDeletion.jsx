@@ -6,12 +6,12 @@ export function DataDeletion() {
     <PublicLayout
       eyebrow="Data"
       title="Data Deletion"
-      meta="How to delete your data from RF Social Studio"
+      meta="How to delete your data from Relay"
     >
       <PublicSection title="Disconnect your Instagram account">
-        <p>To remove your Instagram data from RF Social Studio:</p>
+        <p>To remove your Instagram data from Relay:</p>
         <ol>
-          <li>Log into RF Social Studio</li>
+          <li>Log into Relay</li>
           <li>Click <strong>Instagram</strong> in the sidebar under Connections</li>
           <li>Click <strong>Disconnect</strong></li>
         </ol>
