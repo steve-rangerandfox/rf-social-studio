@@ -250,7 +250,7 @@ export function DetailPanel() {
                 id="detail-panel-title"
                 className="detail-panel-title-input"
                 value={row.note}
-                placeholder="Post title\u2026"
+                placeholder="Post title…"
                 onChange={(e) => onChange({ note: e.target.value })}
                 onBlur={() => setIsEditingTitle(false)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setIsEditingTitle(false); }}
@@ -280,7 +280,7 @@ export function DetailPanel() {
                   {row.postedAt && `Posted ${formatRelativeStamp(row.postedAt)}`}
                   {row.igPermalink && (
                     <>
-                      {" \u00B7 "}
+                      {" · "}
                       <a href={row.igPermalink} target="_blank" rel="noopener noreferrer" className="dp-published-link">
                         View on Instagram ↗
                       </a>
@@ -364,7 +364,7 @@ export function DetailPanel() {
                   <div className="stage-post-placeholder" onClick={() => mediaRef.current?.click()}>
                     <Play size={22} className="dp-icon-dim" />
                     <span className="dp-upload-label">Upload Reel</span>
-                    <span className="dp-upload-hint">9:16 video {"\u00B7"} MP4 {"\u00B7"} MOV</span>
+                    <span className="dp-upload-hint">9:16 video {"·"} MP4 {"·"} MOV</span>
                   </div>
                 )}
                 <div className="dp-audio-credit">
@@ -432,7 +432,7 @@ export function DetailPanel() {
                   <div className="stage-post-placeholder" onClick={() => mediaRef.current?.click()}>
                     <Upload size={22} className="dp-icon-dim" />
                     <span className="dp-upload-label">Attach media</span>
-                    <span className="dp-upload-hint">{isLI ? "Up to 9 files \u00B7 JPG \u00B7 PNG \u00B7 MP4" : "JPG \u00B7 PNG \u00B7 GIF \u00B7 MP4"}</span>
+                    <span className="dp-upload-hint">{isLI ? "Up to 9 files · JPG · PNG · MP4" : "JPG · PNG · GIF · MP4"}</span>
                   </div>
                 )}
               </div>
@@ -489,7 +489,7 @@ export function DetailPanel() {
               );
             })}
             <div className="dp-comment-row">
-              <input className="comment-input" placeholder="Add a comment\u2026" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submitComment()} />
+              <input className="comment-input" placeholder="Add a comment…" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submitComment()} />
               <button className="btn btn-ghost" onClick={submitComment}>Send</button>
             </div>
           </section>

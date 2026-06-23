@@ -290,7 +290,7 @@ export function Pricing() {
     <PublicLayout
       eyebrow="Pricing"
       title="Calm pricing for a working studio."
-      meta="Three tiers \u00B7 14-day trial on paid plans \u00B7 cancel anytime"
+      meta="Three tiers · 14-day trial on paid plans · cancel anytime"
     >
       <style>{PRICING_STYLES}</style>
 
@@ -322,11 +322,11 @@ export function Pricing() {
       </div>
 
       <p className="pricing-trial">
-        Trials don&rsquo;t require a card up front \u00B7 Switch tiers or cancel from Settings &rarr; Billing
+        Trials don&rsquo;t require a card up front · Switch tiers or cancel from Settings &rarr; Billing
       </p>
 
       <section className="pricing-compare">
-        <span className="pricing-compare-num">02 \u00B7 vs Buffer</span>
+        <span className="pricing-compare-num">02 · vs Buffer</span>
         <h2 className="pricing-compare-title">Same job, different opinion.</h2>
         <div className="pricing-compare-table" role="table">
           <div className="pricing-compare-head" role="row">

@@ -108,7 +108,7 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
             ref={titleInputRef}
             className="note-in"
             value={row.note}
-            placeholder="Post title\u2026"
+            placeholder="Post title…"
             onChange={e => onChange({ note: e.target.value })}
             onBlur={() => setIsEditingTitle(false)}
             onKeyDown={(e) => { if (e.key === "Enter") setIsEditingTitle(false); if (e.key === "Escape") setIsEditingTitle(false); }}
