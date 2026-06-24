@@ -44,7 +44,7 @@ function Nav() {
       <div className="lp-container">
         <div className="lp-nav-row">
           <a href="#top" className="lp-logo">
-            <span className="lp-logo-mark">RF</span>
+            <span className="lp-logo-mark">R</span>
             <span>Relay</span>
           </a>
           <div className="lp-nav-links">
@@ -310,7 +310,7 @@ function Footer() {
         <div className="lp-footer-row">
           <div>
             <a href="#top" className="lp-logo" style={{ fontSize: 16 }}>
-              <span className="lp-logo-mark">RF</span>
+              <span className="lp-logo-mark">R</span>
               <span>Relay</span>
             </a>
             <div className="lp-footer-tag">

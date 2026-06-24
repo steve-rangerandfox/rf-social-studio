@@ -45,7 +45,7 @@ export function HeroArt() {
         <div className="lp-mini">
           <aside className="lp-mini-side">
             <div className="lp-mini-brand">
-              <span className="lp-mini-brand-mark">RF</span>
+              <span className="lp-mini-brand-mark">R</span>
               <span className="lp-mini-brand-name">Relay</span>
             </div>
             <div className="lp-mini-newpost">
