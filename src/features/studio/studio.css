@@ -465,7 +465,7 @@ input,textarea,select,button{font-family:inherit}
 .bulk-confirm-text{font-size:var(--text-sm);color:var(--t-text);font-weight:500}
 
 /* CALENDAR VIEW */
-.cal-area{flex:1;overflow-y:auto;padding:24px 32px 32px}
+.cal-area{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding:24px 32px 32px}
 .cal-header{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
 /* Editorial weekday header — Bricolage display, left-aligned to the cell
    gutter so the rhythm reads as a typeset calendar, not a UI control. */
