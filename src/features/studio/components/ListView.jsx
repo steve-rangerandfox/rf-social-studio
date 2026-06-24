@@ -212,7 +212,8 @@ export function ListView() {
                 return (
                   <div
                     key={`header-${mi}`}
-                    ref={el => { if (el) monthRefs.current[mi] = el; }}
+                    data-index={virtualItem.index}
+                    ref={el => { yearVirtualizer.measureElement(el); if (el) monthRefs.current[mi] = el; }}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -238,6 +239,8 @@ export function ListView() {
                 return (
                   <div
                     key={`empty-${mi}`}
+                    data-index={virtualItem.index}
+                    ref={yearVirtualizer.measureElement}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -263,6 +266,8 @@ export function ListView() {
               return (
                 <div
                   key={item.row.id}
+                  data-index={virtualItem.index}
+                  ref={yearVirtualizer.measureElement}
                   style={{
                     position: "absolute",
                     top: 0,
