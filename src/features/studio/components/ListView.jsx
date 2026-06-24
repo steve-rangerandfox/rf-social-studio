@@ -120,7 +120,7 @@ export function ListView() {
       {timeScale === "month" && (
         <div className="vh">
           <div className="vh-left">
-            <div className="vh-kicker">02 / queue <span className="vh-kicker-dim">· Ranger &amp; Fox</span></div>
+            <div className="vh-kicker">Queue</div>
             <div className="vh-title">{MONTHS_FULL[month]} <em>{year}</em></div>
             <div className="vh-sub">
               {sorted.length === 0

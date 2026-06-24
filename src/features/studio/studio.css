@@ -2229,7 +2229,6 @@ input,textarea,select,button{font-family:inherit}
 .vh{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:22px 16px 16px;flex-wrap:wrap}
 .vh-left{min-width:0}
 .vh-kicker{font:500 13px var(--font-mono);color:var(--accent);margin-bottom:10px}
-.vh-kicker-dim{color:var(--text-faint)}
 .vh-title{font:700 clamp(30px,3.4vw,40px) var(--font-display);letter-spacing:-0.03em;color:var(--ink);line-height:1}
 .vh-title em{font-style:normal;color:var(--text-faint);font-weight:700;margin-left:8px}
 .vh-sub{font:400 14px var(--font-body);color:var(--text-sub);margin-top:10px;max-width:62ch}
