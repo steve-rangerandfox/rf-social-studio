@@ -43,20 +43,20 @@ import {
 
 // ─── Route <-> View mapping ────────────────────────────────────────
 export const viewFromPath = {
-  "/": "list",
-  "/calendar": "calendar",
-  "/grid": "grid",
-  "/analytics": "analytics",
-  "/brand": "brand",
-  "/assets": "assets",
+  "/app": "list",
+  "/app/calendar": "calendar",
+  "/app/grid": "grid",
+  "/app/analytics": "analytics",
+  "/app/brand": "brand",
+  "/app/assets": "assets",
 };
 export const pathFromView = {
-  list: "/",
-  calendar: "/calendar",
-  grid: "/grid",
-  analytics: "/analytics",
-  brand: "/brand",
-  assets: "/assets",
+  list: "/app",
+  calendar: "/app/calendar",
+  grid: "/app/grid",
+  analytics: "/app/analytics",
+  brand: "/app/brand",
+  assets: "/app/assets",
 };
 
 const StudioContext = createContext(null);
