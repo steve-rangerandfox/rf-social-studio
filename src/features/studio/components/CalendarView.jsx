@@ -84,7 +84,6 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
                 >
                   <div className="cal-cell-head">
                     <div className="cal-dn" style={{color: isOther ? 'var(--t-border)' : undefined}}>{d}</div>
-                    {isCurr && count > 0 && <div className="cal-count">{count}</div>}
                   </div>
                   {isCurr && <>
                     <div className="cal-posts">
