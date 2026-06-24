@@ -149,7 +149,7 @@ export function ListView() {
       <div className="t-head">
         <div className="th"><input type="checkbox" className="cb" checked={sel.size === sorted.length && sorted.length > 0} onChange={e => toggleAll(e.target.checked)} /></div>
         <div className="th" />
-        <div className="th">Date / Time PT</div>
+        <div className="th">Date / Time</div>
         <div className="th">Title</div>
         <div className="th" />
         <div className="th" />

@@ -353,7 +353,6 @@ input,textarea,select,button{font-family:inherit}
 .dt-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
 .dt-date{font-size:13px;font-weight:500;color:#71717a;line-height:1.2;letter-spacing:-0.005em;text-transform:none}
 .dt-time{font-family:'Switzer',sans-serif;font-size:14px;color:#09090b;line-height:1.35;font-weight:600;letter-spacing:-0.005em;white-space:nowrap;font-variant-numeric:tabular-nums}
-.dt-zone{font-size:12px;color:#a1a1aa;letter-spacing:-0.005em;text-transform:none}
 .dt-empty{display:flex;flex-direction:column;gap:2px}
 .dt-empty-title{font-family:'Switzer',sans-serif;font-size:13px;font-weight:500;color:#71717a;line-height:1.2}
 .dt-empty-sub{font-size:12px;color:#a1a1aa;letter-spacing:-0.005em;text-transform:none}
