@@ -158,7 +158,6 @@ export function PublicLayout({ eyebrow, title, meta, children, colophonMeta = "H
         <div className="public-inner">
           <a href="/" className="public-mark" aria-label="Relay — home">
             <span className="public-mark-name">Relay</span>
-            <span className="public-mark-sub">Ranger &amp; Fox</span>
           </a>
 
           {eyebrow && (

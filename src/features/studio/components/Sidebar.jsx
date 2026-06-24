@@ -40,10 +40,9 @@ export function Sidebar() {
     <aside className="sidebar">
       {/* Relay wordmark lockup — RF mark + product name + studio name. */}
       <div className="s-logo">
-        <div className="s-wm-mark">RF</div>
+        <div className="s-wm-mark">R</div>
         <div className="s-wm-text">
           <div className="s-wm-name">Relay</div>
-          <div className="s-wm-sub">Ranger &amp; Fox</div>
         </div>
       </div>
 
