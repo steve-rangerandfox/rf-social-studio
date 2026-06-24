@@ -22,14 +22,11 @@ export function InlineCreateRow() {
 
   return (
     <div className="t-row inline-create-row">
-      <div /> {/* checkbox placeholder */}
-      <div /> {/* drag handle placeholder */}
-      <div className="dt-cell">
-        <div className="dt-empty">
-          <div className="dt-empty-title">Next available</div>
-          <div className="dt-empty-sub">Auto-scheduled</div>
-        </div>
+      <div /> {/* checkbox */}
+      <div className="dt-badge dt-badge-auto" title="Auto-scheduled">
+        <span className="dt-badge-empty">—</span>
       </div>
+      <div className="row-time"><span className="dt-time">auto</span></div>
       <div className="inline-create-input-wrap">
         <input
           ref={inputRef}
@@ -41,15 +38,14 @@ export function InlineCreateRow() {
           }}
         />
       </div>
-      <div />
-      <div className="row-action-btn"><PlatformIcon platform="ig_post" size={18} /></div>
-      <div>
+      <div className="plat-pill"><PlatformIcon platform="ig_post" size={20} /></div>
+      <div className="row-status-cell">
         <span className="status-pill">
           <span className="s-dot" style={{ background: STATUSES.idea.dot }} />
           {STATUSES.idea.label}
         </span>
       </div>
-      <div />
+      <div /> {/* grip */}
     </div>
   );
 }

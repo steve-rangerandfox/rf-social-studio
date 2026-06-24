@@ -1,29 +1,41 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   T,
   PLATFORMS,
   STATUSES,
+  MONTHS_SHORT,
+  toPTDisplay,
   isRowNeedingAttention,
 } from "../shared.js";
-import { DateTimeCell } from "./DateTimeCell.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
+import { DateTimePicker } from "./DateTimePicker.jsx";
 import { canTransition, getAvailableTransitions } from "./StatusMachine.js";
 import { useOutsideClick } from "../useOutsideClick.js";
-import { AlertTriangle, Close as X, GripVertical } from "../../../components/icons/index.jsx";
+import { AlertTriangle } from "../../../components/icons/index.jsx";
 
-export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, onSelect, isSelected, isFocused, dragHandlers, hasConnectedAccount = false }) {
+// Drag grip — 6-dot SVG, matches the Relay handoff (right-aligned, hover-only).
+function Grip() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+      {[[6, 4], [10, 4], [6, 8], [10, 8], [6, 12], [10, 12]].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="0.9" fill="currentColor" />
+      ))}
+    </svg>
+  );
+}
+
+export const Row = React.memo(function Row({ row, sel, onSel, onChange, onSelect, isSelected, isFocused, dragHandlers, hasConnectedAccount = false }) {
   const s = STATUSES[row.status];
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isPlatformOpen, setIsPlatformOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-  const titleInputRef = useRef(null);
-  const menuRef = useRef(null);
+  const dateRef = useRef(null);
   const platformRef = useRef(null);
   const statusDropdownRef = useRef(null);
 
   const needsAttention = isRowNeedingAttention(row);
-  // Editorial meta line under the title (Relay rows): hashtags + a media note.
+  const disp = row.scheduledAt ? toPTDisplay(row.scheduledAt) : null;
+  const monthLabel = disp ? MONTHS_SHORT[Math.max(0, Number(disp.month) - 1)] : null;
   const tags = Array.isArray(row.tags) ? row.tags : [];
   const mediaNote = row.platform === "ig_reel"
     ? "· reel"
@@ -34,13 +46,7 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
 
   const availableTransitions = getAvailableTransitions(row, hasConnectedAccount);
 
-  useEffect(() => {
-    if (!isEditingTitle) return;
-    titleInputRef.current?.focus();
-    titleInputRef.current?.select();
-  }, [isEditingTitle]);
-
-  useOutsideClick(menuRef, isMenuOpen, useCallback(() => setIsMenuOpen(false), []));
+  useOutsideClick(dateRef, isPickerOpen, useCallback(() => setIsPickerOpen(false), []));
   useOutsideClick(platformRef, isPlatformOpen, useCallback(() => setIsPlatformOpen(false), []));
   useOutsideClick(
     statusDropdownRef,
@@ -55,15 +61,14 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
   };
 
   const statusDropdownItems = (() => {
-    const items = [];
-    items.push({
+    const items = [{
       status: row.status,
       label: s.label,
       dot: s.dot,
       isCurrent: true,
       allowed: false,
       reason: "Current status",
-    });
+    }];
     for (const t of availableTransitions) {
       const st = STATUSES[t.status];
       items.push({
@@ -78,69 +83,49 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
     return items;
   })();
 
+  const openPicker = (e) => { e.stopPropagation(); setIsPickerOpen((c) => !c); };
+
   return (
     <div className={`t-row ${sel ? "sel" : ""} ${isSelected ? "row-selected" : ""} ${isFocused ? "row-focused" : ""} ${dragHandlers.isDragging ? "dragging" : ""} ${dragHandlers.isDragOver ? "drag-over" : ""}`}
       style={{
-        // Status-as-left-stripe — the row carries its own status color as
-        // a 3px left rule so the queue scans by hue without needing the
-        // status pill in peripheral vision.
         "--row-stripe": s.dot,
-        ...(isMenuOpen || isStatusDropdownOpen || isPlatformOpen ? { zIndex: 20 } : null),
+        ...(isStatusDropdownOpen || isPlatformOpen || isPickerOpen ? { zIndex: 20 } : null),
       }}
       onMouseEnter={dragHandlers.onMouseEnter}
-      onClick={() => { if (!isEditingTitle) onSelect(); }}>
-      <div className="row-cb-wrap" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="cb" checked={sel} onChange={e => onSel(e.target.checked)} /></div>
-      <div
-        className="drag-handle row-drag-wrap"
-        onPointerDown={dragHandlers.onPointerDown}
-        onClick={(e) => e.stopPropagation()}
-        title="Drag to reorder"
-      >
-        <GripVertical size={14} color={T.textDim} />
+      onClick={onSelect}>
+
+      {/* Checkbox */}
+      <div className="row-cb-wrap" onClick={(e) => e.stopPropagation()}>
+        <input type="checkbox" className="cb" checked={sel} onChange={e => onSel(e.target.checked)} />
       </div>
 
-      <div onClick={(e) => e.stopPropagation()}>
-        <DateTimeCell isoValue={row.scheduledAt} onChange={v => onChange({ scheduledAt: v })} />
-      </div>
-
-      <div className="row-title-wrap" onClick={isEditingTitle ? (e) => e.stopPropagation() : undefined}>
-        {isEditingTitle ? (
-          <input
-            ref={titleInputRef}
-            className="note-in"
-            value={row.note}
-            placeholder="Post title…"
-            onChange={e => onChange({ note: e.target.value })}
-            onBlur={() => setIsEditingTitle(false)}
-            onKeyDown={(e) => { if (e.key === "Enter") setIsEditingTitle(false); if (e.key === "Escape") setIsEditingTitle(false); }}
-            title={row.note}
-          />
-        ) : (
-          <>
-            <div className="note-display" title={row.note || "Untitled post"}>
-              {row.note || "Untitled post"}
-            </div>
-            {(tags.length > 0 || mediaNote) && (
-              <div className="row-meta">
-                {tags.slice(0, 3).map((t) => (
-                  <span key={t} className="row-tag">#{t}</span>
-                ))}
-                {mediaNote && <span className="row-meta-media">{mediaNote}</span>}
-              </div>
-            )}
-          </>
+      {/* Date badge */}
+      <div className="row-dropdown-anchor" ref={dateRef} onClick={(e) => e.stopPropagation()}>
+        <button className="dt-badge" onClick={openPicker} title="Edit date & time">
+          {disp ? (
+            <>
+              <span className="dt-badge-month">{monthLabel}</span>
+              <span className="dt-badge-day">{disp.day}</span>
+            </>
+          ) : <span className="dt-badge-empty">+</span>}
+        </button>
+        {isPickerOpen && (
+          <DateTimePicker isoValue={row.scheduledAt} onChange={v => onChange({ scheduledAt: v })} onClose={() => setIsPickerOpen(false)} anchorRef={dateRef} />
         )}
       </div>
 
-      <div className="row-menu" ref={menuRef} onClick={(e) => e.stopPropagation()}>
-        <button className="row-menu-trigger" onClick={() => setIsMenuOpen((current) => !current)}>
-          <span className="row-menu-dots"><span /><span /><span /></span>
-        </button>
-        {isMenuOpen && (
-          <div className="row-menu-popover">
-            <button className="row-menu-option" onClick={() => { setIsMenuOpen(false); setIsEditingTitle(true); }}>
-              Edit title
-            </button>
+      {/* Time */}
+      <div className="row-time" onClick={openPicker}>
+        <span className="dt-time">{disp ? `${disp.hour}:${disp.minute} ${disp.ampm}` : "—"}</span>
+      </div>
+
+      {/* Post (title + meta) */}
+      <div className="row-cap">
+        <div className="note-display" title={row.note || "Untitled post"}>{row.note || "Untitled post"}</div>
+        {(tags.length > 0 || mediaNote) && (
+          <div className="row-meta">
+            {tags.slice(0, 2).map((t) => (<span key={t} className="row-tag">#{t}</span>))}
+            {mediaNote && <span className="row-meta-media">{mediaNote}</span>}
           </div>
         )}
       </div>
@@ -148,7 +133,7 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
       {/* Channels (multi-select) */}
       <div onClick={(e) => e.stopPropagation()} ref={platformRef} className="row-dropdown-anchor">
         <button className="plat-pill" onClick={() => setIsPlatformOpen((c) => !c)} title={platforms.map((pl) => PLATFORMS[pl]?.short).join(", ")}>
-          {platforms.map((pl) => <PlatformIcon key={pl} platform={pl} size={18} />)}
+          {platforms.map((pl) => <PlatformIcon key={pl} platform={pl} size={20} />)}
         </button>
         {isPlatformOpen && (
           <div className="popover-menu">
@@ -176,8 +161,8 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
         )}
       </div>
 
-      {/* Status pill */}
-      <div onClick={(e) => e.stopPropagation()} ref={statusDropdownRef} className="row-dropdown-anchor">
+      {/* Status */}
+      <div onClick={(e) => e.stopPropagation()} ref={statusDropdownRef} className="row-dropdown-anchor row-status-cell">
         <button
           className="status-pill"
           onClick={() => setIsStatusDropdownOpen((c) => !c)}
@@ -185,6 +170,11 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
         >
           <span className="s-dot" style={{ background: s.dot }} />{s.label}
         </button>
+        {needsAttention && (
+          <span title="Needs attention — missing caption, media, owner, or approval">
+            <AlertTriangle size={13} color={T.amber} className="row-attention-icon" />
+          </span>
+        )}
         {isStatusDropdownOpen && (
           <div className="popover-menu popover-menu-wide">
             {statusDropdownItems.map((item) => (
@@ -212,25 +202,16 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onDel, o
             ))}
           </div>
         )}
-        {needsAttention && (
-          <span title="Needs attention — missing caption, media, owner, or approval">
-            <AlertTriangle size={13} color={T.amber} className="row-attention-icon" />
-          </span>
-        )}
       </div>
 
-      <div className="ra" onClick={(e) => e.stopPropagation()}>
-        {row.comments?.length > 0 && (
-          <span
-            className="row-comment-count"
-            title={`${row.comments.length} comment${row.comments.length === 1 ? "" : "s"}`}
-          >
-            {row.comments.length}
-          </span>
-        )}
-        <button className="ib d row-action-btn" title="Delete post" onClick={onDel}>
-          <X size={13} color={T.textDim} />
-        </button>
+      {/* Drag grip (hover-only, right) */}
+      <div
+        className="row-grip"
+        onPointerDown={dragHandlers.onPointerDown}
+        onClick={(e) => e.stopPropagation()}
+        title="Drag to reorder"
+      >
+        <Grip />
       </div>
     </div>
   );

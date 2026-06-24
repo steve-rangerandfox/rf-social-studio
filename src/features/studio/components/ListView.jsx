@@ -26,7 +26,7 @@ export function ListView() {
   const monthVirtualizer = useVirtualizer({
     count: sorted.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 86,
+    estimateSize: () => 71,
     overscan: 10,
     enabled: view === "list" && timeScale === "month",
   });
@@ -91,7 +91,7 @@ export function ListView() {
       const item = flatItems[index];
       if (item.type === "header") return 76;
       if (item.type === "empty") return 120;
-      return 86;
+      return 71;
     },
     overscan: 10,
     enabled: view === "list" && timeScale === "year",
@@ -148,11 +148,10 @@ export function ListView() {
 
       <div className="t-head">
         <div className="th"><input type="checkbox" className="cb" checked={sel.size === sorted.length && sorted.length > 0} onChange={e => toggleAll(e.target.checked)} /></div>
-        <div className="th" />
-        <div className="th">Date / Time</div>
-        <div className="th">Title</div>
-        <div className="th" />
-        <div className="th" />
+        <div className="th">Date</div>
+        <div className="th">Time</div>
+        <div className="th">Post</div>
+        <div className="th">Channels</div>
         <div className="th">Status</div>
         <div className="th" />
       </div>
@@ -175,6 +174,8 @@ export function ListView() {
                   {monthVirtualizer.getVirtualItems().map((virtualItem) => (
                     <div
                       key={sorted[virtualItem.index].id}
+                      data-index={virtualItem.index}
+                      ref={monthVirtualizer.measureElement}
                       style={{
                         position: "absolute",
                         top: 0,
