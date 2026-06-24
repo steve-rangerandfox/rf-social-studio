@@ -359,16 +359,12 @@ export function toPTDisplay(isoString) {
   }).formatToParts(date);
 
   const getPart = (type) => parts.find((part) => part.type === type)?.value || "";
-  const ampm = getPart("dayPeriod");
-  // 24-hour "HH:MM" for the handoff-style queue time cell.
-  const h24 = (Number(getPart("hour")) % 12) + (/pm/i.test(ampm) ? 12 : 0);
   return {
     month: getPart("month"),
     day: getPart("day"),
     hour: getPart("hour"),
     minute: getPart("minute"),
-    ampm,
-    time24: `${String(h24).padStart(2, "0")}:${getPart("minute")}`,
+    ampm: getPart("dayPeriod"),
   };
 }
 
