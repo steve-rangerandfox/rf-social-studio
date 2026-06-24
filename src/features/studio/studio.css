@@ -1291,8 +1291,10 @@ input,textarea,select,button{font-family:inherit}
 .cal-topline{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
 .cal-title{font-family:'Bricolage Grotesque',sans-serif;font-size:var(--text-2xl);font-weight:700;letter-spacing:-0.07em;color:var(--t-ink);line-height:.95;max-width:11ch}
 .cal-subtitle{font-size:var(--text-base);color:var(--t-text-dim);margin-top:4px;line-height:1.55}
-.cal-grid{gap:8px;background:transparent}
-.cal-cell{min-height:164px;padding:12px;background:rgba(251,250,246,0.82);border:1px solid rgba(24,23,20,0.05);border-radius:var(--radius-lg)}
+.cal-grid{gap:8px;background:transparent;grid-auto-rows:164px}
+/* ponytail: fixed grid-auto-rows + overflow:hidden so a day's posts never
+   resize the square. Cells are always one track tall regardless of content. */
+.cal-cell{min-height:164px;overflow:hidden;padding:12px;background:rgba(251,250,246,0.82);border:1px solid rgba(24,23,20,0.05);border-radius:var(--radius-lg)}
 .cal-cell.selected{border-color:rgba(24,23,20,0.14);background:var(--t-surface)}
 .cal-cell-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .cal-post{border:1px solid transparent}
@@ -2055,6 +2057,7 @@ input,textarea,select,button{font-family:inherit}
 .app.density-dense .t-row{min-height:50px;margin-bottom:4px}
 .app.density-dense .t-head,.app.density-dense .t-row{padding:0 12px}
 .app.density-dense .cal-cell{min-height:88px}
+.app.density-dense .cal-grid{grid-auto-rows:88px}
 .app.density-dense .m-item{padding:4px 8px}
 
 /* ── Appearance tab swatches ──────────────────────────────────────── */
