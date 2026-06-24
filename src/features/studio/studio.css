@@ -1295,7 +1295,6 @@ input,textarea,select,button{font-family:inherit}
 .cal-cell{min-height:164px;padding:12px;background:rgba(251,250,246,0.82);border:1px solid rgba(24,23,20,0.05);border-radius:var(--radius-lg)}
 .cal-cell.selected{border-color:rgba(24,23,20,0.14);background:var(--t-surface)}
 .cal-cell-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-.cal-count{min-width:22px;height:22px;border-radius:999px;padding:0 8px;display:flex;align-items:center;justify-content:center;background:rgba(24,23,20,0.05);font-size:var(--text-xs);color:var(--t-text-dim)}
 .cal-post{border:1px solid transparent}
 .cal-post.is-selected{border-color:rgba(24,23,20,0.14);background:var(--t-surface)}
 .cal-more{font-size:var(--text-xs);color:var(--t-text-dim);padding:4px 2px 0}
