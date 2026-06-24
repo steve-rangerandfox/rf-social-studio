@@ -332,10 +332,10 @@ input,textarea,select,button{font-family:inherit}
 
 /* TABLE */
 .t-area{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding:12px 16px 24px}
-.t-head{display:grid;grid-template-columns:32px 20px 140px minmax(240px,1fr) 56px 80px 136px 44px;padding:0 16px;height:44px;background:#fafafa;position:sticky;top:0;z-index:var(--z-sticky);align-items:center;border-bottom:1px solid #e4e4e7}
+.t-head{display:grid;grid-template-columns:28px 64px 70px minmax(240px,1fr) 90px 150px 30px;gap:14px;padding:14px 28px 10px;background:#fff;position:sticky;top:0;z-index:var(--z-sticky);align-items:center;border-bottom:1px solid var(--surface-2)}
 .th{font-family:var(--font-mono);font-size:13px;font-weight:500;letter-spacing:0.04em;color:var(--text-faint);text-transform:uppercase}
 .th.r{text-align:right}
-.t-row{display:grid;grid-template-columns:32px 20px 140px minmax(240px,1fr) 56px 80px 136px 44px;padding:0 16px;min-height:64px;align-items:center;transition:background 0.1s,border-color 0.1s;position:relative;background:#ffffff;border:1px solid #e4e4e7;border-radius:10px;margin-bottom:6px;cursor:pointer}
+.t-row{display:grid;grid-template-columns:28px 54px 70px minmax(240px,1fr) 90px 150px 30px;gap:14px;padding:12px 28px;align-items:center;transition:background 0.12s;position:relative;background:#ffffff;border-bottom:1px solid var(--surface-2);cursor:pointer}
 .t-row::after{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;background:var(--row-stripe, transparent);border-radius:0 2px 2px 0;pointer-events:none}
 .t-row:hover{background:#fafafa;border-color:#d4d4d8}
 .t-row.sel{background:#fafafa;border-color:#09090b}
@@ -1450,7 +1450,7 @@ input,textarea,select,button{font-family:inherit}
   .nav-drawer-trigger{display:inline-flex}
   .topbar{padding:0 16px;height:auto;min-height:72px;flex-wrap:wrap;align-content:center;padding-top:12px;padding-bottom:12px}
   .ops-toolbar,.t-area,.analytics-area,.ig-grid-area,.cal-area{padding-left:14px;padding-right:14px}
-  .t-head,.t-row{grid-template-columns:28px 16px 96px minmax(168px,1fr) 48px 40px 120px 96px 36px;padding:0 12px}
+  .t-head,.t-row{grid-template-columns:24px 48px 58px minmax(140px,1fr) 76px 120px 24px;gap:10px;padding:10px 14px}
   .ops-group{width:100%}
   .ops-menu{flex:1}
   .ops-trigger{width:100%;min-width:0}
@@ -2053,8 +2053,8 @@ input,textarea,select,button{font-family:inherit}
    ─────────────────────────────────────────────────────────────────── */
 
 /* ── Density (Appearance) ─────────────────────────────────────────── */
-.app.density-dense .t-row{min-height:50px;margin-bottom:4px}
-.app.density-dense .t-head,.app.density-dense .t-row{padding:0 12px}
+.app.density-dense .t-row{padding:6px 28px}
+.app.density-dense .t-head,.app.density-dense .t-row{padding-left:28px;padding-right:28px}
 .app.density-dense .cal-cell{min-height:88px}
 .app.density-dense .cal-grid{grid-auto-rows:88px}
 .app.density-dense .m-item{padding:4px 8px}
@@ -2271,3 +2271,55 @@ input,textarea,select,button{font-family:inherit}
 /* Multi-channel row pill — show a glyph per platform in the channels column. */
 .plat-pill{display:inline-flex;align-items:center;gap:3px;flex-wrap:nowrap}
 .plat-pill svg{display:block}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Relay queue row — exact port of the design handoff (ListView + styles.css).
+   7 columns: checkbox · date · time · post · channels · status · grip.
+   Literal hexes from the handoff tokens (live token map differs).
+   ═══════════════════════════════════════════════════════════════════════ */
+.t-head .th{font:500 10px var(--font-mono);color:#a1a1aa;text-transform:uppercase;letter-spacing:0.08em;display:flex;align-items:center}
+.t-row:hover{background:#fafafa}
+.t-row.sel,.t-row.row-selected{background:#fff7f1}
+.t-row.sel::after,.t-row.row-selected::after{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 2px 2px 0;background:var(--row-stripe,#ff5a1f)}
+.row-cb-wrap{display:flex;align-items:center}
+.cb{accent-color:#09090b;margin:0}
+.row-dropdown-anchor{position:relative;display:flex;align-items:center}
+
+/* Date badge */
+.dt-badge{width:46px;height:46px;min-width:46px;border-radius:10px;border:1px solid #e4e4e7;background:linear-gradient(180deg,#fff,#f6f6f7);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;padding:0;cursor:pointer;box-shadow:none;transition:border-color .12s}
+.dt-badge:hover{border-color:#d4d4d8}
+.dt-badge-month{font:600 9px var(--font-mono);color:#71717a;text-transform:uppercase;letter-spacing:0.08em;line-height:1}
+.dt-badge-day{font:700 17px var(--font-display);color:#09090b;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;line-height:1;margin-top:3px}
+.dt-badge-empty{font:600 16px var(--font-body);color:#a1a1aa}
+.dt-badge-auto{cursor:default;opacity:0.65}
+
+/* Time */
+.row-time{cursor:pointer;display:flex;align-items:center}
+.dt-time{font:500 13px var(--font-mono);color:#09090b;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Post (caption + meta) */
+.row-cap{display:flex;flex-direction:column;gap:3px;min-width:0}
+.note-display{font:500 14px var(--font-body);color:#09090b;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0;border:none;background:none;width:100%}
+.row-meta{display:flex;align-items:center;gap:8px;font:500 11px var(--font-mono);color:#a1a1aa;margin-top:0;line-height:1.2}
+.row-tag{color:#71717a}
+.row-meta-media{color:#a1a1aa}
+
+/* Channels */
+.plat-pill{display:inline-flex;align-items:center;gap:4px;background:none;border:none;padding:0;cursor:pointer;flex-wrap:nowrap}
+
+/* Status */
+.status-pill{display:inline-flex;align-items:center;gap:7px;font:500 12px var(--font-body);color:#52525b;letter-spacing:-0.005em;padding:3px 8px;border-radius:999px;background:#f4f4f5;border:1px solid #e4e4e7;width:fit-content;cursor:pointer;transition:border-color .12s}
+.status-pill:hover{border-color:#d4d4d8}
+.s-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.row-status-cell{display:flex;align-items:center;gap:6px}
+.row-attention-icon{flex-shrink:0}
+
+/* Drag grip — right column, hover-only */
+.row-grip{display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;cursor:grab;color:#a1a1aa}
+.t-row:hover .row-grip{opacity:1}
+.row-grip:active{cursor:grabbing}
+
+/* Add-post row — dashed, full width (handoff) */
+.add-row{padding:12px 28px}
+.add-btn{background:none;border:1px dashed #d4d4d8;padding:10px 14px;border-radius:8px;font:500 13px var(--font-body);color:#71717a;cursor:pointer;width:100%;transition:all .12s}
+.add-btn:hover{color:#09090b;border-color:#09090b;border-style:solid}
