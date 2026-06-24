@@ -1,7 +1,10 @@
 import { SignIn, useAuth } from "@clerk/react";
+import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 
-import App from "../App.jsx";
+// ponytail: lazy so signed-out users don't download the whole studio
+// (~415KB JS + 184KB studio.css) on the sign-in page.
+const App = lazy(() => import("../App.jsx"));
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
 import { LoadingShell } from "./LoadingShell.jsx";
 
@@ -408,9 +411,11 @@ export function AuthGate() {
 
   return (
     <ErrorBoundary>
-      <Routes>
-        <Route path="/*" element={<App />} />
-      </Routes>
+      <Suspense fallback={<LoadingShell label="Loading studio" />}>
+        <Routes>
+          <Route path="/*" element={<App />} />
+        </Routes>
+      </Suspense>
     </ErrorBoundary>
   );
 }
