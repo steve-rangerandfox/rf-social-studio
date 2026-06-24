@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "../../../components/icons/index.jsx";
+import { PlatformIcon } from "./PlatformIcon.jsx";
 import { useStudio } from "../StudioContext.jsx";
 import {
   MONTHS_FULL,
@@ -97,7 +98,9 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
                             style={{background:p.bg,color:p.color}}
                             onClick={e=>{e.stopPropagation();setSelectedDay(d);onSelectRow(r.id);}}
                           >
-                            <span style={{width:4,height:4,borderRadius:"50%",background:p.color,flexShrink:0,display:"inline-block"}}/>
+                            {(Array.isArray(r.platforms)&&r.platforms.length?r.platforms:[r.platform]).map(pl=>(
+                              <PlatformIcon key={pl} platform={pl} size={13}/>
+                            ))}
                             <span className="cal-post-label">{r.note||p.short}</span>
                             {t && <span className="cal-post-time">{t.hour}:{t.minute}{t.ampm.toLowerCase()}</span>}
                           </div>
