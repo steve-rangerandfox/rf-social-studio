@@ -49,7 +49,10 @@ createRoot(document.getElementById('root')).render(
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/data-deletion" element={<DataDeletion />} />
             <Route path="/app/*" element={
-              <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+              <ClerkProvider
+                publishableKey={PUBLISHABLE_KEY}
+                localization={{ signIn: { start: { title: "Sign in to Relay" } } }}
+              >
                 <AuthGate />
               </ClerkProvider>
             } />
