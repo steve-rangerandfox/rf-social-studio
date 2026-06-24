@@ -17,7 +17,7 @@ export function DateTimeCell({ isoValue, onChange }) {
             <div className="dt-badge-day">{disp.day}</div>
           </div>
           <div className="dt-copy">
-            <div className="dt-time">{disp.time24}</div>
+            <div className="dt-time">{disp.hour}:{disp.minute} {disp.ampm}</div>
           </div>
         </> : <div className="dt-empty"><div className="dt-empty-title">Set schedule</div><div className="dt-empty-sub">Date and time</div></div>}
       </div>
