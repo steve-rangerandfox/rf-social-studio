@@ -71,8 +71,9 @@ async function requestJson(url, options = {}, { timeoutMs = DEFAULT_TIMEOUT_MS, 
         throw error;
       }
 
-      // Retryable error — try again
-      lastError = new Error(`Server error (${response.status})`);
+      // Retryable error — capture the server's reason, then try again
+      const retryBody = await response.json().catch(() => ({}));
+      lastError = new Error(retryBody.error || `Server error (${response.status})`);
       lastError.status = response.status;
       lastError.retryable = true;
     } catch (err) {
