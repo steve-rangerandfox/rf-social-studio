@@ -194,8 +194,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
         <div style={{position:"relative"}} ref={colorRef}>
           <button title="Text color" onClick={() => setColorOpen(v => !v)}
             style={{...tb(false),position:"relative"}}>
-            <Type size={13} style={{color:T.textSub}}/>
-            <div style={{position:"absolute",bottom:3,left:5,right:5,height:3,borderRadius:1,background:colorPreview}}/>
+            <span style={{display:"block",width:17,height:17,borderRadius:5,background:colorPreview,border:"1px solid rgba(24,23,20,0.22)",boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.5)"}}/>
           </button>
           {colorOpen && (
             <div style={{
@@ -1006,12 +1005,12 @@ export function StoryDesigner({ row, onClose, onSave }) {
             display:"flex",flexDirection:"column",alignItems:"center",padding:"8px 0",gap:2,
           }}>
             {[
-              { id:"elements", icon:<ImageIcon size={18}/>, label:"Elements" },
-              { id:"text", icon:<Type size={18}/>, label:"Text" },
-              { id:"uploads", icon:<Upload size={18}/>, label:"Uploads" },
-              { id:"templates", icon:<LayoutTemplate size={18}/>, label:"Templates" },
-              { id:"layers", icon:<Layers size={18}/>, label:"Layers" },
-              { id:"ai", icon:<AIMark size={18}/>, label:"AI" },
+              { id:"elements", icon:<ImageIcon size={23}/>, label:"Elements" },
+              { id:"text", icon:<Type size={23}/>, label:"Text" },
+              { id:"uploads", icon:<Upload size={23}/>, label:"Uploads" },
+              { id:"templates", icon:<LayoutTemplate size={23}/>, label:"Templates" },
+              { id:"layers", icon:<Layers size={23}/>, label:"Layers" },
+              { id:"ai", icon:<AIMark size={23}/>, label:"AI" },
             ].map(tab => (
               <button key={tab.id} title={tab.label}
                 onClick={() => setSideTab(prev => prev === tab.id ? null : tab.id)}
@@ -1037,7 +1036,7 @@ export function StoryDesigner({ row, onClose, onSave }) {
                     background:sideTab==="props" ? T.s3 : "transparent",
                     color:sideTab==="props" ? T.ink : T.textDim,
                   }}>
-                  <Sliders size={18}/>
+                  <Sliders size={23}/>
                   <span style={{fontSize:8,fontWeight:600,letterSpacing:"0.02em",lineHeight:1}}>Props</span>
                 </button>
               </>
