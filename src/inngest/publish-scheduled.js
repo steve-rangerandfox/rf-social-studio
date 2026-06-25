@@ -65,6 +65,7 @@ function findDueRows(document) {
   return document.rows.filter((row) => {
     if (row.deletedAt) return false;
     if (row.status !== "scheduled") return false;
+    if (row.publishMode === "manual") return false;
     if (!["ig_post", "ig_reel", "ig_story"].includes(row.platform)) return false;
     if (!row.scheduledAt) return false;
 
@@ -83,6 +84,7 @@ function findDueLinkedInRows(document) {
   return document.rows.filter((row) => {
     if (row.deletedAt) return false;
     if (row.status !== "scheduled") return false;
+    if (row.publishMode === "manual") return false;
     if (row.platform !== "linkedin") return false;
     if (!row.scheduledAt) return false;
     if (!row.caption || !row.caption.trim()) return false;
