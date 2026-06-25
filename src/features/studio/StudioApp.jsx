@@ -290,6 +290,7 @@ function StudioShell() {
             row={story}
             onClose={() => setStory(null)}
             onSave={els => update(story.id, { storyElements: els })}
+            onUpdate={patch => update(story.id, patch)}
           />
         </Suspense>
       )}

@@ -76,6 +76,13 @@ describe("findDueRows", () => {
     }
   });
 
+  it("excludes rows in manual publish mode (user posts by hand)", () => {
+    expect(findDueRows({ rows: [row({ publishMode: "manual" })] })).toEqual([]);
+    // auto / unset still publishes
+    expect(findDueRows({ rows: [row({ publishMode: "auto" })] })).toHaveLength(1);
+    expect(findDueRows({ rows: [row()] })).toHaveLength(1);
+  });
+
   it("excludes rows without scheduledAt", () => {
     expect(findDueRows({ rows: [row({ scheduledAt: null })] })).toEqual([]);
     expect(findDueRows({ rows: [row({ scheduledAt: undefined })] })).toEqual([]);

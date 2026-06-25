@@ -172,6 +172,11 @@ export function normalizeRow(row, actor = "system") {
     assignee: row.assignee ?? null,
     comments: Array.isArray(row.comments) ? row.comments : [],
     storyElements: row.storyElements || (platform === "ig_story" ? makeDefaultElements(row.note) : null),
+    // Publish mode: "auto" goes through the API scheduler; "manual" is
+    // skipped by the scheduler so the user posts by hand (e.g. to add an
+    // Instagram Story link sticker, which the API can't attach).
+    publishMode: row.publishMode === "manual" ? "manual" : "auto",
+    storyLink: typeof row.storyLink === "string" ? row.storyLink : "",
     order: Number.isFinite(row.order) ? row.order : 0,
     createdAt: row.createdAt || now,
     createdBy: row.createdBy || actor,

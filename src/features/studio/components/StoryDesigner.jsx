@@ -391,7 +391,7 @@ function saveDefaultTmplId(id) {
   else localStorage.removeItem(DEFAULT_TMPL_KEY);
 }
 
-export function StoryDesigner({ row, onClose, onSave }) {
+export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
   const makeDefault = () => [
     { id:"bg",  type:"image", url:null, x:0, y:0, scale:1, locked:true, mediaType:'image' },
     { id:uid(), type:"text",  content:"RANGER & FOX",          x:20, y:22,  fontSize:8.5, fontFamily:"JetBrains Mono",     color:T.ink, letterSpacing:3,    fontWeight:600, shadow:false },
@@ -464,6 +464,9 @@ export function StoryDesigner({ row, onClose, onSave }) {
   const [uploadError, setUploadError] = useState("");
   const [canvasPreset, setCanvasPreset] = useState("ig_story");
   const [postState,   setPostState]   = useState("idle");
+  const [publishMode, setPublishMode] = useState(row?.publishMode === "manual" ? "manual" : "auto");
+  const [storyLink,   setStoryLink]   = useState(row?.storyLink || "");
+  const [manualDone,  setManualDone]  = useState(false);
   const [aiLoading,   setAiLoading]   = useState(false);
   const [aiTips,      setAiTips]      = useState([]);
   const [templates,   setTemplates]   = useState(() => loadSavedTemplates());
@@ -934,6 +937,19 @@ export function StoryDesigner({ row, onClose, onSave }) {
 
   const doPost = async () => { setPostState("posting"); await new Promise(r=>setTimeout(r,2000)); setPostState("done"); };
 
+  const setMode = (m) => { setPublishMode(m); setManualDone(false); onUpdate?.({ publishMode: m }); };
+  const setLink = (v) => { setStoryLink(v); onUpdate?.({ storyLink: v }); };
+  // Manual publish: export the story image + copy the link so the user can
+  // post it by hand and add a real (tappable) Link sticker in Instagram —
+  // the Graph API can't attach link stickers.
+  const manualPublish = async () => {
+    await exportAsPng();
+    if (storyLink && navigator.clipboard) {
+      try { await navigator.clipboard.writeText(storyLink); } catch { /* clipboard blocked — image still downloaded */ }
+    }
+    setManualDone(true);
+  };
+
   // Undo/Redo keyboard shortcuts
   useEffect(() => {
     const hUR = (e) => {
@@ -981,14 +997,29 @@ export function StoryDesigner({ row, onClose, onSave }) {
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Posting...</span></div>}
             {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">Story live</span></div>}
+            {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:240,lineHeight:1.3}}>Image downloaded{storyLink?" + link copied":""} — add the Link sticker in Instagram.</span>}
             <button className="btn btn-ghost btn-sm"
               onClick={()=>{const opening=sideTab!=="ai";setSideTab(opening?"ai":null);if(opening&&aiTips.length===0)runAICopilot();}}>
               {sideTab==="ai"?"Hide AI":"AI Refine"}
             </button>
+            {postState!=="done"&&(
+              <div style={{display:"flex",gap:2,background:T.s2,borderRadius:8,padding:2,border:`1px solid ${T.border}`}} title="Auto publishes via the API. Manual lets you post by hand (the only way to add a tappable Story link sticker).">
+                {["auto","manual"].map(m=>(
+                  <button key={m} onClick={()=>setMode(m)}
+                    style={{padding:"4px 10px",border:"none",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600,textTransform:"capitalize",background:publishMode===m?T.ink:"transparent",color:publishMode===m?T.surface:T.textSub}}>{m}</button>
+                ))}
+              </div>
+            )}
             {postState!=="done"&&<button className="btn btn-ghost btn-sm" onClick={onClose}>Discard</button>}
             {postState==="done"
               ?<button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
-              :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title="Download as PNG"><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"}>Publish Story</button></>}
+              :publishMode==="manual"
+                ?<>
+                  <input value={storyLink} onChange={e=>setLink(e.target.value)} placeholder="https://link-for-sticker" title="Link to add as a Story sticker"
+                    style={{width:190,height:32,padding:"0 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.surface,fontSize:12,color:T.text,outline:"none"}}/>
+                  <button className="btn btn-primary btn-sm" onClick={manualPublish} title="Download the story image and copy the link, then post it by hand"><Download size={14} style={{marginRight:4}}/> Download + copy link</button>
+                </>
+                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title="Download as PNG"><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"}>Publish Story</button></>}
             <button className="m-x" onClick={onClose} aria-label="Close story designer"><X size={16}/></button>
           </div>
         </div>
