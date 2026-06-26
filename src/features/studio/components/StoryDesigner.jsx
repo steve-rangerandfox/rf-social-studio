@@ -467,6 +467,8 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
   const [publishMode, setPublishMode] = useState(row?.publishMode === "manual" ? "manual" : "auto");
   const [storyLink,   setStoryLink]   = useState(row?.storyLink || "");
   const [manualDone,  setManualDone]  = useState(false);
+  const [manualCopied,setManualCopied]= useState(false);
+  const [manualError, setManualError] = useState("");
   const [aiLoading,   setAiLoading]   = useState(false);
   const [aiTips,      setAiTips]      = useState([]);
   const [templates,   setTemplates]   = useState(() => loadSavedTemplates());
@@ -937,16 +939,26 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
 
   const doPost = async () => { setPostState("posting"); await new Promise(r=>setTimeout(r,2000)); setPostState("done"); };
 
-  const setMode = (m) => { setPublishMode(m); setManualDone(false); onUpdate?.({ publishMode: m }); };
-  const setLink = (v) => { setStoryLink(v); onUpdate?.({ storyLink: v }); };
+  const resetManual = () => { setManualDone(false); setManualError(""); };
+  const setMode = (m) => { setPublishMode(m); resetManual(); onUpdate?.({ publishMode: m }); };
+  const setLink = (v) => { setStoryLink(v); resetManual(); onUpdate?.({ storyLink: v }); };
   // Manual publish: export the story image + copy the link so the user can
   // post it by hand and add a real (tappable) Link sticker in Instagram —
   // the Graph API can't attach link stickers.
   const manualPublish = async () => {
-    await exportAsPng();
-    if (storyLink && navigator.clipboard) {
-      try { await navigator.clipboard.writeText(storyLink); } catch { /* clipboard blocked — image still downloaded */ }
+    setManualError("");
+    try {
+      await exportAsPng(); // can throw (tainted canvas from a cross-origin background)
+    } catch {
+      setManualDone(false);
+      setManualError("Couldn't export the image — a background from another site can block download. Try re-uploading it.");
+      return;
     }
+    let copied = false;
+    if (storyLink && navigator.clipboard) {
+      try { await navigator.clipboard.writeText(storyLink); copied = true; } catch { copied = false; }
+    }
+    setManualCopied(copied);
     setManualDone(true);
   };
 
@@ -997,7 +1009,8 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Posting...</span></div>}
             {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">Story live</span></div>}
-            {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:240,lineHeight:1.3}}>Image downloaded{storyLink?" + link copied":""} — add the Link sticker in Instagram.</span>}
+            {manualError&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.red,maxWidth:260,lineHeight:1.3}}>{manualError}</span>}
+            {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:260,lineHeight:1.3}}>Image downloaded{storyLink?(manualCopied?" + link copied":" (copy the link manually)"):""} — add the Link sticker in Instagram.</span>}
             <button className="btn btn-ghost btn-sm"
               onClick={()=>{const opening=sideTab!=="ai";setSideTab(opening?"ai":null);if(opening&&aiTips.length===0)runAICopilot();}}>
               {sideTab==="ai"?"Hide AI":"AI Refine"}
