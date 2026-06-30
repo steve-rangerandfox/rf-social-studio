@@ -64,7 +64,7 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
               <button className="cal-nav-btn" onClick={nextMonth}><ChevronRight size={14}/></button>
             </div>
           </div>
-          <div className="cal-header">{WEEKDAYS.map(w=><div key={w} className="cal-wd">{w}</div>)}</div>
+          <div className="cal-header">{WEEKDAYS.map((w,i)=><div key={w} className={"cal-wd"+(i===0||i===6?" we":"")}>{w}</div>)}</div>
           <div className="cal-grid">
             {cells.map((cell,i)=>{
               const { d, type } = cell;
@@ -94,11 +94,11 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
                           <div
                             key={r.id}
                             className="cal-post"
-                            style={{background:p.bg,color:p.color}}
+                            style={{"--cal-stripe": (STATUSES[r.status]?.dot) || "#a1a1aa"}}
                             onClick={e=>{e.stopPropagation();setSelectedDay(d);onSelectRow(r.id);}}
                           >
                             {(Array.isArray(r.platforms)&&r.platforms.length?r.platforms:[r.platform]).map(pl=>(
-                              <PlatformIcon key={pl} platform={pl} size={13}/>
+                              <PlatformIcon key={pl} platform={pl} size={12}/>
                             ))}
                             <span className="cal-post-label">{r.note||p.short}</span>
                             {t && <span className="cal-post-time">{t.hour}:{t.minute}{t.ampm.toLowerCase()}</span>}
