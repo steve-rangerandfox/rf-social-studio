@@ -798,8 +798,9 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
     e.dataTransfer.effectAllowed = "copy";
   };
 
-  // ── PNG Export ──
-  const exportAsPng = async () => {
+  // ── Render the story to a flattened canvas (shared by PNG export +
+  //    the real publish path, which needs a hosted image URL). ──
+  const renderCanvas = async () => {
     const EXPORT_W = preset.exportW;
     const EXPORT_H = preset.exportH;
     const SCALE = EXPORT_W / preset.w;
@@ -886,11 +887,21 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
       } catch { /* skip failed images */ }
     }
 
-    // Trigger download
+    return canvas;
+  };
+
+  const exportAsPng = async () => {
+    const canvas = await renderCanvas();
     const link = document.createElement("a");
     link.download = `story-${Date.now()}.png`;
-    link.href = canvas.toDataURL("image/png");
+    link.href = canvas.toDataURL("image/png"); // throws on a tainted canvas
     link.click();
+  };
+
+  const renderToBlob = async () => {
+    const canvas = await renderCanvas();
+    return await new Promise((resolve, reject) =>
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Render failed"))), "image/png"));
   };
 
   // Save template
@@ -937,7 +948,24 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
     setAiLoading(false);
   };
 
-  const doPost = async () => { setPostState("posting"); await new Promise(r=>setTimeout(r,2000)); setPostState("done"); };
+  // Real publish prep: flatten the story to an image, upload it, and attach
+  // it as the post's mediaUrl/thumbnailUrl so the scheduler can publish it
+  // as a STORY (auto). No fake "live", no approval bypass — the normal
+  // schedule/approval flow still governs when it actually posts.
+  const doPost = async () => {
+    setManualError("");
+    setPostState("posting");
+    try {
+      const blob = await renderToBlob();
+      const file = new File([blob], `story-${row?.id || Date.now()}.png`, { type: "image/png" });
+      const url = await uploadAssetWithProgress(file, () => {});
+      onUpdate?.({ mediaUrl: url, thumbnailUrl: url });
+      setPostState("done");
+    } catch {
+      setPostState("idle");
+      setManualError("Couldn't render & upload the story — a cross-site background can block it. Try re-uploading the background.");
+    }
+  };
 
   const resetManual = () => { setManualDone(false); setManualError(""); };
   const setMode = (m) => { setPublishMode(m); resetManual(); onUpdate?.({ publishMode: m }); };
@@ -1007,8 +1035,8 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
         <div className="m-head" style={{flexShrink:0}}>
           <div><div className="m-title">Story Designer</div><div className="m-sub">{row?.note}</div></div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Posting...</span></div>}
-            {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">Story live</span></div>}
+            {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Rendering&hellip;</span></div>}
+            {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">Saved &mdash; auto-publishes on schedule</span></div>}
             {manualError&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.red,maxWidth:260,lineHeight:1.3}}>{manualError}</span>}
             {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:260,lineHeight:1.3}}>Image downloaded{storyLink?(manualCopied?" + link copied":" (copy the link manually)"):""} — add the Link sticker in Instagram.</span>}
             <button className="btn btn-ghost btn-sm"
@@ -1032,7 +1060,7 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
                     style={{width:190,height:32,padding:"0 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.surface,fontSize:12,color:T.text,outline:"none"}}/>
                   <button className="btn btn-primary btn-sm" onClick={manualPublish} title="Download the story image and copy the link, then post it by hand"><Download size={14} style={{marginRight:4}}/> Download + copy link</button>
                 </>
-                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title="Download as PNG"><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"}>Publish Story</button></>}
+                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title="Download as PNG"><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title="Flatten the story and attach it so it auto-publishes at its scheduled time">Render &amp; save</button></>}
             <button className="m-x" onClick={onClose} aria-label="Close story designer"><X size={16}/></button>
           </div>
         </div>
