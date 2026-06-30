@@ -597,6 +597,21 @@ export function DetailPanel() {
 
           {/* Actions */}
           <div className="dp-actions">
+            <div className="dp-mode-row">
+              <span className="dp-meta-label">Publish</span>
+              <div className="dp-mode-toggle" role="group" aria-label="Publish mode">
+                {["auto", "manual"].map((m) => {
+                  const on = (row.publishMode || "auto") === m;
+                  return (
+                    <button key={m} className={"dp-mode-btn" + (on ? " on" : "")} aria-pressed={on}
+                      onClick={() => onChange({ publishMode: m })}>{m}</button>
+                  );
+                })}
+              </div>
+            </div>
+            {row.publishMode === "manual" && (
+              <div className="dp-mode-hint">Manual — the scheduler won&rsquo;t auto-post this. Publish it by hand, then mark it Posted.</div>
+            )}
             <button className="btn btn-primary dp-action-btn" onClick={handlePostNow}>
               Post to {PLATFORMS[row.platform].label}
             </button>
