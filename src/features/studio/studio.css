@@ -2323,3 +2323,10 @@ input,textarea,select,button{font-family:inherit}
 .add-row{padding:12px 28px}
 .add-btn{background:none;border:1px dashed #d4d4d8;padding:10px 14px;border-radius:8px;font:500 13px var(--font-body);color:#71717a;cursor:pointer;width:100%;transition:all .12s}
 .add-btn:hover{color:#09090b;border-color:#09090b;border-style:solid}
+
+/* Detail panel — Auto/Manual publish toggle */
+.dp-mode-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.dp-mode-toggle{display:flex;gap:2px;background:var(--t-s2);border:1px solid var(--t-border);border-radius:8px;padding:2px}
+.dp-mode-btn{padding:4px 12px;border:none;border-radius:6px;cursor:pointer;font:600 12px var(--font-body);text-transform:capitalize;background:transparent;color:var(--t-text-sub)}
+.dp-mode-btn.on{background:var(--t-ink);color:var(--t-surface)}
+.dp-mode-hint{font:500 11px var(--font-mono);color:var(--text-dim);line-height:1.4;margin-bottom:8px}
