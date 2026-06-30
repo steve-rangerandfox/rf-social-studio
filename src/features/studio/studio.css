@@ -2330,3 +2330,29 @@ input,textarea,select,button{font-family:inherit}
 .dp-mode-btn{padding:4px 12px;border:none;border-radius:6px;cursor:pointer;font:600 12px var(--font-body);text-transform:capitalize;background:transparent;color:var(--t-text-sub)}
 .dp-mode-btn.on{background:var(--t-ink);color:var(--t-surface)}
 .dp-mode-hint{font:500 11px var(--font-mono);color:var(--text-dim);line-height:1.4;margin-bottom:8px}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Calendar — port of the handoff (Calendar.jsx + styles.css):
+   hairline 1px grid, mono dates, accent "today", small status-stripe chips.
+   Keeps platform icons (your earlier override) instead of the proto dots.
+   ═══════════════════════════════════════════════════════════════════════ */
+.cal-header{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:0;padding:0 0 8px}
+.cal-wd{font:500 11px var(--font-mono);color:#a1a1aa;text-transform:uppercase;letter-spacing:0.08em;text-align:left;padding:0 4px}
+.cal-wd.we{opacity:0.6}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:#e4e4e7;border:1px solid #e4e4e7;grid-auto-rows:140px}
+.cal-cell{background:#fff;border:none;border-radius:0;padding:8px 8px 6px;display:flex;flex-direction:column;gap:5px;overflow:hidden}
+.cal-cell.other,.cal-cell.other-month{background:#fbfbfb}
+.cal-cell:hover{background:#fafafa}
+.cal-cell.other .cal-dn{color:#a1a1aa}
+.cal-cell-head{display:flex;align-items:center;justify-content:space-between}
+.cal-dn{font:500 12px var(--font-mono);color:#52525b;font-variant-numeric:tabular-nums;padding:2px 4px;margin-bottom:0}
+.cal-cell.today{background:#fff}
+.cal-cell.today .cal-dn{background:#ff5a1f;color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;padding:0}
+.cal-posts{display:flex;flex-direction:column;gap:3px;overflow:hidden;flex:1;min-height:0}
+.cal-post{position:relative;padding:3px 6px 3px 10px;background:#f4f4f5;border-radius:4px;font:500 11px var(--font-body);color:#09090b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;letter-spacing:-0.005em;display:flex;align-items:center;gap:5px;min-width:0;margin-bottom:0}
+.cal-post:hover{background:#e4e4e7}
+.cal-post::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:2px;background:var(--cal-stripe,#a1a1aa);border-radius:0 2px 2px 0}
+.cal-post-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-post-time{font-family:var(--font-mono);font-size:10px;color:#71717a;flex-shrink:0;font-variant-numeric:tabular-nums;text-transform:lowercase;font-weight:500}
+.cal-more{font:500 10.5px var(--font-mono);color:#71717a;padding:2px 6px;cursor:pointer}
+.cal-more:hover{color:#09090b}
