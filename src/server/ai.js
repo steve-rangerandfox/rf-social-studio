@@ -1,4 +1,6 @@
 import { fetchWithTimeout } from "./http.js";
+import net from "node:net";
+import { promises as dns } from "node:dns";
 
 // Output caps: defensive, not security boundaries. The model is
 // instructed to stay well below these; we truncate if it doesn't.
@@ -242,44 +244,94 @@ function extractVariantsArray(text) {
 // - Only http(s) URLs with a public hostname (no localhost / RFC1918)
 // - Hard 10s timeout + 512KB body cap
 // - HTML-to-text is a basic regex strip, not a full parser
-export async function learnBrandFromUrl(env, { url }) {
-  const rawUrl = String(url || "").trim();
-  if (!rawUrl) throw new AiError("url is required", { status: 400, retryable: false });
+// SSRF guard: block loopback / private / link-local / CGNAT / reserved
+// ranges (incl. the 169.254.169.254 cloud-metadata endpoint) for both
+// IPv4 and IPv6, and IPv4-mapped IPv6. A malformed address is blocked.
+export function isBlockedIp(ipRaw) {
+  let ip = String(ipRaw).toLowerCase();
+  const mapped = ip.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (mapped) ip = mapped[1];
 
-  let parsed;
-  try {
-    parsed = new URL(rawUrl);
-  } catch {
-    throw new AiError("url is not a valid URL", { status: 400, retryable: false });
+  if (ip.includes(":")) {
+    if (ip === "::1" || ip === "::") return true;   // loopback / unspecified
+    if (ip.startsWith("fe80")) return true;         // link-local
+    if (/^f[cd]/.test(ip)) return true;             // fc00::/7 unique-local
+    return false;
   }
 
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return true;
+  const [a, b, c] = parts;
+  if (a === 0 || a === 127) return true;                  // this-network / loopback
+  if (a === 10) return true;                              // private
+  if (a === 169 && b === 254) return true;                // link-local + metadata
+  if (a === 172 && b >= 16 && b <= 31) return true;       // private
+  if (a === 192 && b === 168) return true;                // private
+  if (a === 100 && b >= 64 && b <= 127) return true;      // CGNAT
+  if (a === 192 && b === 0 && c === 0) return true;       // IETF protocol assignments
+  if (a === 198 && (b === 18 || b === 19)) return true;   // benchmarking
+  if (a >= 224) return true;                              // multicast / reserved
+  return false;
+}
+
+// Parse + validate a URL is http(s) and resolves only to public IPs.
+async function assertPublicUrl(rawUrl) {
+  let parsed;
+  try { parsed = new URL(rawUrl); }
+  catch { throw new AiError("url is not a valid URL", { status: 400, retryable: false }); }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new AiError("url must be http(s)", { status: 400, retryable: false });
   }
-
-  const host = parsed.hostname.toLowerCase();
-  if (
-    host === "localhost" ||
-    host === "0.0.0.0" ||
-    host.endsWith(".local") ||
-    /^127\./.test(host) ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
-  ) {
+  const host = parsed.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) {
     throw new AiError("url must point to a public host", { status: 400, retryable: false });
   }
+  // IP literal → check directly; hostname → resolve every A/AAAA record.
+  if (net.isIP(host)) {
+    if (isBlockedIp(host)) throw new AiError("url must point to a public host", { status: 400, retryable: false });
+  } else {
+    let addrs;
+    try { addrs = await dns.lookup(host, { all: true }); }
+    catch { throw new AiError("could not resolve host", { status: 400, retryable: false }); }
+    if (!addrs.length || addrs.some((r) => isBlockedIp(r.address))) {
+      throw new AiError("url must point to a public host", { status: 400, retryable: false });
+    }
+  }
+  return parsed;
+}
 
-  let html;
-  try {
+// Fetch HTML, following redirects manually and re-validating every hop so a
+// public URL can't 3xx-bounce us to an internal target.
+async function safeFetchHtml(rawUrl) {
+  let current = rawUrl;
+  for (let hop = 0; hop < 5; hop++) {
+    const parsed = await assertPublicUrl(current);
     const response = await fetchWithTimeout(parsed.toString(), {
       method: "GET",
+      redirect: "manual",
       headers: {
         "User-Agent": "rf-social-studio/1.0 (+brand-learn)",
         "Accept": "text/html,application/xhtml+xml",
       },
     });
+    if (response.status >= 300 && response.status < 400) {
+      const loc = response.headers.get("location");
+      if (!loc) throw new AiError("redirect without a location", { status: 502, retryable: false });
+      current = new URL(loc, parsed).toString();
+      continue;
+    }
+    return response;
+  }
+  throw new AiError("too many redirects", { status: 502, retryable: false });
+}
+
+export async function learnBrandFromUrl(env, { url }) {
+  const rawUrl = String(url || "").trim();
+  if (!rawUrl) throw new AiError("url is required", { status: 400, retryable: false });
+
+  let html;
+  try {
+    const response = await safeFetchHtml(rawUrl);
     if (!response.ok) {
       throw new AiError(`website returned HTTP ${response.status}`, { status: 502, retryable: false });
     }
@@ -325,7 +377,7 @@ export async function learnBrandFromUrl(env, { url }) {
   const draft = extractBrandJson(response);
   return {
     ...draft,
-    learnedFromUrl: parsed.toString(),
+    learnedFromUrl: rawUrl,
   };
 }
 
