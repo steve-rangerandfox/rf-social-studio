@@ -2356,3 +2356,13 @@ input,textarea,select,button{font-family:inherit}
 .cal-post-time{font-family:var(--font-mono);font-size:10px;color:#71717a;flex-shrink:0;font-variant-numeric:tabular-nums;text-transform:lowercase;font-weight:500}
 .cal-more{font:500 10.5px var(--font-mono);color:#71717a;padding:2px 6px;cursor:pointer}
 .cal-more:hover{color:#09090b}
+
+/* ═══ Grid — align type language to the handoff (keeps the live feed-merge
+   structure: profile header, published/queued frames, rail) ═══ */
+.ig-profile-handle{font-family:var(--font-body);font-size:16px;font-weight:700;letter-spacing:-0.015em}
+.ig-profile-kicker{font:500 11px var(--font-mono);color:var(--accent);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px}
+.ig-profile-stat-val{font-family:var(--font-mono);font-size:14px;font-weight:600;color:#09090b}
+.ig-profile-stat-key{font-family:var(--font-mono);font-size:10px;color:#a1a1aa;text-transform:uppercase;letter-spacing:0.06em;font-weight:500}
+.ig-section-header-label{font:500 11px var(--font-mono);letter-spacing:0.08em;text-transform:uppercase;color:#52525b}
+.ig-section-header-count{font:500 10px var(--font-mono);color:#71717a}
+.ig-rail-label{font:500 10px var(--font-mono);color:#a1a1aa;text-transform:uppercase;letter-spacing:0.08em}
