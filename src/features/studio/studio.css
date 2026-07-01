@@ -2366,3 +2366,4 @@ input,textarea,select,button{font-family:inherit}
 .ig-section-header-label{font:500 11px var(--font-mono);letter-spacing:0.08em;text-transform:uppercase;color:#52525b}
 .ig-section-header-count{font:500 10px var(--font-mono);color:#71717a}
 .ig-rail-label{font:500 10px var(--font-mono);color:#a1a1aa;text-transform:uppercase;letter-spacing:0.08em}
+.dp-mode-hint-due{color:var(--accent);font-weight:600}
