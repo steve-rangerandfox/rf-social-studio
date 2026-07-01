@@ -332,7 +332,7 @@ input,textarea,select,button{font-family:inherit}
 
 /* TABLE */
 .t-area{flex:1;overflow-y:auto;scrollbar-gutter:stable;padding:12px 16px 24px}
-.t-head{display:grid;grid-template-columns:28px 64px 70px minmax(240px,1fr) 90px 150px 30px;gap:14px;padding:14px 28px 10px;background:#fff;position:sticky;top:0;z-index:var(--z-sticky);align-items:center;border-bottom:1px solid var(--surface-2)}
+.t-head{display:grid;grid-template-columns:28px 54px 70px minmax(240px,1fr) 90px 150px 30px;gap:14px;padding:14px 28px 10px;background:#fff;position:sticky;top:0;z-index:var(--z-sticky);align-items:center;border-bottom:1px solid var(--surface-2)}
 .th{font-family:var(--font-mono);font-size:13px;font-weight:500;letter-spacing:0.04em;color:var(--text-faint);text-transform:uppercase}
 .th.r{text-align:right}
 .t-row{display:grid;grid-template-columns:28px 54px 70px minmax(240px,1fr) 90px 150px 30px;gap:14px;padding:12px 28px;align-items:center;transition:background 0.12s;position:relative;background:#ffffff;border-bottom:1px solid var(--surface-2);cursor:pointer}

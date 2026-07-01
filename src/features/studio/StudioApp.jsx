@@ -401,6 +401,8 @@ function StudioShell() {
       {publishConfirm && (
         <PublishConfirmModal
           row={publishConfirm}
+          platform={publishConfirm.platform}
+          mediaUrls={[publishConfirm.mediaUrl, publishConfirm.imageUrl, publishConfirm.thumbnailUrl].filter(Boolean)}
           onConfirm={() => {
             const row = publishConfirm;
             setPublishConfirm(null);

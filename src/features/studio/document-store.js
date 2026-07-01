@@ -188,6 +188,24 @@ export function normalizeRow(row, actor = "system") {
     igMediaId: row.igMediaId ?? null,
     igPublishedUrl: row.igPublishedUrl ?? null,
     igPermalink: row.igPermalink ?? null,
+    // Media + editorial fields. normalizeRow is a whitelist, so anything
+    // missing here is silently stripped on every patch — keep this list in
+    // sync with all row writers (DetailPanel, CarouselComposer,
+    // StoryDesigner, and the inngest scheduler's write-backs).
+    mediaUrl: row.mediaUrl ?? null,
+    thumbnailUrl: row.thumbnailUrl ?? null,
+    imageUrl: row.imageUrl ?? null,
+    videoUrl: row.videoUrl ?? null,
+    mediaKind: row.mediaKind ?? null,
+    carouselSlides: Array.isArray(row.carouselSlides) ? row.carouselSlides : null,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    reelDuration: Number.isFinite(row.reelDuration) ? row.reelDuration : null,
+    reelAudio: row.reelAudio ?? null,
+    igPostId: row.igPostId ?? null,
+    liPostUrn: row.liPostUrn ?? null,
+    liPermalink: row.liPermalink ?? null,
+    publishError: row.publishError ?? null,
+    publishErrorAt: row.publishErrorAt ?? null,
     version: Number.isFinite(row.version) ? row.version : 1,
   };
 }
