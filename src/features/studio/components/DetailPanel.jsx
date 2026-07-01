@@ -609,9 +609,16 @@ export function DetailPanel() {
                 })}
               </div>
             </div>
-            {row.publishMode === "manual" && (
-              <div className="dp-mode-hint">Manual — the scheduler won&rsquo;t auto-post this. Publish it by hand, then mark it Posted.</div>
-            )}
+            {row.publishMode === "manual" && (() => {
+              const due = row.status !== "posted" && row.scheduledAt && new Date(row.scheduledAt).getTime() <= Date.now();
+              return (
+                <div className={"dp-mode-hint" + (due ? " dp-mode-hint-due" : "")}>
+                  {due
+                    ? "Due now — manual posts aren't auto-published. Post it by hand, then mark it Posted."
+                    : "Manual — the scheduler won’t auto-post this. Publish it by hand, then mark it Posted."}
+                </div>
+              );
+            })()}
             <button className="btn btn-primary dp-action-btn" onClick={handlePostNow}>
               Post to {PLATFORMS[row.platform].label}
             </button>
