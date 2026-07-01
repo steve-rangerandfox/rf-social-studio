@@ -20,7 +20,12 @@ function sanitiseForPrompt(raw, maxLen = 2000) {
   return String(raw ?? "")
     .replace(stripControl, "")
     .replace(/\r\n?/g, "\n")
-    .slice(0, maxLen);
+    .slice(0, maxLen)
+    // Escape XML delimiters so input (incl. attacker-controlled page text
+    // in brand-learn) can't close a data tag and inject instructions.
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 // Compose a <brand> XML block from the user-supplied brand profile.
