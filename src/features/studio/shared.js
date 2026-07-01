@@ -169,26 +169,6 @@ export const MENTIONS = [
   { id: 5, name: "Stash Magazine", handle: "stashmedia" },
 ];
 
-export const MOCK_ANALYTICS = {
-  posts: [
-    { label: "Jan", ig: 12, li: 4, reach: 2100 },
-    { label: "Feb", ig: 9, li: 6, reach: 1800 },
-    { label: "Mar", ig: 14, li: 5, reach: 2900 },
-    { label: "Apr", ig: 11, li: 8, reach: 2400 },
-    { label: "May", ig: 16, li: 7, reach: 3600 },
-    { label: "Jun", ig: 13, li: 9, reach: 3100 },
-  ],
-  topTimes: [
-    { time: "9am", score: 88 },
-    { time: "11am", score: 72 },
-    { time: "3pm", score: 94 },
-    { time: "6pm", score: 81 },
-    { time: "8pm", score: 67 },
-  ],
-  engagement: { ig_post: 4.2, ig_story: 7.8, linkedin: 3.1 },
-  reach: { ig_post: 1840, ig_story: 2200, linkedin: 980 },
-};
-
 export const TEMPLATES = {
   announce: {
     name: "Announcement",

@@ -8,7 +8,7 @@
 //   POST /api/billing/portal     — Stripe-hosted customer portal URL
 //   POST /api/billing/webhook    — Stripe webhook (no Clerk auth, signature-verified)
 
-import { ensureEnv } from "../env.js";
+import { ensureEnv, isAllowedOrigin } from "../env.js";
 import { errorJson, json, readJsonBody, readRawBody } from "../http.js";
 import { createLogger, sanitizeLogValue } from "../log.js";
 import { PLANS, TRIAL_DAYS, resolvePlan } from "../entitlements.js";
@@ -63,9 +63,15 @@ export async function handleBillingGet(req, res, env, reqId, auth) {
 }
 
 function pickReturnOrigin(req, env) {
-  const origin = String(req.headers.origin || req.headers.referer || "").trim();
-  if (origin) {
-    try { return new URL(origin).origin; } catch { /* fall through */ }
+  // Only reflect the request origin into Stripe return URLs if it's on the
+  // allowlist — otherwise an attacker-set Origin/Referer could bounce the
+  // user to an arbitrary domain after checkout. Fall back to appBaseUrl.
+  const raw = String(req.headers.origin || req.headers.referer || "").trim();
+  if (raw) {
+    try {
+      const origin = new URL(raw).origin;
+      if (isAllowedOrigin(env, origin)) return origin;
+    } catch { /* fall through to appBaseUrl */ }
   }
   return env.appBaseUrl || "";
 }
