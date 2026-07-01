@@ -21,6 +21,7 @@ import {
   markRowDeleted,
   normalizeBrandProfile,
   persistStudioDocument,
+  flushStudioPersist,
   restoreDeletedRow,
 } from "./document-store.js";
 import { addToSyncQueue, getSyncQueue, clearSyncQueue } from "../../lib/idb-store.js";
@@ -330,6 +331,20 @@ export function StudioProvider({ children }) {
     }, 180);
     return () => window.clearTimeout(timeoutId);
   }, [showToast, storageScope, studioDoc]);
+
+  // On tab close, synchronously flush the latest doc so an edit made inside
+  // the 180ms/400ms debounce windows isn't lost. localStorage.setItem is
+  // synchronous (reliable on unload); the IDB flush is best-effort.
+  useEffect(() => {
+    const handler = () => {
+      try {
+        persistStudioDocument({ ...studioDoc, lastSavedAt: new Date().toISOString() }, storageScope);
+        flushStudioPersist();
+      } catch { /* best-effort on unload */ }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [studioDoc, storageScope]);
 
   useEffect(() => {
     if (saveState.status === "error" && saveState.error) {
