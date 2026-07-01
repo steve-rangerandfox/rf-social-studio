@@ -129,13 +129,18 @@ export async function verifyWebhookSignature({ rawBody, signatureHeader, secret,
   const ageSec = Math.abs(Date.now() / 1000 - Number(timestamp));
   if (Number.isNaN(ageSec) || ageSec > toleranceSec) return false;
 
-  const { createHmac } = await import("node:crypto");
+  const { createHmac, timingSafeEqual } = await import("node:crypto");
   const expected = createHmac("sha256", secret)
     .update(`${timestamp}.${rawBody}`, "utf8")
     .digest("hex");
+  const expectedBuf = Buffer.from(expected, "utf8");
 
-  // Timing-safe-ish compare across all signatures.
-  return signatures.some((sig) => sig.length === expected.length && sig === expected);
+  // Constant-time compare across all provided signatures. The length check
+  // is on the (public) expected digest length, so it leaks nothing.
+  return signatures.some((sig) => {
+    if (sig.length !== expected.length) return false;
+    return timingSafeEqual(Buffer.from(sig, "utf8"), expectedBuf);
+  });
 }
 
 // Maps a Stripe price ID to a plan tier using env-configured IDs.
