@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "../../../components/icons/index.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { useStudio } from "../StudioContext.jsx";
@@ -28,12 +28,24 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
   const today = new Date();
   const isToday = d => today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
 
-  const rowDay = (r) => {
-    if(!r.scheduledAt) return null;
-    const d = new Date(r.scheduledAt);
-    if(d.getFullYear()!==calYear || d.getMonth()!==calMonth) return null;
-    return parseInt(new Intl.DateTimeFormat("en-US",{timeZone:"America/Los_Angeles",day:"numeric"}).format(d), 10);
-  };
+  // One pass over rows → Map<day, sorted rows[]>, formatting each row once.
+  // (Was O(days × rows) with a fresh Intl.DateTimeFormat per row per cell.)
+  const byDay = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", day: "numeric" });
+    const map = new Map();
+    for (const r of rows) {
+      if (!r.scheduledAt) continue;
+      const d = new Date(r.scheduledAt);
+      if (d.getFullYear() !== calYear || d.getMonth() !== calMonth) continue;
+      const day = parseInt(fmt.format(d), 10);
+      if (!map.has(day)) map.set(day, []);
+      map.get(day).push(r);
+    }
+    for (const arr of map.values()) {
+      arr.sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
+    }
+    return map;
+  }, [rows, calYear, calMonth]);
 
   const cells = [];
   const prevDays = new Date(calYear, calMonth, 0).getDate();
@@ -46,9 +58,7 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
     setSelectedDay((current) => Math.min(current, days));
   }, [days]);
 
-  const dayRows = rows
-    .filter((row) => rowDay(row) === selectedDay)
-    .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
+  const dayRows = byDay.get(selectedDay) || [];
 
   return (
     <div className="cal-area">
@@ -70,7 +80,7 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
               const { d, type } = cell;
               const isCurr = type==='curr';
               const isOther = type==='prev' || type==='next';
-              const count = isCurr ? rows.filter((row) => rowDay(row) === d).length : 0;
+              const count = isCurr ? (byDay.get(d)?.length || 0) : 0;
               return (
                 <div
                   key={i}
@@ -87,7 +97,7 @@ export function CalendarView({ rows, month: initMonth, year: initYear, onAddDay,
                   </div>
                   {isCurr && <>
                     <div className="cal-posts">
-                      {rows.filter(r=>rowDay(r)===d).slice(0, 4).map(r=>{
+                      {(byDay.get(d) || []).slice(0, 4).map(r=>{
                         const p=PLATFORMS[r.platform];
                         const t=toPTDisplay(r.scheduledAt);
                         return (
