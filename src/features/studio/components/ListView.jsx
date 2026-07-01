@@ -4,15 +4,14 @@ import { useStudio } from "../StudioContext.jsx";
 import { Row } from "./Row.jsx";
 import { InlineCreateRow } from "./InlineCreateRow.jsx";
 import { EmptyState } from "./EmptyState.jsx";
-import { MONTHS_FULL, PLATFORMS, T } from "../shared.js";
-import { TOAST } from "../copy.js";
+import { MONTHS_FULL } from "../shared.js";
 
 export function ListView() {
   const {
     view, timeScale, month, year, setMonth,
     sorted, grouped, sel, toggleSel, toggleAll,
     connections,
-    update, remove, showToast,
+    update,
     selectedRowId, setSelectedRowId,
     makeDrag, add,
     monthRefs,
@@ -106,7 +105,6 @@ export function ListView() {
       sel={sel.has(row.id)}
       onSel={v => toggleSel(row.id, v)}
       onChange={p => update(row.id, p)}
-      onDel={() => { remove(row.id); showToast(TOAST.POST_REMOVED, T.red); }}
       onSelect={() => setSelectedRowId(row.id)}
       isSelected={selectedRowId === row.id}
       isFocused={isFocused}
