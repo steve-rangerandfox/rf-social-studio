@@ -2437,3 +2437,7 @@ input,textarea,select,button{font-family:inherit}
 .dp-actions-spacer{flex:1}
 .detail-panel .btn-danger{background:transparent;border:1px solid transparent;color:var(--t-red)}
 .detail-panel .btn-danger:hover{background:rgba(220,38,38,0.06);border-color:rgba(220,38,38,0.2)}
+/* Required-field asterisk in the post editor + blocked publish button */
+.dp-required{color:var(--accent);font-weight:700;margin-left:2px;font-size:1.1em;line-height:0}
+.dp-required.met{color:var(--t-text-faint);opacity:0.5}
+.detail-panel .btn:disabled{opacity:0.45;cursor:not-allowed}
