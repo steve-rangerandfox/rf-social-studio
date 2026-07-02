@@ -2399,3 +2399,5 @@ input,textarea,select,button{font-family:inherit}
 .sd-ctx-danger{color:var(--t-red)}
 .sd-ctx-danger:hover{background:rgba(220,38,38,0.08)}
 .sd-ctx-sep{height:1px;background:var(--t-border);margin:4px 6px}
+/* Marquee (rubber-band) selection rectangle */
+.sd-marquee{position:absolute;z-index:38;border:1px solid var(--accent);background:rgba(255,90,31,0.08);pointer-events:none;border-radius:2px}
