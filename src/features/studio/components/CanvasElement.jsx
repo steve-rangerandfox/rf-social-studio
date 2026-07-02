@@ -69,7 +69,7 @@ export function fitMediaBox(width, height, maxWidth, maxHeight) {
   };
 }
 
-export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H }) {
+export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, onContextMenu, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H }) {
   const videoRef = useRef(null);
   const editRef = useRef(null);
   const [muted, setMuted] = useState(true);
@@ -332,6 +332,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onContextMenu={(e) => { if (onContextMenu) onContextMenu(e, data.id); }}
     >
       <div className="el-outline"/>
       {dropHover && data.type === 'image' && (

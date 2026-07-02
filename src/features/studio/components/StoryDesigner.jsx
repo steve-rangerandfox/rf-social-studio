@@ -41,6 +41,10 @@ import { T, uid, TEMPLATES } from "../shared.js";
 import { generateStoryTips } from "../../../lib/api-client.js";
 import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 
+// Session-local clipboard for copy/paste of canvas elements (persists across
+// opening/closing the designer; not a React ref, so it stays out of render).
+let designerClipboard = [];
+
 const CANVAS_PRESETS = [
   { key: "ig_story", label: "IG Story", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
   { key: "ig_post", label: "IG Post", w: 290, h: 290, exportW: 1080, exportH: 1080, ratio: "1:1" },
@@ -479,6 +483,7 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
   const [showTmplSave,setShowTmplSave]= useState(false);
   const [snapOn,      setSnapOn]      = useState(true);
   const [guides,      setGuides]      = useState([]);
+  const [ctxMenu,     setCtxMenu]     = useState(null); // { x, y, id } right-click menu
   // Layer drag-to-reorder state
   const [dragLayerIdx, setDragLayerIdx] = useState(null);
   const [dragOverLayerIdx, setDragOverLayerIdx] = useState(null);
@@ -564,6 +569,34 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
     const copies = toDup.map(el => ({ ...el, id: uid(), x: (el.x || 0) + 16, y: (el.y || 0) + 16 }));
     pushElements([...elements, ...copies]);
     setSelectedIds(new Set(copies.map(c => c.id)));
+  };
+
+  // Copy / paste (Cmd+C / Cmd+V) — session-local clipboard (module scope, so
+  // it survives closing/reopening the designer).
+  const copySelected = () => {
+    const sel = elements.filter(e => selectedIds.has(e.id) && !e.locked);
+    if (sel.length) designerClipboard = sel.map(e => ({ ...e }));
+  };
+  const pasteClipboard = () => {
+    const items = designerClipboard;
+    if (!items?.length) return;
+    const copies = items.map(e => ({ ...e, id: uid(), x: (e.x || 0) + 16, y: (e.y || 0) + 16 }));
+    pushElements([...elements, ...copies]);
+    setSelectedIds(new Set(copies.map(c => c.id)));
+  };
+
+  // Z-order (locked background always stays at the bottom).
+  const reorderZ = (id, where) => {
+    const el = elements.find(e => e.id === id);
+    if (!el || el.locked) return;
+    const locked = elements.filter(e => e.locked);
+    const movable = elements.filter(e => !e.locked && e.id !== id);
+    const mIdx = elements.filter(e => !e.locked).findIndex(e => e.id === id);
+    if (where === "front") movable.push(el);
+    else if (where === "back") movable.unshift(el);
+    else if (where === "forward") movable.splice(Math.min(mIdx + 1, movable.length), 0, el);
+    else movable.splice(Math.max(mIdx - 1, 0), 0, el); // backward
+    pushElements([...locked, ...movable]);
   };
 
   // ── Alignment functions ──
@@ -1029,9 +1062,13 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
   useEffect(() => {
     const h = (e) => {
       if (editingId) return;
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); duplicateSelected(); return; }
-      if ((e.key==='Backspace'||e.key==='Delete') && selectedIds.size > 0 && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA') deleteSelected();
-      if (e.key==='Escape') setSelectedIds(new Set());
+      const inField = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); duplicateSelected(); return; }
+      if (mod && (e.key === 'c' || e.key === 'C') && !inField && selectedIds.size > 0) { e.preventDefault(); copySelected(); return; }
+      if (mod && (e.key === 'v' || e.key === 'V') && !inField) { e.preventDefault(); pasteClipboard(); return; }
+      if ((e.key==='Backspace'||e.key==='Delete') && selectedIds.size > 0 && !inField) deleteSelected();
+      if (e.key==='Escape') { setSelectedIds(new Set()); setCtxMenu(null); }
     };
     window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h);
   }, [selectedIds,elements,editingId]);
@@ -1580,6 +1617,7 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
                     onUpdate={p=>updateEl(el.id,p)}
                     onDragAll={selectedIds.size > 1 && selectedIds.has(el.id) ? multiDrag : undefined}
                     onDropReplace={replaceMedia}
+                    onContextMenu={(e, id) => { e.preventDefault(); handleSelect(id, false); setCtxMenu({ x: e.clientX, y: e.clientY, id }); }}
                     snapEnabled={snapOn} siblings={elements} onGuides={setGuides}
                     isEditing={editingId===el.id}
                     onStartEdit={()=>{setSelectedIds(new Set([el.id]));setEditingId(el.id);}}
@@ -1613,6 +1651,26 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
           </div>
         </div>
         <StoryDesignerTour />
+
+        {ctxMenu && (
+          <>
+            <div className="sd-ctx-backdrop" onClick={() => setCtxMenu(null)} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }} />
+            <div className="sd-ctx-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onClick={(e) => e.stopPropagation()}>
+              {[
+                ["Duplicate", () => duplicateSelected()],
+                ["Copy", () => copySelected()],
+                ["Bring to front", () => reorderZ(ctxMenu.id, "front")],
+                ["Bring forward", () => reorderZ(ctxMenu.id, "forward")],
+                ["Send backward", () => reorderZ(ctxMenu.id, "backward")],
+                ["Send to back", () => reorderZ(ctxMenu.id, "back")],
+              ].map(([label, fn]) => (
+                <button key={label} className="sd-ctx-item" onClick={() => { fn(); setCtxMenu(null); }}>{label}</button>
+              ))}
+              <div className="sd-ctx-sep" />
+              <button className="sd-ctx-item sd-ctx-danger" onClick={() => { deleteEl(ctxMenu.id); setCtxMenu(null); }}>Delete</button>
+            </div>
+          </>
+        )}
 
         {(activeUploads.length > 0 || uploadError) && (
           <div style={{position:"fixed",bottom:20,right:20,display:"flex",flexDirection:"column",gap:8,zIndex:60,maxWidth:320}}>
