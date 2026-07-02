@@ -143,6 +143,9 @@ export function StudioProvider({ children }) {
   const [dragOverId, setDragOverId] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
   const monthRefs = useRef({});
+  // Set by ListView (year view) — scrolls the virtualizer to a month, which
+  // works even when that month isn't currently rendered (unlike a DOM ref).
+  const yearScrollRef = useRef(null);
   const currentUser = actorName;
 
   // ─── Derived data (memoized) ─────────────────────────────────────
@@ -630,14 +633,7 @@ export function StudioProvider({ children }) {
 
   const jumpToMonth = (mi) => {
     if (timeScale === "year") {
-      const el = monthRefs.current[mi];
-      if (el) {
-        const container = el.closest(".t-area");
-        if (container) {
-          const offset = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
-          container.scrollTo({ top: offset, behavior: "smooth" });
-        }
-      }
+      yearScrollRef.current?.(mi);
     } else {
       setMonth(mi);
     }
@@ -866,6 +862,7 @@ export function StudioProvider({ children }) {
     showToast,
     sel, setSel,
     monthRefs,
+    yearScrollRef,
 
     // Derived
     rows, filteredRows, igConfig, igMedia,

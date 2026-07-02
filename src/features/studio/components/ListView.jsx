@@ -15,6 +15,7 @@ export function ListView() {
     selectedRowId, setSelectedRowId,
     makeDrag, add,
     monthRefs,
+    yearScrollRef,
     inlineCreateActive,
   } = useStudio();
 
@@ -96,6 +97,17 @@ export function ListView() {
     enabled: view === "list" && timeScale === "year",
   });
 
+  // Expose a month-jump that uses the virtualizer (works for months that
+  // aren't currently rendered — a DOM ref wouldn't exist for those).
+  useEffect(() => {
+    if (!yearScrollRef) return undefined;
+    yearScrollRef.current = (mi) => {
+      const idx = flatItems.findIndex((it) => it.type === "header" && it.group.mi === mi);
+      if (idx >= 0) yearVirtualizer.scrollToIndex(idx, { align: "start" });
+    };
+    return () => { yearScrollRef.current = null; };
+  }, [flatItems, yearVirtualizer, yearScrollRef]);
+
   if (view !== "list") return null;
 
   const renderRow = (row, idx, isFocused = false) => (
@@ -167,7 +179,7 @@ export function ListView() {
                 onAction={() => add(month)}
               />
             : (
-              <div ref={parentRef} style={{ height: "100%", overflow: "auto" }}>
+              <div ref={parentRef} style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
                 <div style={{ height: `${monthVirtualizer.getTotalSize()}px`, position: "relative" }}>
                   {monthVirtualizer.getVirtualItems().map((virtualItem) => (
                     <div
@@ -193,7 +205,7 @@ export function ListView() {
         </>
       ) : (
         /* YEAR VIEW — grouped by month with sticky headers, virtualized */
-        <div ref={parentRef} style={{ height: "100%", overflow: "auto" }}>
+        <div ref={parentRef} style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
           <div style={{ height: `${yearVirtualizer.getTotalSize()}px`, position: "relative" }}>
             {yearVirtualizer.getVirtualItems().map((virtualItem) => {
               const item = flatItems[virtualItem.index];
