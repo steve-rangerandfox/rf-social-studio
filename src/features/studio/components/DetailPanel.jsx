@@ -619,30 +619,32 @@ export function DetailPanel() {
                 </div>
               );
             })()}
-            <button className="btn btn-primary dp-action-btn" onClick={handlePostNow}>
-              Post to {PLATFORMS[row.platform].label}
-            </button>
-            {row.status !== "posted" && row.status !== "scheduled" && (
+            {/* Buffer-style footer row: destructive left, escalating actions right */}
+            <div className="dp-actions-row">
+              <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
+              <div className="dp-actions-spacer" />
               <button
-                className="btn btn-ghost dp-action-btn"
-                onClick={() => approveAndSchedule(row.id)}
-                title="Approve and auto-pick the next good time slot"
+                className="btn btn-ghost"
+                onClick={() => setIsCrossPostOpen(true)}
+                title="Draft captions for the other platforms with AI"
               >
-                <Calendar size={13} style={{ marginRight: 6 }} />
-                Approve &amp; schedule
+                <Share2 size={13} style={{ marginRight: 6 }} />
+                Cross-post
               </button>
-            )}
-            <button
-              className="btn btn-ghost dp-action-btn"
-              onClick={() => setIsCrossPostOpen(true)}
-              title="Draft captions for the other platforms with AI"
-            >
-              <Share2 size={13} style={{ marginRight: 6 }} />
-              Cross-post with AI
-            </button>
-            <button className="btn btn-danger dp-action-btn" onClick={handleDelete}>
-              Delete post
-            </button>
+              {row.status !== "posted" && row.status !== "scheduled" && (
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => approveAndSchedule(row.id)}
+                  title="Approve and auto-pick the next good time slot"
+                >
+                  <Calendar size={13} style={{ marginRight: 6 }} />
+                  Approve &amp; schedule
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={handlePostNow}>
+                Post to {PLATFORMS[row.platform].label}
+              </button>
+            </div>
           </div>
         </div>
       </div>
