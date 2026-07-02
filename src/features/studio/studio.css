@@ -848,7 +848,7 @@ input,textarea,select,button{font-family:inherit}
 .layer-item.active{background:var(--t-s3);border-color:var(--t-border2);color:var(--t-ink);font-weight:600}
 .layer-icon{font-size:var(--text-sm);width:18px;text-align:center;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-weight:700}
 .layer-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--text-sm)}
-.layer-del{background:transparent;border:none;color:var(--t-text-dim);cursor:pointer;font-size:var(--text-base);padding:4px 4px;border-radius:3px;line-height:1;opacity:0;transition:opacity 0.1s}
+.layer-del{background:transparent;border:none;color:var(--t-text-dim);cursor:pointer;font-size:var(--text-base);padding:4px 4px;border-radius:3px;line-height:1;opacity:0.45;transition:opacity 0.1s;margin-left:auto}
 .layer-item:hover .layer-del{opacity:1}
 .layer-item:hover .layer-del:hover{color:var(--t-red)}
 .color-swatches{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
@@ -2387,3 +2387,6 @@ input,textarea,select,button{font-family:inherit}
     scroll-behavior: auto !important;
   }
 }
+/* Layer reorder grip — signals drag-to-reorder in the layers panel. */
+.layer-grip{display:flex;align-items:center;color:var(--t-text-faint,#a1a1aa);opacity:0.5;flex-shrink:0;cursor:grab}
+.layer-item:hover .layer-grip{opacity:0.9}

@@ -15,6 +15,7 @@ import {
   Download,
   Film,
   Grid3 as Grid3x3,
+  GripVertical,
   ImageIcon,
   Italic,
   Layers,
@@ -556,6 +557,14 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
     pushElements(els => els.filter(e => !toDelete.includes(e.id)));
     setSelectedIds(new Set());
   };
+  // Canva-style duplicate (Cmd/Ctrl+D): clone selected elements offset by 16px.
+  const duplicateSelected = () => {
+    const toDup = elements.filter(el => selectedIds.has(el.id) && !el.locked);
+    if (toDup.length === 0) return;
+    const copies = toDup.map(el => ({ ...el, id: uid(), x: (el.x || 0) + 16, y: (el.y || 0) + 16 }));
+    pushElements([...elements, ...copies]);
+    setSelectedIds(new Set(copies.map(c => c.id)));
+  };
 
   // ── Alignment functions ──
   const alignSelected = (direction) => {
@@ -1020,6 +1029,7 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
   useEffect(() => {
     const h = (e) => {
       if (editingId) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); duplicateSelected(); return; }
       if ((e.key==='Backspace'||e.key==='Delete') && selectedIds.size > 0 && document.activeElement.tagName!=='INPUT' && document.activeElement.tagName!=='TEXTAREA') deleteSelected();
       if (e.key==='Escape') setSelectedIds(new Set());
     };
@@ -1290,6 +1300,7 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
                           {dragOverLayerIdx === realIdx && dragLayerIdx !== null && dragLayerIdx !== realIdx && (
                             <div className="layer-drop-indicator" />
                           )}
+                          {!el.locked && <span className="layer-grip" aria-hidden="true"><GripVertical size={12}/></span>}
                           <span className="layer-icon" style={{color:selectedIds.has(el.id)?T.ink:T.textDim}}>
                             {el.type==='text'?<Type size={12}/>:el.locked?<Wallpaper size={12}/>:el.mediaType==='video'?<Film size={12}/>:<ImageIcon size={12}/>}
                           </span>
