@@ -1406,7 +1406,7 @@ input,textarea,select,button{font-family:inherit}
 .dp-warning{display:flex;align-items:flex-start;gap:4px;font-size:var(--text-xs);color:var(--t-amber);line-height:1.4}
 .dp-warning svg{flex-shrink:0;margin-top:1px}
 .dp-caption-footer{display:flex;justify-content:space-between;align-items:center;margin-top:-4px}
-.dp-comments-empty.cal-panel-empty{padding:10px 0 0}
+.dp-comments-empty.cal-panel-empty{padding:14px 16px}
 .dp-comment{display:flex;gap:9px;align-items:flex-start;margin-bottom:2px}
 .dp-comment-avatar{width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;flex-shrink:0}
 .dp-comment-body{flex:1}
