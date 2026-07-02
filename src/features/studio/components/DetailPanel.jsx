@@ -177,8 +177,19 @@ export function DetailPanel() {
   const capLen = (row.caption || "").length;
   const over = capLen > max;
   const warn = capLen > max * 0.88;
-  const checks = getReadinessChecks(row, mediaUrls.length > 0);
-  const readyCount = checks.filter((c) => c.pass).length;
+  // Media counts if attached this session OR already saved on the row
+  // (mediaUrl / carousel / a rendered story) — else we'd falsely block posts
+  // that already have media.
+  const hasMedia = mediaUrls.length > 0
+    || !!(row.mediaUrl || row.imageUrl || row.thumbnailUrl)
+    || (Array.isArray(row.carouselSlides) && row.carouselSlides.length > 0);
+  const checks = getReadinessChecks(row, hasMedia);
+  // Publishing requires a caption and media (media is optional for LinkedIn).
+  const captionReady = !!checks.find((c) => c.label === "Caption")?.pass;
+  const mediaReady = !!checks.find((c) => c.label === "Media")?.pass;
+  const mediaRequired = row.platform !== "linkedin";
+  const canPublish = captionReady && mediaReady;
+  const missingRequired = [!captionReady && "a caption", !mediaReady && "media"].filter(Boolean);
   const updatedLabel = formatRelativeStamp(row.updatedAt);
 
   const submitComment = () => {
@@ -293,7 +304,7 @@ export function DetailPanel() {
 
           {/* Media upload (with platform dropdown on top) */}
           <section className="stage-section">
-            <div className="stage-col-label"><span className="stage-col-num">01 /</span> Media</div>
+            <div className="stage-col-label"><span className="stage-col-num">01 /</span> Media{mediaRequired && <span className={"dp-required" + (mediaReady ? " met" : "")} title="Required to publish">*</span>}</div>
             <div className="dp-platform-section">
               <div className="dp-platform-anchor" ref={platformDropdownRef}>
                 <button
@@ -451,7 +462,7 @@ export function DetailPanel() {
 
           {/* Caption editor */}
           <section className="stage-section">
-            <div className="stage-col-label"><span className="stage-col-num">02 /</span> Caption</div>
+            <div className="stage-col-label"><span className="stage-col-num">02 /</span> Caption<span className={"dp-required" + (captionReady ? " met" : "")} title="Required to publish">*</span></div>
             <textarea
               className="stage-txa"
               value={row.caption || ""}
@@ -577,24 +588,6 @@ export function DetailPanel() {
             </div>
           </section>
 
-          {/* Readiness checklist */}
-          <section className="stage-section">
-            <div className="stage-col-label"><span className="stage-col-num">05 /</span> Readiness</div>
-            <div className="readiness-list">
-              {checks.map((c, i) => (
-                <div key={i} className={`readiness-item`}>
-                  <span className="readiness-num">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="readiness-icon">{c.pass ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} color={T.amber} />}</span>
-                  <span className="readiness-label">{c.label}</span>
-                  <span className={`readiness-ok ${c.pass ? "pass" : "fail"}`}>{c.pass ? "Ready" : "Missing"}</span>
-                </div>
-              ))}
-            </div>
-            <div className="dp-readiness-count">
-              {readyCount}/{checks.length} ready
-            </div>
-          </section>
-
           {/* Actions */}
           <div className="dp-actions">
             <div className="dp-mode-row">
@@ -641,7 +634,12 @@ export function DetailPanel() {
                   Approve &amp; schedule
                 </button>
               )}
-              <button className="btn btn-primary" onClick={handlePostNow}>
+              <button
+                className="btn btn-primary"
+                onClick={handlePostNow}
+                disabled={!canPublish}
+                title={canPublish ? undefined : `Add ${missingRequired.join(" and ")} before publishing`}
+              >
                 Post to {PLATFORMS[row.platform].label}
               </button>
             </div>
