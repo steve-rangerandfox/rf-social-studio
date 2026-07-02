@@ -424,12 +424,13 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
 
   const pushElements = (newElements) => {
     const resolved = typeof newElements === 'function' ? newElements(elements) : newElements;
-    setHistory(prev => {
-      const truncated = prev.slice(0, historyIndex + 1);
-      const next = [...truncated, resolved].slice(-MAX_HISTORY);
-      setHistoryIndex(next.length - 1);
-      return next;
-    });
+    // Compute next history + index OUTSIDE the setState updater — calling a
+    // setState inside another's updater throws "cannot update a component
+    // while rendering a different component".
+    const truncated = history.slice(0, historyIndex + 1);
+    const next = [...truncated, resolved].slice(-MAX_HISTORY);
+    setHistory(next);
+    setHistoryIndex(next.length - 1);
     setElements(resolved);
   };
 
@@ -1005,18 +1006,16 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
   // Push elements to history on pointerup (after drag / resize finishes)
   useEffect(() => {
     const onUp = () => {
-      setHistory(prev => {
-        const last = prev[prev.length - 1];
-        if (JSON.stringify(last) === JSON.stringify(elements)) return prev;
-        const truncated = prev.slice(0, historyIndex + 1);
-        const next = [...truncated, elements].slice(-MAX_HISTORY);
-        setHistoryIndex(next.length - 1);
-        return next;
-      });
+      const last = history[history.length - 1];
+      if (JSON.stringify(last) === JSON.stringify(elements)) return;
+      const truncated = history.slice(0, historyIndex + 1);
+      const next = [...truncated, elements].slice(-MAX_HISTORY);
+      setHistory(next);
+      setHistoryIndex(next.length - 1);
     };
     window.addEventListener('pointerup', onUp);
     return () => window.removeEventListener('pointerup', onUp);
-  }, [elements, historyIndex]);
+  }, [elements, history, historyIndex]);
 
   useEffect(() => {
     const h = (e) => {
@@ -1564,7 +1563,6 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
                   <CanvasElement key={el.id} data={el} isSelected={selectedIds.has(el.id)}
                     onSelect={()=>setSelectedIds(new Set([el.id]))} onUpdate={p=>updateEl(el.id,p)} canvasW={preset.w} canvasH={preset.h}/>
                 ))}
-                <div className="canvas-ov" style={{background:"linear-gradient(to top,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,0.28) 100%)"}}/>
                 {elements.filter(e=>!e.locked).map(el=>(
                   <CanvasElement key={el.id} data={el} isSelected={selectedIds.has(el.id)}
                     onSelect={(id, shiftKey)=>{handleSelect(el.id, shiftKey);initMultiDrag();if(editingId&&editingId!==el.id)setEditingId(null);}}
