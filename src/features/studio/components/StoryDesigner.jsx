@@ -484,6 +484,7 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
   const [snapOn,      setSnapOn]      = useState(true);
   const [guides,      setGuides]      = useState([]);
   const [ctxMenu,     setCtxMenu]     = useState(null); // { x, y, id } right-click menu
+  const [marquee,     setMarquee]     = useState(null); // rubber-band select rect (canvas coords)
   // Layer drag-to-reorder state
   const [dragLayerIdx, setDragLayerIdx] = useState(null);
   const [dragOverLayerIdx, setDragOverLayerIdx] = useState(null);
@@ -799,6 +800,40 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
 
   // Canvas-level drop: add media or set background
   const [canvasDragOver, setCanvasDragOver] = useState(false);
+  // Marquee (rubber-band) select: drag a box on empty canvas to select the
+  // elements it touches. A plain click (no drag) just deselects.
+  const handleCanvasPointerDown = (e) => {
+    if (e.target !== e.currentTarget) return; // only when starting on empty canvas
+    setEditingId(null);
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) { setSelectedIds(new Set()); return; }
+    const x0 = (e.clientX - rect.left) / zoom;
+    const y0 = (e.clientY - rect.top) / zoom;
+    let moved = false;
+    setMarquee({ x0, y0, x1: x0, y1: y0 });
+    const onMove = (mv) => {
+      moved = true;
+      setMarquee({ x0, y0, x1: (mv.clientX - rect.left) / zoom, y1: (mv.clientY - rect.top) / zoom });
+    };
+    const onUp = (mv) => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      setMarquee(null);
+      if (!moved) { setSelectedIds(new Set()); return; }
+      const x1 = (mv.clientX - rect.left) / zoom, y1 = (mv.clientY - rect.top) / zoom;
+      const rx0 = Math.min(x0, x1), rx1 = Math.max(x0, x1), ry0 = Math.min(y0, y1), ry1 = Math.max(y0, y1);
+      const hits = elements.filter(el => {
+        if (el.locked) return false;
+        const w = el.type === "text" ? (el.boxWidth || 190) : (el.width || 140) * (el.scale || 1);
+        const h = el.type === "text" ? 40 : (el.height || 140) * (el.scale || 1);
+        return el.x < rx1 && el.x + w > rx0 && el.y < ry1 && el.y + h > ry0;
+      }).map(el => el.id);
+      setSelectedIds(new Set(hits));
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  };
+
   const handleCanvasDragOver = (e) => { e.preventDefault(); setCanvasDragOver(true); };
   const handleCanvasDragLeave = (e) => {
     // Only trigger if leaving the canvas itself, not a child
@@ -1602,7 +1637,7 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
             )}
             <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top center"}}>
               <div className="canvas" ref={canvasRef} role="application" aria-label="Story canvas"
-                onPointerDown={e=>{if(e.target===e.currentTarget){setSelectedIds(new Set());setEditingId(null);}}}
+                onPointerDown={handleCanvasPointerDown}
                 onDragOver={handleCanvasDragOver}
                 onDragLeave={handleCanvasDragLeave}
                 onDrop={handleCanvasDrop}
@@ -1627,6 +1662,14 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
                 {guides.map((g,i) => g.axis === 'x'
                   ? <div key={i} style={{position:'absolute',left:g.pos,top:0,width:1,height:'100%',background:'rgba(0,165,114,0.6)',pointerEvents:'none',zIndex:40}}/>
                   : <div key={i} style={{position:'absolute',top:g.pos,left:0,height:1,width:'100%',background:'rgba(0,165,114,0.6)',pointerEvents:'none',zIndex:40}}/>
+                )}
+                {marquee && (
+                  <div className="sd-marquee" style={{
+                    left: Math.min(marquee.x0, marquee.x1),
+                    top: Math.min(marquee.y0, marquee.y1),
+                    width: Math.abs(marquee.x1 - marquee.x0),
+                    height: Math.abs(marquee.y1 - marquee.y0),
+                  }}/>
                 )}
                 {showGuides && (
                   <div style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:30}}>
