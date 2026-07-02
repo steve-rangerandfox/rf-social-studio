@@ -21,7 +21,10 @@ function asProps({ size = 18, color, className, style, ...rest }) {
     viewBox: "0 0 16 16",
     fill: "none",
     stroke: color || "currentColor",
-    strokeWidth: 1.5,
+    // Normalize to a constant ~1.25px *visual* stroke at any size. Stroke is
+    // in the 16-unit viewBox, so a fixed 1.5 scaled up to ~2.2px on larger
+    // icons — reading thick/chunky.
+    strokeWidth: 20 / s,
     strokeLinecap: "round",
     strokeLinejoin: "round",
     className,
