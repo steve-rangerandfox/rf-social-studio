@@ -2390,3 +2390,12 @@ input,textarea,select,button{font-family:inherit}
 /* Layer reorder grip — signals drag-to-reorder in the layers panel. */
 .layer-grip{display:flex;align-items:center;color:var(--t-text-faint,#a1a1aa);opacity:0.5;flex-shrink:0;cursor:grab}
 .layer-item:hover .layer-grip{opacity:0.9}
+
+/* Story-designer right-click context menu */
+.sd-ctx-backdrop{position:fixed;inset:0;z-index:200}
+.sd-ctx-menu{position:fixed;z-index:201;min-width:172px;background:var(--t-surface);border:1px solid var(--t-border);border-radius:10px;box-shadow:var(--shadow-lg);padding:5px;display:flex;flex-direction:column;animation:popIn 0.12s var(--ease-out)}
+.sd-ctx-item{display:flex;align-items:center;width:100%;text-align:left;background:transparent;border:none;border-radius:6px;padding:7px 10px;font:500 13px var(--font-body);color:var(--t-text);cursor:pointer}
+.sd-ctx-item:hover{background:var(--t-s2)}
+.sd-ctx-danger{color:var(--t-red)}
+.sd-ctx-danger:hover{background:rgba(220,38,38,0.08)}
+.sd-ctx-sep{height:1px;background:var(--t-border);margin:4px 6px}
