@@ -51,6 +51,10 @@ createRoot(document.getElementById('root')).render(
             <Route path="/app/*" element={
               <ClerkProvider
                 publishableKey={PUBLISHABLE_KEY}
+                signInUrl="/app"
+                signUpUrl="/app/sign-up"
+                signInFallbackRedirectUrl="/app"
+                signUpFallbackRedirectUrl="/app"
                 localization={{ signIn: { start: { title: "Sign in to Relay" } } }}
               >
                 <AuthGate />
