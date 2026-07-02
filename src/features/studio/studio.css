@@ -2415,6 +2415,26 @@ input,textarea,select,button{font-family:inherit}
 .sd-page-menu button{text-align:left;background:transparent;border:none;border-radius:6px;padding:8px 10px;font:500 13px var(--font-body);color:var(--t-text);cursor:pointer}
 .sd-page-menu button:hover{background:var(--t-s2)}
 
+/* Artboard tools: panorama fit + side-by-side toggle */
+.sd-pages-sep{width:1px;height:20px;background:var(--t-border);margin:0 2px}
+.sd-pages-tool{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid var(--t-border);border-radius:8px;background:var(--t-surface);color:var(--t-text-sub);cursor:pointer;font:600 12px var(--font-body);white-space:nowrap;transition:border-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out),background var(--duration-fast) var(--ease-out)}
+.sd-pages-tool:hover{border-color:var(--t-border2);color:var(--t-ink)}
+.sd-pages-tool.on{border-color:var(--t-ink);color:var(--t-ink);background:var(--t-s2)}
+
+/* Side-by-side filmstrip */
+.sd-filmstrip{display:flex;align-items:flex-start;gap:18px;width:100%;overflow-x:auto;padding:8px 16px 16px;scroll-snap-type:x proximity}
+.sd-film-item{display:flex;flex-direction:column;align-items:center;gap:8px;flex:0 0 auto;scroll-snap-align:center}
+.sd-film-canvas{position:relative;padding:0;border:1px solid rgba(255,255,255,0.14);border-radius:10px;overflow:hidden;background:#080A0E;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.35);transition:border-color var(--duration-fast) var(--ease-out),transform var(--duration-fast) var(--ease-out)}
+.sd-film-canvas:hover{border-color:rgba(255,255,255,0.4);transform:translateY(-2px)}
+.sd-film-item.active .sd-film-canvas{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 8px 24px rgba(0,0,0,0.35)}
+.sd-film-cap{display:flex;align-items:center;gap:2px}
+.sd-film-num{font:600 11px var(--font-mono);color:rgba(255,255,255,0.65);letter-spacing:0.08em;padding:0 4px;font-variant-numeric:tabular-nums}
+.sd-filmstrip .sd-page-move,.sd-filmstrip .sd-page-del{color:rgba(255,255,255,0.5)}
+.sd-filmstrip .sd-page-move:hover:not(:disabled),.sd-filmstrip .sd-page-del:hover:not(:disabled){background:rgba(255,255,255,0.12);color:#fff}
+.sd-filmstrip .sd-page-del:hover:not(:disabled){color:var(--t-red)}
+.sd-film-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;width:120px;border:1px dashed rgba(255,255,255,0.2);border-radius:10px;background:transparent;color:rgba(255,255,255,0.55);cursor:pointer;font:600 12px var(--font-body);transition:border-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
+.sd-film-add:hover{border-color:var(--accent);color:#fff}
+
 /* ─── Post editor: Buffer-style cleanup ──────────────────────────────
    1) THE overlap fix: the body is a fixed-height flex column, so its
       sections were COMPRESSED (default flex-shrink:1) instead of
