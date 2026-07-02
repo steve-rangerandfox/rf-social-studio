@@ -141,7 +141,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:50,
               background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
-              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",maxHeight:220,overflowY:"auto",padding:4,
+              boxShadow:"0 12px 32px rgba(9,9,11,0.1)",maxHeight:220,overflowY:"auto",padding:4,
             }}>
               {[
                 { label: "Brand", fonts: BRAND_FONTS },
@@ -199,13 +199,13 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
         <div style={{position:"relative"}} ref={colorRef}>
           <button title="Text color" onClick={() => setColorOpen(v => !v)}
             style={{...tb(false),position:"relative"}}>
-            <span style={{display:"block",width:17,height:17,borderRadius:5,background:colorPreview,border:"1px solid rgba(24,23,20,0.22)",boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.5)"}}/>
+            <span style={{display:"block",width:17,height:17,borderRadius:5,background:colorPreview,border:"1px solid rgba(9,9,11,0.22)",boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.5)"}}/>
           </button>
           {colorOpen && (
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",left:0,zIndex:50,
               background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
-              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:8,width:180,
+              boxShadow:"0 12px 32px rgba(9,9,11,0.1)",padding:8,width:180,
             }}>
               {/* Solid swatches */}
               <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:4}}>Solid</div>
@@ -297,7 +297,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",right:0,zIndex:50,
               background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
-              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:10,width:170,
+              boxShadow:"0 12px 32px rgba(9,9,11,0.1)",padding:10,width:170,
               display:"flex",flexDirection:"column",gap:8,
             }}>
               {/* Letter spacing */}
