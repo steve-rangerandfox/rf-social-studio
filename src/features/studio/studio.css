@@ -2401,3 +2401,21 @@ input,textarea,select,button{font-family:inherit}
 .sd-ctx-sep{height:1px;background:var(--t-border);margin:4px 6px}
 /* Marquee (rubber-band) selection rectangle */
 .sd-marquee{position:absolute;z-index:38;border:1px solid var(--accent);background:rgba(255,90,31,0.08);pointer-events:none;border-radius:2px}
+
+/* ─── Story designer artboards / page strip ─── */
+.sd-pages{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:12px 8px 4px}
+.sd-page-tab{display:inline-flex;align-items:center;gap:4px;height:34px;min-width:34px;padding:0 6px;border:1px solid var(--t-border);border-radius:8px;background:var(--t-surface);color:var(--t-text-sub);cursor:pointer;font:600 13px var(--font-body);transition:border-color var(--duration-fast) var(--ease-out),background var(--duration-fast) var(--ease-out)}
+.sd-page-tab:hover{border-color:var(--t-border2);color:var(--t-text)}
+.sd-page-tab.active{border-color:var(--t-ink);color:var(--t-ink);box-shadow:0 0 0 1px var(--t-ink)}
+.sd-page-num{padding:0 4px;font-variant-numeric:tabular-nums}
+.sd-page-move,.sd-page-del{display:flex;align-items:center;justify-content:center;width:18px;height:18px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:var(--t-text-dim);font-size:14px;line-height:1;padding:0}
+.sd-page-move:hover:not(:disabled),.sd-page-del:hover{background:var(--t-s2);color:var(--t-ink)}
+.sd-page-move:disabled{opacity:0.3;cursor:default}
+.sd-page-del:hover{color:var(--t-red)}
+.sd-page-add-wrap{position:relative}
+.sd-page-add{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px dashed var(--t-border2);border-radius:8px;background:var(--t-surface);color:var(--t-text-sub);cursor:pointer;transition:all var(--duration-fast) var(--ease-out)}
+.sd-page-add:hover{border-color:var(--t-ink);color:var(--t-ink);border-style:solid}
+.sd-page-menu-backdrop{position:fixed;inset:0;z-index:100}
+.sd-page-menu{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:101;min-width:160px;background:var(--t-surface);border:1px solid var(--t-border);border-radius:10px;box-shadow:var(--shadow-lg);padding:5px;display:flex;flex-direction:column;animation:popIn 0.12s var(--ease-out)}
+.sd-page-menu button{text-align:left;background:transparent;border:none;border-radius:6px;padding:8px 10px;font:500 13px var(--font-body);color:var(--t-text);cursor:pointer}
+.sd-page-menu button:hover{background:var(--t-s2)}

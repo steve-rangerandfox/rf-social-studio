@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   AArrowDown,
   AIMark,
@@ -396,7 +396,7 @@ function saveDefaultTmplId(id) {
   else localStorage.removeItem(DEFAULT_TMPL_KEY);
 }
 
-export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
+export function StoryDesigner({ row, onClose, onUpdate }) {
   const makeDefault = () => [
     { id:"bg",  type:"image", url:null, x:0, y:0, scale:1, locked:true, mediaType:'image' },
     { id:uid(), type:"text",  content:"RANGER & FOX",          x:20, y:22,  fontSize:8.5, fontFamily:"JetBrains Mono",     color:T.ink, letterSpacing:3,    fontWeight:600, shadow:false },
@@ -404,7 +404,7 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
     { id:uid(), type:"text",  content:"Supporting detail",      x:20, y:205, fontSize:12,  fontFamily:"Bricolage Grotesque",color:"rgba(255,255,255,0.6)", letterSpacing:0, fontWeight:400, shadow:false },
   ];
 
-  const [elements,    setElements]    = useState(() => {
+  const computeInitialElements = () => {
     // Use previously saved elements for this row
     if (row?.storyElements) return row.storyElements;
     // If a default template exists, clone it (update headline with note)
@@ -420,7 +420,26 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
       }
     }
     return makeDefault();
+  };
+
+  // ── Artboards (multi-canvas pages) ──────────────────────────────────
+  // `elements` is a derived view of the ACTIVE page — the rest of the editor
+  // is unchanged; setElements writes back to the active page in `pages`.
+  const [pages, setPages] = useState(() => {
+    if (Array.isArray(row?.storyPages) && row.storyPages.length) {
+      return row.storyPages.map(els => ({ id: uid(), elements: els }));
+    }
+    return [{ id: uid(), elements: computeInitialElements() }];
   });
+  const [activePageIdx, setActivePageIdx] = useState(0);
+  const activePageIdxRef = useRef(0);
+  useEffect(() => { activePageIdxRef.current = activePageIdx; }, [activePageIdx]);
+
+  const elements = useMemo(() => pages[activePageIdx]?.elements || pages[0]?.elements || [], [pages, activePageIdx]);
+  const setElements = (updater) => setPages(prev => prev.map((pg, i) =>
+    i === activePageIdxRef.current
+      ? { ...pg, elements: typeof updater === "function" ? updater(pg.elements) : updater }
+      : pg));
 
   // ── Undo / Redo history ──
   const MAX_HISTORY = 50;
@@ -455,11 +474,48 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
     }
   };
 
+  // ── Page (artboard) management ──
+  const [pageMenuOpen, setPageMenuOpen] = useState(false);
+  const resetPageEditState = (els) => { setHistory([els]); setHistoryIndex(0); setSelectedIds(new Set()); setEditingId(null); };
+  const switchPage = (idx) => {
+    if (idx === activePageIdx || idx < 0 || idx >= pages.length) return;
+    setActivePageIdx(idx);
+    resetPageEditState(pages[idx]?.elements || []);
+  };
+  const addPage = (duplicate) => {
+    setPageMenuOpen(false);
+    const src = pages[activePageIdx];
+    const newEls = duplicate && src
+      ? src.elements.map(e => ({ ...e, id: e.id === "bg" ? "bg" : uid() })) // keep the special bg id per page
+      : makeDefault();
+    const insertAt = activePageIdx + 1;
+    setPages(prev => { const next = [...prev]; next.splice(insertAt, 0, { id: uid(), elements: newEls }); return next; });
+    setActivePageIdx(insertAt);
+    resetPageEditState(newEls);
+  };
+  const deletePage = (idx) => {
+    if (pages.length <= 1) return;
+    const remaining = pages.filter((_, i) => i !== idx);
+    const newActive = idx < activePageIdx ? activePageIdx - 1 : Math.min(idx === activePageIdx ? idx : activePageIdx, remaining.length - 1);
+    setPages(remaining);
+    setActivePageIdx(newActive);
+    resetPageEditState(remaining[newActive]?.elements || []);
+  };
+  const movePage = (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= pages.length) return;
+    setPages(prev => { const next = [...prev]; [next[idx], next[j]] = [next[j], next[idx]]; return next; });
+    setActivePageIdx(a => (a === idx ? j : a === j ? idx : a));
+  };
+
   // ── Guide overlay ──
   const [showGuides, setShowGuides] = useState(false);
 
   // Auto-save elements to parent row whenever they change
-  useEffect(() => { if (onSave) onSave(elements); }, [elements, onSave]);
+  // Persist every page; keep storyElements = page 0 for scheduler/export.
+  useEffect(() => {
+    if (onUpdate) onUpdate({ storyPages: pages.map(p => p.elements), storyElements: pages[0]?.elements || [] });
+  }, [pages, onUpdate]);
 
   const [selectedIds, setSelectedIds]  = useState(new Set());
   const [editingId,   setEditingId]   = useState(null);
@@ -1687,6 +1743,36 @@ export function StoryDesigner({ row, onClose, onSave, onUpdate }) {
                 )}
                 <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",pointerEvents:"none",zIndex:50}}>R&F</div>
                 <div className="sd-shortcuts-hint" title="Keyboard shortcuts: Arrow keys to nudge, Shift+Arrow for 10px, Delete to remove, Ctrl+Z/Y for undo/redo, Escape to deselect">{"\u2318?"}</div>
+              </div>
+            </div>
+
+            {/* Artboards / page strip */}
+            <div className="sd-pages">
+              {pages.map((pg, i) => (
+                <div key={pg.id} className={"sd-page-tab" + (i === activePageIdx ? " active" : "")} onClick={() => switchPage(i)} title={`Canvas ${i + 1}`}>
+                  {i === activePageIdx && pages.length > 1 && (
+                    <button className="sd-page-move" title="Move left" disabled={i === 0} onClick={(e) => { e.stopPropagation(); movePage(i, -1); }}>{"\u2039"}</button>
+                  )}
+                  <span className="sd-page-num">{i + 1}</span>
+                  {i === activePageIdx && pages.length > 1 && (
+                    <>
+                      <button className="sd-page-move" title="Move right" disabled={i === pages.length - 1} onClick={(e) => { e.stopPropagation(); movePage(i, 1); }}>{"\u203a"}</button>
+                      <button className="sd-page-del" title="Delete canvas" onClick={(e) => { e.stopPropagation(); deletePage(i); }}><X size={9} /></button>
+                    </>
+                  )}
+                </div>
+              ))}
+              <div className="sd-page-add-wrap">
+                <button className="sd-page-add" title="Add canvas" onClick={() => setPageMenuOpen(o => !o)}><Plus size={15} /></button>
+                {pageMenuOpen && (
+                  <>
+                    <div className="sd-page-menu-backdrop" onClick={() => setPageMenuOpen(false)} />
+                    <div className="sd-page-menu">
+                      <button onClick={() => addPage(false)}>New canvas</button>
+                      <button onClick={() => addPage(true)}>Duplicate canvas</button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
