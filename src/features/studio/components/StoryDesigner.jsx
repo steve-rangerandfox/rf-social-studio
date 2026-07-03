@@ -531,6 +531,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     const uploadId = uid();
     setUploadError("");
     setActiveUploads(prev => [...prev, { id: uploadId, name: `Panorama — ${file.name}`, progress: 0 }]);
+    // Snapshot the backgrounds so an upload failure can be rolled back — the
+    // blob: preview URL is dead after a reload, so it must never be left behind.
+    const prevPages = pages;
     const applySpan = els => els.map(e => e.locked ? { ...e, url: previewUrl, mediaType: mType, bgSpanId: spanId } : e);
     setPages(prev => prev.map(pg => ({ ...pg, elements: applySpan(pg.elements) })));
     // Seed the active page's undo history with its post-span state so a later
@@ -542,6 +545,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       URL.revokeObjectURL(previewUrl);
       setActiveUploads(prev => prev.filter(u => u.id !== uploadId));
     } catch (err) {
+      // Roll back to the pre-span backgrounds and free the blob URL.
+      setPages(prevPages);
+      resetPageEditState(prevPages[activePageIdxRef.current]?.elements || []);
+      URL.revokeObjectURL(previewUrl);
       setUploadError(err?.message || "Upload failed");
       setActiveUploads(prev => prev.filter(u => u.id !== uploadId));
     }
@@ -553,11 +560,30 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // ── Guide overlay ──
   const [showGuides, setShowGuides] = useState(false);
 
-  // Auto-save elements to parent row whenever they change
+  // True once doPost has flattened the current design into storyFrames; the
+  // next canvas edit invalidates them so the scheduler can't publish stale
+  // frames rendered before the edit.
+  const renderedRef = useRef(false);
+  const firstSaveRef = useRef(true);
+
+  // Auto-save elements to parent row whenever they change.
   // Persist every page; keep storyElements = page 0 for scheduler/export.
   useEffect(() => {
-    if (onUpdate) onUpdate({ storyPages: pages.map(p => p.elements), storyElements: pages[0]?.elements || [] });
-  }, [pages, onUpdate]);
+    if (!onUpdate) return;
+    const patch = { storyPages: pages.map(p => p.elements), storyElements: pages[0]?.elements || [] };
+    if (firstSaveRef.current) {
+      // Initial mount — don't wipe frames just because the designer opened.
+      firstSaveRef.current = false;
+    } else if (renderedRef.current || row?.storyFrames || row?.storyFrameUrls || row?.mediaUrl) {
+      // The design changed after a render (this session or a prior one) — drop
+      // the now-stale flattened frames so a re-render is required before publishing.
+      renderedRef.current = false;
+      Object.assign(patch, { storyFrames: null, storyFrameUrls: null, storyFramesPosted: 0, storyFrameIds: null, mediaUrl: null, thumbnailUrl: null });
+      if (postState === "done") setPostState("idle");
+      setManualDone(false);
+    }
+    onUpdate(patch);
+  }, [pages, onUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [selectedIds, setSelectedIds]  = useState(new Set());
   const [editingId,   setEditingId]   = useState(null);
@@ -1007,6 +1033,27 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       } else {
         ctx.drawImage(img, 0, 0, EXPORT_W, EXPORT_H);
       }
+    } else if (bgEl?.url && bgEl.mediaType === 'video') {
+      // A video that must be flattened (overlays on top, or a still export):
+      // capture its first frame as a poster so the frame isn't a black
+      // rectangle. Best-effort — a cross-origin video with no CORS headers
+      // taints the canvas, so fall back to the dark fill.
+      ctx.fillStyle = "#080A0E";
+      ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
+      try {
+        const video = document.createElement("video");
+        video.crossOrigin = "anonymous";
+        video.muted = true;
+        video.preload = "auto";
+        video.src = bgEl.url;
+        await new Promise((resolve) => { video.onloadeddata = resolve; video.onerror = resolve; });
+        await new Promise((resolve) => {
+          video.onseeked = resolve;
+          try { video.currentTime = Math.min(0.1, (video.duration || 1) / 2); } catch { resolve(); }
+          setTimeout(resolve, 600); // don't hang if seek never fires
+        });
+        if (video.videoWidth) ctx.drawImage(video, 0, 0, EXPORT_W, EXPORT_H);
+      } catch { /* keep the dark fallback */ }
     } else {
       ctx.fillStyle = "#080A0E";
       ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
@@ -1173,16 +1220,23 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         }
       }
       // A fresh render supersedes any partial publish from a previous attempt.
-      // Thumbnail prefers the first flattened (image) frame — a raw video URL
-      // won't render as a still.
-      const firstImage = frames.find(f => f.kind === "image");
+      // Thumbnail must be a still image: prefer the first flattened frame, and
+      // if every frame is a raw video, render page 0 to a poster so the queue /
+      // grid / publish-confirm previews (which use <img>) aren't broken.
+      let thumbnailUrl = frames.find(f => f.kind === "image")?.url;
+      if (!thumbnailUrl) {
+        const posterBlob = await renderToBlob(pages[0].elements, spanInfoFor(0));
+        const posterFile = new File([posterBlob], `story-${row?.id || "draft"}-poster.png`, { type: "image/png" });
+        thumbnailUrl = await uploadAssetWithProgress(posterFile, () => {});
+      }
       onUpdate?.({
         mediaUrl: frames[0].url,
-        thumbnailUrl: (firstImage || frames[0]).url,
+        thumbnailUrl,
         storyFrames: frames,
         storyFramesPosted: 0,
         storyFrameIds: [],
       });
+      renderedRef.current = true; // a later canvas edit will invalidate these frames
       setPostState("done");
     } catch {
       setPostState("idle");
@@ -1286,7 +1340,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     style={{width:190,height:32,padding:"0 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.surface,fontSize:12,color:T.text,outline:"none"}}/>
                   <button className="btn btn-primary btn-sm" onClick={manualPublish} title="Download the story image and copy the link, then post it by hand"><Download size={14} style={{marginRight:4}}/> Download + copy link</button>
                 </>
-                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title="Download the current canvas as PNG"><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title={pages.length>1?`Flatten all ${pages.length} canvases and attach them so they auto-publish as a ${pages.length}-frame story`:"Flatten the story and attach it so it auto-publishes at its scheduled time"}>{postState==="posting"?(pages.length>1?`Rendering ${pages.length} frames…`:"Rendering…"):(pages.length>1?`Render ${pages.length} frames & save`:"Render & save")}</button></>}
+                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title={pages.length>1?`Download all ${pages.length} canvases as separate PNGs`:"Download the canvas as PNG"}><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title={pages.length>1?`Flatten all ${pages.length} canvases and attach them so they auto-publish as a ${pages.length}-frame story`:"Flatten the story and attach it so it auto-publishes at its scheduled time"}>{postState==="posting"?(pages.length>1?`Rendering ${pages.length} frames…`:"Rendering…"):(pages.length>1?`Render ${pages.length} frames & save`:"Render & save")}</button></>}
             <button className="m-x" onClick={onClose} aria-label="Close story designer"><X size={16}/></button>
           </div>
         </div>

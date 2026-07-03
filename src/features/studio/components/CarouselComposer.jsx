@@ -82,6 +82,9 @@ export function CarouselComposer({ row, onClose }) {
       URL.revokeObjectURL(previewUrl);
       showToast("Photo fitted across all slides.");
     } catch (err) {
+      // Roll back the optimistic blob: preview so a dead URL is never persisted.
+      setSlides((ss) => ss.map((s) => (s.bgSpanId === spanId ? { ...s, bgImage: undefined, bgSpanId: undefined } : s)));
+      URL.revokeObjectURL(previewUrl);
       showToast(err?.message || "Upload failed");
     } finally {
       setPhotoUp(0);
@@ -89,14 +92,16 @@ export function CarouselComposer({ row, onClose }) {
   };
   const removePhoto = () => setSlides((ss) => ss.map((s) => ({ ...s, bgImage: undefined, bgSpanId: undefined })));
 
-  // Debounced persist onto the row.
+  // Debounced persist onto the row. Suspended while a seamless photo is
+  // uploading so the transient blob: preview URL is never written to the row;
+  // the persist runs once photoUp returns to 0 with the public URL in place.
   useEffect(() => {
-    if (!row) return;
+    if (!row || photoUp > 0) return undefined;
     const t = setTimeout(() => {
       update(row.id, { carouselSlides: slides, mediaKind: "carousel" });
     }, 400);
     return () => clearTimeout(t);
-  }, [slides, row, update]);
+  }, [slides, row, update, photoUp]);
 
   const patchSlide = (patch) => setSlides((ss) => ss.map((s, i) => (i === cur ? { ...s, ...patch } : s)));
   const add = () => {
