@@ -1,4 +1,5 @@
 import React from "react";
+import { useStudio } from "../StudioContext.jsx";
 import {
   MONTHS_SHORT,
   PLATFORMS,
@@ -9,6 +10,12 @@ import {
   isRowNeedingAttention,
 } from "../shared.js";
 
+function formatCount(n) {
+  if (!Number.isFinite(n)) return "0";
+  if (n >= 10000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(n);
+}
+
 function isScheduledInFuture(row) {
   if (!row.scheduledAt) {
     return false;
@@ -18,8 +25,25 @@ function isScheduledInFuture(row) {
 }
 
 export function Analytics({ rows }) {
+  const { igMedia, connections } = useStudio();
   const now = new Date();
   const activeRows = rows.filter((row) => !row.deletedAt);
+
+  // ── Performance: engagement on real published media (likes + comments come
+  //    free with the basic scope; reach/impressions need the insights scope —
+  //    a future upgrade). Posts published through Relay are badged via their
+  //    stored igPostId. ──
+  const media = Array.isArray(igMedia?.data) ? igMedia.data : [];
+  const relayPostIds = new Set(activeRows.map((r) => r.igPostId || r.igMediaId).filter(Boolean));
+  const withEngagement = media.map((m) => ({
+    ...m,
+    engagement: (m.like_count || 0) + (m.comments_count || 0),
+    viaRelay: relayPostIds.has(m.id),
+  }));
+  const totalEngagement = withEngagement.reduce((sum, m) => sum + m.engagement, 0);
+  const avgEngagement = withEngagement.length ? Math.round(totalEngagement / withEngagement.length) : 0;
+  const topPosts = [...withEngagement].sort((a, b) => b.engagement - a.engagement).slice(0, 5);
+  const syncedAt = igMedia?._syncedAt || null;
   const total = activeRows.length;
   const ready = activeRows.filter((row) => row.status === "approved" || row.status === "scheduled").length;
   const needsAttention = activeRows.filter((row) => isRowNeedingAttention(row)).length;
@@ -87,6 +111,55 @@ export function Analytics({ rows }) {
           <span className="analytics-stat-num">{approvalQueue.length}</span>
           <span className="analytics-stat-label">In review</span>
         </div>
+      </section>
+
+      <section className="analytics-section">
+        <div className="analytics-section-head">
+          <h3 className="analytics-section-title">How posts perform</h3>
+          {syncedAt && <span className="analytics-section-meta">Synced {formatRelativeStamp(syncedAt)}</span>}
+        </div>
+        {!connections.instagram ? (
+          <p className="analytics-empty">Connect Instagram to see how published posts perform — likes and comments per post, straight from the API.</p>
+        ) : withEngagement.length === 0 ? (
+          <p className="analytics-empty">No published media yet — performance shows up here after your first posts go live.</p>
+        ) : (
+          <>
+            <div className="analytics-perf-strip">
+              <div className="analytics-stat">
+                <span className="analytics-stat-num">{formatCount(totalEngagement)}</span>
+                <span className="analytics-stat-label">Engagement · last {withEngagement.length} posts</span>
+              </div>
+              <div className="analytics-stat">
+                <span className="analytics-stat-num">{formatCount(avgEngagement)}</span>
+                <span className="analytics-stat-label">Average per post</span>
+              </div>
+              <div className="analytics-stat">
+                <span className="analytics-stat-num">{formatCount(topPosts[0]?.engagement || 0)}</span>
+                <span className="analytics-stat-label">Best post</span>
+              </div>
+            </div>
+            <ul className="analytics-list">
+              {topPosts.map((m) => (
+                <li key={m.id} className="analytics-list-item analytics-post-item">
+                  {(m.media_type === "VIDEO" ? m.thumbnail_url : m.media_url) && (
+                    <img className="analytics-post-thumb" src={m.media_type === "VIDEO" ? m.thumbnail_url : m.media_url} alt="" loading="lazy" />
+                  )}
+                  <span className="analytics-list-title">
+                    {m.caption?.split("\n")[0]?.slice(0, 64) || "Instagram post"}
+                    {m.viaRelay && <span className="analytics-via-relay" title="Published through Relay">Relay</span>}
+                  </span>
+                  <span className="analytics-list-meta">
+                    {formatCount(m.like_count || 0)} likes · {formatCount(m.comments_count || 0)} comments
+                    {m.timestamp ? ` · ${formatRelativeStamp(m.timestamp)}` : ""}
+                  </span>
+                  {m.permalink && (
+                    <a className="analytics-post-link" href={m.permalink} target="_blank" rel="noopener noreferrer">View ↗</a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
 
       <section className="analytics-section">
