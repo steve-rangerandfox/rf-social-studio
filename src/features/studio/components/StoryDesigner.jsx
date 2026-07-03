@@ -1836,7 +1836,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               </div>
             )}
             {!filmstrip && (
-            <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top center"}}>
+            <div className="sd-canvas-row">
+            {/* The frame is sized to the ZOOMED dimensions so the scaled canvas
+                occupies real layout space — siblings (the add rail, the page
+                strip below) can never overlap it. */}
+            <div style={{width:preset.w*zoom,height:preset.h*zoom,flexShrink:0}}>
+            <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left"}}>
               <div className="canvas" ref={canvasRef} role="application" aria-label="Story canvas"
                 onPointerDown={handleCanvasPointerDown}
                 onDragOver={handleCanvasDragOver}
@@ -1891,8 +1896,22 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   </div>
                 )}
                 <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",pointerEvents:"none",zIndex:50}}>R&F</div>
-                <div className="sd-shortcuts-hint" title="Keyboard shortcuts: Arrow keys to nudge, Shift+Arrow for 10px, Delete to remove, Ctrl+Z/Y for undo/redo, Escape to deselect">{"\u2318?"}</div>
               </div>
+            </div>
+            </div>
+            {/* Add-canvas rail \u2014 hugs the right edge of the canvas, Photoshop-artboard style */}
+            <div className="sd-page-add-wrap side">
+              <button className="sd-page-add" title="Add canvas" aria-label="Add canvas" onClick={() => setPageMenuOpen(o => !o)}><Plus size={15} /></button>
+              {pageMenuOpen && (
+                <>
+                  <div className="sd-page-menu-backdrop" onClick={() => setPageMenuOpen(false)} />
+                  <div className="sd-page-menu">
+                    <button onClick={() => addPage(false)}>New canvas</button>
+                    <button onClick={() => addPage(true)}>Duplicate canvas</button>
+                  </div>
+                </>
+              )}
+            </div>
             </div>
             )}
 
@@ -1938,18 +1957,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   )}
                 </div>
               ))}
-              <div className="sd-page-add-wrap">
-                <button className="sd-page-add" title="Add canvas" onClick={() => setPageMenuOpen(o => !o)}><Plus size={15} /></button>
-                {pageMenuOpen && (
-                  <>
-                    <div className="sd-page-menu-backdrop" onClick={() => setPageMenuOpen(false)} />
-                    <div className="sd-page-menu">
-                      <button onClick={() => addPage(false)}>New canvas</button>
-                      <button onClick={() => addPage(true)}>Duplicate canvas</button>
-                    </div>
-                  </>
-                )}
-              </div>
               <span className="sd-pages-sep" />
               {pages.length > 1 && (
                 <button className="sd-pages-tool" title="Fit one image seamlessly across every canvas" onClick={() => spanFileRef.current?.click()}>
