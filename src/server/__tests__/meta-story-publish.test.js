@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../http.js", () => ({ fetchWithTimeout: vi.fn() }));
 
 import { fetchWithTimeout } from "../http.js";
-import { publishInstagramPost } from "../meta.js";
+import { publishInstagramPost, publishInstagramCarousel } from "../meta.js";
 
 // Parse the URLSearchParams body of a captured fetch call into a plain object.
 function bodyParams(call) {
@@ -68,6 +68,55 @@ describe("publishInstagramPost — story frames", () => {
     await expect(
       publishInstagramPost({ userToken: "tok", mediaType: "STORIES" }),
     ).rejects.toThrow(/imageUrl or videoUrl required/);
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
+  });
+});
+
+describe("publishInstagramCarousel", () => {
+  beforeEach(() => {
+    fetchWithTimeout.mockReset();
+  });
+
+  it("creates a child container per image, a CAROUSEL parent, then publishes", async () => {
+    fetchWithTimeout
+      .mockResolvedValueOnce(okJson({ id: "child-1" }))
+      .mockResolvedValueOnce(okJson({ id: "child-2" }))
+      .mockResolvedValueOnce(okJson({ id: "child-3" }))
+      .mockResolvedValueOnce(okJson({ id: "parent-1" })) // parent container
+      .mockResolvedValueOnce(okJson({ id: "media-9" })); // publish
+
+    const res = await publishInstagramCarousel({
+      userToken: "tok",
+      imageUrls: ["https://cdn.example/s1.jpg", "https://cdn.example/s2.jpg", "https://cdn.example/s3.jpg"],
+      caption: "Three notes",
+    });
+
+    expect(res).toEqual({ mediaId: "media-9" });
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(5);
+
+    // Children flagged as carousel items, in order.
+    const child1 = bodyParams(fetchWithTimeout.mock.calls[0]);
+    expect(child1.image_url).toBe("https://cdn.example/s1.jpg");
+    expect(child1.is_carousel_item).toBe("true");
+
+    // Parent references every child id and carries the caption.
+    const parent = bodyParams(fetchWithTimeout.mock.calls[3]);
+    expect(parent.media_type).toBe("CAROUSEL");
+    expect(parent.children).toBe("child-1,child-2,child-3");
+    expect(parent.caption).toBe("Three notes");
+
+    // Publish targets the parent container.
+    const publish = bodyParams(fetchWithTimeout.mock.calls[4]);
+    expect(publish.creation_id).toBe("parent-1");
+  });
+
+  it("rejects fewer than 2 or more than 10 images without any network call", async () => {
+    await expect(
+      publishInstagramCarousel({ userToken: "tok", imageUrls: ["only-one.jpg"] }),
+    ).rejects.toThrow(/between 2 and 10/);
+    await expect(
+      publishInstagramCarousel({ userToken: "tok", imageUrls: Array.from({ length: 11 }, (_, i) => `s${i}.jpg`) }),
+    ).rejects.toThrow(/between 2 and 10/);
     expect(fetchWithTimeout).not.toHaveBeenCalled();
   });
 });

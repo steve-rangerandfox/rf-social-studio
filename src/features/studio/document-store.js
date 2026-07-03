@@ -210,6 +210,10 @@ export function normalizeRow(row, actor = "system") {
     videoUrl: row.videoUrl ?? null,
     mediaKind: row.mediaKind ?? null,
     carouselSlides: Array.isArray(row.carouselSlides) ? row.carouselSlides : null,
+    // Rendered slide images for a designed carousel — written by the
+    // composer's "Render & save", consumed by the scheduler, cleared when
+    // slides are edited after a render.
+    carouselFrameUrls: Array.isArray(row.carouselFrameUrls) ? row.carouselFrameUrls : null,
     tags: Array.isArray(row.tags) ? row.tags : [],
     reelDuration: Number.isFinite(row.reelDuration) ? row.reelDuration : null,
     reelAudio: row.reelAudio ?? null,

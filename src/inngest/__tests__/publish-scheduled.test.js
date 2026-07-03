@@ -6,6 +6,7 @@ import {
   findDueRows,
   findDueLinkedInRows,
   resolveStoryFrames,
+  resolveCarouselFrames,
 } from "../publish-scheduled.js";
 
 describe("platformToMediaType", () => {
@@ -84,6 +85,32 @@ describe("resolveStoryFrames", () => {
 
   it("uses imageUrl as a last-resort single fallback", () => {
     expect(resolveStoryFrames({ platform: "ig_post", imageUrl: "img.png" })).toEqual([{ url: "img.png", kind: "image" }]);
+  });
+});
+
+describe("resolveCarouselFrames", () => {
+  it("returns rendered slide URLs for a carousel row", () => {
+    expect(resolveCarouselFrames({
+      mediaKind: "carousel",
+      carouselFrameUrls: ["s1.jpg", "s2.jpg", "s3.jpg"],
+    })).toEqual(["s1.jpg", "s2.jpg", "s3.jpg"]);
+  });
+
+  it("drops empty entries", () => {
+    expect(resolveCarouselFrames({
+      mediaKind: "carousel",
+      carouselFrameUrls: ["s1.jpg", null, "", "s2.jpg"],
+    })).toEqual(["s1.jpg", "s2.jpg"]);
+  });
+
+  it("returns [] for an un-rendered carousel (frames cleared or never rendered)", () => {
+    expect(resolveCarouselFrames({ mediaKind: "carousel" })).toEqual([]);
+    expect(resolveCarouselFrames({ mediaKind: "carousel", carouselFrameUrls: null })).toEqual([]);
+  });
+
+  it("returns [] for non-carousel rows even if frame URLs are present", () => {
+    expect(resolveCarouselFrames({ carouselFrameUrls: ["s1.jpg", "s2.jpg"] })).toEqual([]);
+    expect(resolveCarouselFrames({ mediaKind: "single", carouselFrameUrls: ["s1.jpg"] })).toEqual([]);
   });
 });
 

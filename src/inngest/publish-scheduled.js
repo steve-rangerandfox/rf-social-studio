@@ -18,7 +18,7 @@ import { NonRetriableError } from "inngest";
 import { inngest } from "../server/inngest-client.js";
 import { listActiveIGTokenOwners, loadIGToken, saveIGToken } from "../server/ig-token-store.js";
 import { listActiveLITokenOwners, loadLIToken } from "../server/li-token-store.js";
-import { publishInstagramPost, refreshInstagramToken } from "../server/meta.js";
+import { publishInstagramPost, publishInstagramCarousel, refreshInstagramToken } from "../server/meta.js";
 import { publishLinkedInText } from "../server/linkedin.js";
 
 // ─── Constants ─────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ async function getSupabaseClient(env) {
 }
 
 // Exported for unit tests only — treat as module-internal in app code.
-export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows, findDueLinkedInRows, resolveStoryFrames };
+export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows, findDueLinkedInRows, resolveStoryFrames, resolveCarouselFrames };
 
 /** Map platform identifier → Instagram mediaType string. */
 function platformToMediaType(platform) {
@@ -77,6 +77,15 @@ function resolveStoryFrames(row) {
   }
   const single = row.mediaUrl || row.imageUrl || null;
   return single ? [{ url: single, kind: "image" }] : [];
+}
+
+/** The ordered slide-image URLs for a designed carousel row, or [] when the
+ *  carousel hasn't been rendered yet (the composer's "Render & save" writes
+ *  `carouselFrameUrls`; editing slides afterwards clears them). */
+function resolveCarouselFrames(row) {
+  if (row.mediaKind !== "carousel") return [];
+  if (!Array.isArray(row.carouselFrameUrls)) return [];
+  return row.carouselFrameUrls.filter(Boolean);
 }
 
 /** Find rows that are due for publishing right now. */
@@ -202,13 +211,47 @@ export const publishScheduledPosts = inngest.createFunction(
 
         for (const row of dueRows) {
           const isStory = row.platform === "ig_story";
+          const isCarousel = row.platform === "ig_post" && row.mediaKind === "carousel";
+          const carouselFrames = resolveCarouselFrames(row);
           const frames = resolveStoryFrames(row);
 
+          // Designed carousel with rendered slides: publish as a real IG
+          // carousel (atomic — the three-step container flow only goes live
+          // at the final publish, so no resume bookkeeping is needed). A
+          // single-slide carousel falls through to the single-image path.
+          if (isCarousel && carouselFrames.length >= 2) {
+            try {
+              const { mediaId } = await publishInstagramCarousel({
+                userToken: tokenRecord.igUserToken,
+                imageUrls: carouselFrames.slice(0, 10),
+                caption: row.caption || "",
+              });
+              document = applyRowPatch(document, row.id, {
+                status: "posted",
+                postedAt: new Date().toISOString(),
+                igPostId: mediaId,
+                publishError: null,
+                publishErrorAt: null,
+              });
+              published++;
+            } catch (err) {
+              logger.error(`publish-scheduled: carousel ${row.id} failed for ${ownerUserId}`, { error: err.message });
+              document = applyRowPatch(document, row.id, {
+                status: "approved",
+                publishError: err.message || "Carousel publish error",
+                publishErrorAt: new Date().toISOString(),
+              });
+            }
+            continue;
+          }
+
           if (!frames.length) {
-            // No media attached — mark as failed so it doesn't re-run endlessly
+            // No publishable media — mark as failed so it doesn't re-run endlessly
             document = applyRowPatch(document, row.id, {
               status: "approved", // revert to approved so user can fix it
-              publishError: "No media URL attached — re-approve and reschedule after attaching media",
+              publishError: isCarousel
+                ? "Carousel isn't rendered — open the carousel composer, hit Render & save, then reschedule"
+                : "No media URL attached — re-approve and reschedule after attaching media",
               publishErrorAt: new Date().toISOString(),
             });
             continue;

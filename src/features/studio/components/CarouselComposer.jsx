@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useStudio } from "../StudioContext.jsx";
 import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
+import { renderCarouselSlidesToFiles } from "../carouselRender.js";
 
 // Multi-slide carousel composer for the active post. IG (1:1) or
 // LinkedIn (1.25:1), up to 10 slides. Slides persist onto the row as
-// `carouselSlides`; publishing rendered slides is a follow-up (the
-// publish pipeline is single-media today).
-// ponytail: draft + persist only; wire slide rendering into the publish
-// flow when multi-image upload lands.
+// `carouselSlides`. "Render & save" flattens every slide to a hosted JPEG
+// (carouselFrameUrls) so the scheduler can auto-publish the carousel at its
+// scheduled time; editing a slide after a render invalidates the frames.
 
 const CC_LAYOUTS = [
   { id: "title", label: "Title" },
@@ -92,16 +92,54 @@ export function CarouselComposer({ row, onClose }) {
   };
   const removePhoto = () => setSlides((ss) => ss.map((s) => ({ ...s, bgImage: undefined, bgSpanId: undefined })));
 
+  // ── Render & save: flatten every slide to a hosted JPEG so the scheduler
+  //    can auto-publish this as a real IG carousel at its scheduled time. ──
+  const [renderState, setRenderState] = useState("idle"); // idle | rendering | done
+  const renderedRef = useRef(false);
+  const firstSaveRef = useRef(true);
+  const renderAndSave = async () => {
+    if (photoUp > 0) { showToast("Wait for the photo upload to finish."); return; }
+    setRenderState("rendering");
+    try {
+      const files = await renderCarouselSlidesToFiles(slides);
+      const urls = [];
+      for (const f of files) urls.push(await uploadAssetWithProgress(f, () => {}));
+      update(row.id, {
+        carouselSlides: slides,
+        mediaKind: "carousel",
+        carouselFrameUrls: urls,
+        mediaUrl: urls[0],
+        thumbnailUrl: urls[0],
+      });
+      renderedRef.current = true;
+      setRenderState("done");
+      showToast(`Rendered ${urls.length} slide${urls.length === 1 ? "" : "s"} — auto-publishes on schedule.`);
+    } catch (err) {
+      setRenderState("idle");
+      showToast(err?.message || "Couldn't render the carousel — try again.");
+    }
+  };
+
   // Debounced persist onto the row. Suspended while a seamless photo is
   // uploading so the transient blob: preview URL is never written to the row;
   // the persist runs once photoUp returns to 0 with the public URL in place.
+  // Editing after a render (this session or a prior one) drops the now-stale
+  // flattened frames so the scheduler can't publish pre-edit slides.
   useEffect(() => {
     if (!row || photoUp > 0) return undefined;
     const t = setTimeout(() => {
-      update(row.id, { carouselSlides: slides, mediaKind: "carousel" });
+      const patch = { carouselSlides: slides, mediaKind: "carousel" };
+      if (firstSaveRef.current) {
+        firstSaveRef.current = false;
+      } else if (renderedRef.current || row.carouselFrameUrls) {
+        renderedRef.current = false;
+        Object.assign(patch, { carouselFrameUrls: null, mediaUrl: null, thumbnailUrl: null });
+        setRenderState("idle");
+      }
+      update(row.id, patch);
     }, 400);
     return () => clearTimeout(t);
-  }, [slides, row, update, photoUp]);
+  }, [slides, row, update, photoUp]);  
 
   const patchSlide = (patch) => setSlides((ss) => ss.map((s, i) => (i === cur ? { ...s, ...patch } : s)));
   const add = () => {
@@ -146,7 +184,12 @@ export function CarouselComposer({ row, onClose }) {
           </div>
         </div>
         <div className="cc2-top-r">
-          <button className="btn btn-ghost" onClick={saveAndClose}>Save to post</button>
+          {renderState === "done" && <span className="cc2-rendered-note">Rendered — auto-publishes on schedule</span>}
+          <button className="btn btn-ghost" onClick={saveAndClose}>Save draft</button>
+          <button className="btn btn-primary" onClick={renderAndSave} disabled={renderState === "rendering"}
+            title={`Flatten all ${slides.length} slides to images and attach them so the carousel auto-publishes at its scheduled time`}>
+            {renderState === "rendering" ? `Rendering ${slides.length} slides…` : `Render ${slides.length} slides & save`}
+          </button>
         </div>
       </div>
 

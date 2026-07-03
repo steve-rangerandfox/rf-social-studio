@@ -2155,7 +2155,8 @@ input,textarea,select,button{font-family:inherit}
 .cc2-topbar{display:flex;align-items:center;gap:16px;padding:0 18px;height:56px;border-bottom:1px solid var(--surface-2);background:var(--surface)}
 .cc2-top-l{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
 .cc2-top-c{flex:0 0 auto}
-.cc2-top-r{flex:1;display:flex;justify-content:flex-end;gap:8px}
+.cc2-top-r{flex:1;display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.cc2-rendered-note{font:600 11px var(--font-mono);letter-spacing:.04em;color:var(--t-mint,#0c8f5f);white-space:nowrap}
 .cc2-close{width:30px;height:30px;border:1px solid var(--surface-2);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .cc2-breadcrumb{display:flex;align-items:center;gap:8px;font:500 12px var(--font-mono);color:var(--text-dim);overflow:hidden}
 .cc2-bc-sep{color:var(--text-faint)}
