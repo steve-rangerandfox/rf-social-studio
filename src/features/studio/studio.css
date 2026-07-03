@@ -2432,12 +2432,8 @@ input,textarea,select,button{font-family:inherit}
 .sd-pages{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:12px 8px 4px}
 .sd-page-tab{display:inline-flex;align-items:center;gap:4px;height:34px;min-width:34px;padding:0 6px;border:1px solid var(--t-border);border-radius:8px;background:var(--t-surface);color:var(--t-text-sub);cursor:pointer;font:600 13px var(--font-body);transition:border-color var(--duration-fast) var(--ease-out),background var(--duration-fast) var(--ease-out)}
 .sd-page-tab:hover{border-color:var(--t-border2);color:var(--t-text)}
-.sd-page-tab.active{border-color:var(--t-ink);color:var(--t-ink);box-shadow:0 0 0 1px var(--t-ink)}
+.sd-page-tab.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .sd-page-num{padding:0 4px;font-variant-numeric:tabular-nums}
-.sd-page-move,.sd-page-del{display:flex;align-items:center;justify-content:center;width:18px;height:18px;border:none;background:transparent;border-radius:4px;cursor:pointer;color:var(--t-text-dim);font-size:14px;line-height:1;padding:0}
-.sd-page-move:hover:not(:disabled),.sd-page-del:hover{background:var(--t-s2);color:var(--t-ink)}
-.sd-page-move:disabled{opacity:0.3;cursor:default}
-.sd-page-del:hover{color:var(--t-red)}
 .sd-page-add-wrap{position:relative}
 .sd-page-add{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px dashed var(--t-border2);border-radius:8px;background:var(--t-surface);color:var(--t-text-sub);cursor:pointer;transition:all var(--duration-fast) var(--ease-out)}
 .sd-page-add:hover{border-color:var(--t-ink);color:var(--t-ink);border-style:solid}
@@ -2459,6 +2455,13 @@ input,textarea,select,button{font-family:inherit}
 .sd-board{display:flex;flex-direction:column;gap:7px;flex-shrink:0}
 .sd-board-label{align-self:flex-start;border:none;background:transparent;padding:0 2px;font:600 10px var(--font-mono);letter-spacing:.14em;color:var(--t-text-dim);cursor:pointer}
 .sd-board.active .sd-board-label{color:var(--accent);cursor:default}
+/* Canvas toolbar above the active board — number left, move/delete right */
+.sd-board-bar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sd-board-tools{display:flex;align-items:center;gap:2px}
+.sd-board-tool{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid transparent;background:transparent;border-radius:6px;color:var(--t-text-dim);cursor:pointer;font-size:14px;line-height:1;padding:0;transition:background var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
+.sd-board-tool:hover:not(:disabled){background:var(--t-s2);color:var(--t-ink);border-color:var(--t-border)}
+.sd-board-tool:disabled{opacity:0.3;cursor:default}
+.sd-board-tool.danger:hover:not(:disabled){color:var(--t-red);background:rgba(220,38,38,0.06);border-color:rgba(220,38,38,0.2)}
 .sd-canvas-row.multi .sd-board.active .canvas-wrap{outline:2px solid var(--accent);outline-offset:4px}
 .sd-canvas-row.multi .sd-board:not(.active):hover .canvas-wrap{outline:2px solid rgba(255,90,31,0.35);outline-offset:4px}
 .sd-page-add-wrap.side{align-self:center}
