@@ -150,10 +150,28 @@ export async function publishInstagramPost({
     access_token: userToken,
   });
 
-  if (mediaType === "VIDEO" || mediaType === "REELS" || mediaType === "STORIES") {
-    if (!videoUrl) throw new Error("videoUrl required for video/reel/story posts");
+  // A container needs asynchronous processing (status polling) only when it
+  // carries a video. Stories can be EITHER an image or a video, so their
+  // "is this a video?" answer depends on which URL was supplied — a flattened
+  // story frame is a PNG and must go up as image_url, not video_url.
+  const isVideoContainer =
+    mediaType === "VIDEO" ||
+    mediaType === "REELS" ||
+    (mediaType === "STORIES" && !!videoUrl);
+
+  if (mediaType === "VIDEO" || mediaType === "REELS") {
+    if (!videoUrl) throw new Error("videoUrl required for video/reel posts");
     containerParams.set("media_type", mediaType);
     containerParams.set("video_url", videoUrl);
+  } else if (mediaType === "STORIES") {
+    containerParams.set("media_type", "STORIES");
+    if (videoUrl) {
+      containerParams.set("video_url", videoUrl);
+    } else if (imageUrl) {
+      containerParams.set("image_url", imageUrl);
+    } else {
+      throw new Error("imageUrl or videoUrl required for story posts");
+    }
   } else {
     if (!imageUrl) throw new Error("imageUrl required for image posts");
     containerParams.set("image_url", imageUrl);
@@ -173,7 +191,8 @@ export async function publishInstagramPost({
   const containerId = createBody.id;
 
   // For videos, we may need to wait for processing. Poll status briefly.
-  if (mediaType === "VIDEO" || mediaType === "REELS" || mediaType === "STORIES") {
+  // Image stories publish synchronously, so only poll when a video is involved.
+  if (isVideoContainer) {
     let attempts = 0;
     while (attempts < 10) {
       await new Promise((r) => setTimeout(r, 2000));

@@ -69,7 +69,7 @@ export function fitMediaBox(width, height, maxWidth, maxHeight) {
   };
 }
 
-export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, onContextMenu, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H }) {
+export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, onContextMenu, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H, bgSpanTotal, bgSpanIndex }) {
   const videoRef = useRef(null);
   const editRef = useRef(null);
   const [muted, setMuted] = useState(true);
@@ -280,13 +280,19 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
   // BG layer (locked image or video)
   if (data.locked) {
     const isVid = data.mediaType === 'video';
+    // Panorama span: when this background is one slice of an image fitted
+    // across N canvases, render the image N canvases wide and shift it so
+    // only this page's slice shows.
+    const spanStyle = bgSpanTotal > 1
+      ? { position:'absolute', top:0, left:`${-bgSpanIndex * 100}%`, right:'auto', width:`${bgSpanTotal * 100}%`, height:'100%', objectFit:'cover' }
+      : undefined;
     return (
       <>
-        {data.url && data.mediaType !== 'video' && <img src={data.url} className="canvas-img" alt="" draggable="false" onError={e=>{e.target.style.display='none';}}/>}
+        {data.url && data.mediaType !== 'video' && <img src={data.url} className="canvas-img" style={spanStyle} alt="" draggable="false" onError={e=>{e.target.style.display='none';}}/>}
         {data.url && isVid && (
           <video ref={videoRef} src={data.url} className="canvas-img"
             autoPlay loop muted={muted} playsInline draggable={false}
-            style={{objectFit:'cover'}}/>
+            style={spanStyle ? {...spanStyle} : {objectFit:'cover'}}/>
         )}
         {data.url && <div className="canvas-ov" style={{background:"linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.05) 50%,rgba(0,0,0,0.3) 100%)"}}/>}
         {data.url && isVid && (

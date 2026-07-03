@@ -141,7 +141,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:50,
               background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
-              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",maxHeight:220,overflowY:"auto",padding:4,
+              boxShadow:"0 12px 32px rgba(9,9,11,0.1)",maxHeight:220,overflowY:"auto",padding:4,
             }}>
               {[
                 { label: "Brand", fonts: BRAND_FONTS },
@@ -199,13 +199,13 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
         <div style={{position:"relative"}} ref={colorRef}>
           <button title="Text color" onClick={() => setColorOpen(v => !v)}
             style={{...tb(false),position:"relative"}}>
-            <span style={{display:"block",width:17,height:17,borderRadius:5,background:colorPreview,border:"1px solid rgba(24,23,20,0.22)",boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.5)"}}/>
+            <span style={{display:"block",width:17,height:17,borderRadius:5,background:colorPreview,border:"1px solid rgba(9,9,11,0.22)",boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.5)"}}/>
           </button>
           {colorOpen && (
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",left:0,zIndex:50,
               background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
-              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:8,width:180,
+              boxShadow:"0 12px 32px rgba(9,9,11,0.1)",padding:8,width:180,
             }}>
               {/* Solid swatches */}
               <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",color:T.textDim,fontFamily:"'JetBrains Mono',monospace",marginBottom:4}}>Solid</div>
@@ -297,7 +297,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",right:0,zIndex:50,
               background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
-              boxShadow:"0 12px 32px rgba(24,23,20,0.1)",padding:10,width:170,
+              boxShadow:"0 12px 32px rgba(9,9,11,0.1)",padding:10,width:170,
               display:"flex",flexDirection:"column",gap:8,
             }}>
               {/* Letter spacing */}
@@ -508,14 +508,82 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     setActivePageIdx(a => (a === idx ? j : a === j ? idx : a));
   };
 
+  // ── Panorama: fit one image across every canvas ──
+  // The background of each spanned page shares a `bgSpanId`; the slice each
+  // page shows is derived from its position among the pages that share the id,
+  // so add / delete / reorder re-spread the image automatically.
+  const spanFileRef = useRef(null);
+  const spanInfoFor = (pageIdx) => {
+    const sid = pages[pageIdx]?.elements.find(e => e.locked)?.bgSpanId;
+    if (!sid) return null;
+    const members = [];
+    pages.forEach((p, i) => { if (p.elements.find(e => e.locked)?.bgSpanId === sid) members.push(i); });
+    if (members.length < 2) return null;
+    return { total: members.length, index: members.indexOf(pageIdx) };
+  };
+  const spanImageAcross = async (file) => {
+    if (!file) return;
+    try { checkFileSize(file); } catch (err) { setUploadError(err.message); return; }
+    const isVid = file.type.startsWith("video/");
+    const mType = file.type === "image/gif" ? 'gif' : isVid ? 'video' : 'image';
+    const previewUrl = URL.createObjectURL(file);
+    const spanId = uid();
+    const uploadId = uid();
+    setUploadError("");
+    setActiveUploads(prev => [...prev, { id: uploadId, name: `Panorama — ${file.name}`, progress: 0 }]);
+    // Snapshot the backgrounds so an upload failure can be rolled back — the
+    // blob: preview URL is dead after a reload, so it must never be left behind.
+    const prevPages = pages;
+    const applySpan = els => els.map(e => e.locked ? { ...e, url: previewUrl, mediaType: mType, bgSpanId: spanId } : e);
+    setPages(prev => prev.map(pg => ({ ...pg, elements: applySpan(pg.elements) })));
+    // Seed the active page's undo history with its post-span state so a later
+    // edit can't undo back to a background-less canvas.
+    resetPageEditState(applySpan(pages[activePageIdxRef.current]?.elements || []));
+    try {
+      const publicUrl = await uploadAssetWithProgress(file, (p) => setActiveUploads(prev => prev.map(u => u.id === uploadId ? { ...u, progress: p } : u)));
+      setPages(prev => prev.map(pg => ({ ...pg, elements: pg.elements.map(e => (e.locked && e.bgSpanId === spanId) ? { ...e, url: publicUrl } : e) })));
+      URL.revokeObjectURL(previewUrl);
+      setActiveUploads(prev => prev.filter(u => u.id !== uploadId));
+    } catch (err) {
+      // Roll back to the pre-span backgrounds and free the blob URL.
+      setPages(prevPages);
+      resetPageEditState(prevPages[activePageIdxRef.current]?.elements || []);
+      URL.revokeObjectURL(previewUrl);
+      setUploadError(err?.message || "Upload failed");
+      setActiveUploads(prev => prev.filter(u => u.id !== uploadId));
+    }
+  };
+
+  // ── Filmstrip (side-by-side) view of every canvas ──
+  const [filmstrip, setFilmstrip] = useState(false);
+
   // ── Guide overlay ──
   const [showGuides, setShowGuides] = useState(false);
 
-  // Auto-save elements to parent row whenever they change
+  // True once doPost has flattened the current design into storyFrames; the
+  // next canvas edit invalidates them so the scheduler can't publish stale
+  // frames rendered before the edit.
+  const renderedRef = useRef(false);
+  const firstSaveRef = useRef(true);
+
+  // Auto-save elements to parent row whenever they change.
   // Persist every page; keep storyElements = page 0 for scheduler/export.
   useEffect(() => {
-    if (onUpdate) onUpdate({ storyPages: pages.map(p => p.elements), storyElements: pages[0]?.elements || [] });
-  }, [pages, onUpdate]);
+    if (!onUpdate) return;
+    const patch = { storyPages: pages.map(p => p.elements), storyElements: pages[0]?.elements || [] };
+    if (firstSaveRef.current) {
+      // Initial mount — don't wipe frames just because the designer opened.
+      firstSaveRef.current = false;
+    } else if (renderedRef.current || row?.storyFrames || row?.storyFrameUrls || row?.mediaUrl) {
+      // The design changed after a render (this session or a prior one) — drop
+      // the now-stale flattened frames so a re-render is required before publishing.
+      renderedRef.current = false;
+      Object.assign(patch, { storyFrames: null, storyFrameUrls: null, storyFramesPosted: 0, storyFrameIds: null, mediaUrl: null, thumbnailUrl: null });
+      if (postState === "done") setPostState("idle");
+      setManualDone(false);
+    }
+    onUpdate(patch);
+  }, [pages, onUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [selectedIds, setSelectedIds]  = useState(new Set());
   const [editingId,   setEditingId]   = useState(null);
@@ -808,7 +876,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     const uploadId = uid();
     setUploadError("");
     setActiveUploads((prev) => [...prev, { id: uploadId, name: `Background \u2014 ${file.name}`, progress: 0 }]);
-    pushElements(els => els.map(e => e.id === "bg" ? { ...e, url: previewUrl, mediaType: mType } : e));
+    pushElements(els => els.map(e => e.id === "bg" ? { ...e, url: previewUrl, mediaType: mType, bgSpanId: undefined } : e));
     try {
       const publicUrl = await uploadAssetWithProgress(file, (p) => {
         setActiveUploads((prev) => prev.map((u) => u.id === uploadId ? { ...u, progress: p } : u));
@@ -933,8 +1001,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   };
 
   // ── Render the story to a flattened canvas (shared by PNG export +
-  //    the real publish path, which needs a hosted image URL). ──
-  const renderCanvas = async () => {
+  //    the real publish path, which needs a hosted image URL). Defaults to the
+  //    active page; pass explicit elements + span info to flatten any page
+  //    (used when rendering every canvas of a multi-frame story). ──
+  const renderCanvas = async (els = elements, spanInfo = spanInfoFor(activePageIdxRef.current)) => {
     const EXPORT_W = preset.exportW;
     const EXPORT_H = preset.exportH;
     const SCALE = EXPORT_W / preset.w;
@@ -945,19 +1015,52 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     const ctx = canvas.getContext("2d");
 
     // Draw background
-    const bgEl = elements.find(e => e.locked);
+    const bgEl = els.find(e => e.locked);
     if (bgEl?.url && bgEl.mediaType !== 'video') {
       const img = new Image();
       img.crossOrigin = "anonymous";
       await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; img.src = bgEl.url; });
-      ctx.drawImage(img, 0, 0, EXPORT_W, EXPORT_H);
+      const sp = spanInfo;
+      if (sp && sp.total > 1 && img.width) {
+        // Cover-fit the image across the full N-canvas panorama, then draw
+        // only this page's slice (the same maths as the CSS preview).
+        const totalW = EXPORT_W * sp.total;
+        const scale = Math.max(totalW / img.width, EXPORT_H / img.height);
+        const drawW = img.width * scale, drawH = img.height * scale;
+        const offsetX = (totalW - drawW) / 2;
+        const offsetY = (EXPORT_H - drawH) / 2;
+        ctx.drawImage(img, offsetX - sp.index * EXPORT_W, offsetY, drawW, drawH);
+      } else {
+        ctx.drawImage(img, 0, 0, EXPORT_W, EXPORT_H);
+      }
+    } else if (bgEl?.url && bgEl.mediaType === 'video') {
+      // A video that must be flattened (overlays on top, or a still export):
+      // capture its first frame as a poster so the frame isn't a black
+      // rectangle. Best-effort — a cross-origin video with no CORS headers
+      // taints the canvas, so fall back to the dark fill.
+      ctx.fillStyle = "#080A0E";
+      ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
+      try {
+        const video = document.createElement("video");
+        video.crossOrigin = "anonymous";
+        video.muted = true;
+        video.preload = "auto";
+        video.src = bgEl.url;
+        await new Promise((resolve) => { video.onloadeddata = resolve; video.onerror = resolve; });
+        await new Promise((resolve) => {
+          video.onseeked = resolve;
+          try { video.currentTime = Math.min(0.1, (video.duration || 1) / 2); } catch { resolve(); }
+          setTimeout(resolve, 600); // don't hang if seek never fires
+        });
+        if (video.videoWidth) ctx.drawImage(video, 0, 0, EXPORT_W, EXPORT_H);
+      } catch { /* keep the dark fallback */ }
     } else {
       ctx.fillStyle = "#080A0E";
       ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
     }
 
     // Draw text elements
-    for (const el of elements.filter(e => !e.locked && e.type === "text")) {
+    for (const el of els.filter(e => !e.locked && e.type === "text")) {
       ctx.save();
       const x = el.x * SCALE;
       const y = el.y * SCALE;
@@ -1002,7 +1105,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
 
     // Draw image / GIF elements
-    for (const el of elements.filter(e => !e.locked && (e.type === "image" || e.mediaType === "image" || e.mediaType === "gif") && e.url && e.mediaType !== "video")) {
+    for (const el of els.filter(e => !e.locked && (e.type === "image" || e.mediaType === "image" || e.mediaType === "gif") && e.url && e.mediaType !== "video")) {
       try {
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -1024,16 +1127,22 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     return canvas;
   };
 
+  // Download every canvas as its own PNG (one file per frame for a multi-canvas
+  // story) so a manual post can rebuild the whole story by hand.
   const exportAsPng = async () => {
-    const canvas = await renderCanvas();
-    const link = document.createElement("a");
-    link.download = `story-${Date.now()}.png`;
-    link.href = canvas.toDataURL("image/png"); // throws on a tainted canvas
-    link.click();
+    for (let i = 0; i < pages.length; i++) {
+      const canvas = await renderCanvas(pages[i].elements, spanInfoFor(i));
+      const link = document.createElement("a");
+      link.download = pages.length > 1 ? `story-frame-${i + 1}.png` : `story-${Date.now()}.png`;
+      link.href = canvas.toDataURL("image/png"); // throws on a tainted canvas
+      link.click();
+      // Stagger downloads — browsers block a rapid burst of programmatic clicks.
+      if (i < pages.length - 1) await new Promise((r) => setTimeout(r, 250));
+    }
   };
 
-  const renderToBlob = async () => {
-    const canvas = await renderCanvas();
+  const renderToBlob = async (els, spanInfo) => {
+    const canvas = await renderCanvas(els, spanInfo);
     return await new Promise((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Render failed"))), "image/png"));
   };
@@ -1082,18 +1191,52 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     setAiLoading(false);
   };
 
-  // Real publish prep: flatten the story to an image, upload it, and attach
-  // it as the post's mediaUrl/thumbnailUrl so the scheduler can publish it
-  // as a STORY (auto). No fake "live", no approval bypass — the normal
-  // schedule/approval flow still governs when it actually posts.
+  // Real publish prep: flatten EVERY canvas to an image, upload each, and
+  // attach them as the post's story frames so the scheduler can publish them
+  // as a multi-frame story (one frame per canvas, in order). Frame 0 doubles
+  // as mediaUrl/thumbnailUrl for back-compat (the readiness gate + previews).
+  // No fake "live", no approval bypass — the normal schedule/approval flow
+  // still governs when it actually posts.
   const doPost = async () => {
     setManualError("");
     setPostState("posting");
     try {
-      const blob = await renderToBlob();
-      const file = new File([blob], `story-${row?.id || Date.now()}.png`, { type: "image/png" });
-      const url = await uploadAssetWithProgress(file, () => {});
-      onUpdate?.({ mediaUrl: url, thumbnailUrl: url });
+      const frames = [];
+      for (let i = 0; i < pages.length; i++) {
+        const els = pages[i].elements;
+        const bg = els.find(e => e.locked);
+        // Overlays (text or a placed image) can't be composited onto a video
+        // via the Graph API, so a canvas only publishes as a real video frame
+        // when its video background stands alone; otherwise it's flattened.
+        const hasOverlay = els.some(e => !e.locked && ((e.type === "text" && (e.content || "").trim()) || (e.type === "image" && e.url)));
+        // Only a fully-uploaded (public) video can be published directly; a
+        // still-uploading blob: URL isn't reachable by the API, so flatten it.
+        if (bg?.mediaType === "video" && bg.url && !bg.url.startsWith("blob:") && !hasOverlay) {
+          frames.push({ url: bg.url, kind: "video" });
+        } else {
+          const blob = await renderToBlob(els, spanInfoFor(i));
+          const file = new File([blob], `story-${row?.id || "draft"}-${i + 1}.png`, { type: "image/png" });
+          frames.push({ url: await uploadAssetWithProgress(file, () => {}), kind: "image" });
+        }
+      }
+      // A fresh render supersedes any partial publish from a previous attempt.
+      // Thumbnail must be a still image: prefer the first flattened frame, and
+      // if every frame is a raw video, render page 0 to a poster so the queue /
+      // grid / publish-confirm previews (which use <img>) aren't broken.
+      let thumbnailUrl = frames.find(f => f.kind === "image")?.url;
+      if (!thumbnailUrl) {
+        const posterBlob = await renderToBlob(pages[0].elements, spanInfoFor(0));
+        const posterFile = new File([posterBlob], `story-${row?.id || "draft"}-poster.png`, { type: "image/png" });
+        thumbnailUrl = await uploadAssetWithProgress(posterFile, () => {});
+      }
+      onUpdate?.({
+        mediaUrl: frames[0].url,
+        thumbnailUrl,
+        storyFrames: frames,
+        storyFramesPosted: 0,
+        storyFrameIds: [],
+      });
+      renderedRef.current = true; // a later canvas edit will invalidate these frames
       setPostState("done");
     } catch {
       setPostState("idle");
@@ -1173,9 +1316,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
           <div><div className="m-title">Story Designer</div><div className="m-sub">{row?.note}</div></div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Rendering&hellip;</span></div>}
-            {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">Saved &mdash; auto-publishes on schedule</span></div>}
+            {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">{pages.length>1?`Saved ${pages.length} frames`:"Saved"} &mdash; auto-publishes on schedule</span></div>}
             {manualError&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.red,maxWidth:260,lineHeight:1.3}}>{manualError}</span>}
-            {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:260,lineHeight:1.3}}>Image downloaded{storyLink?(manualCopied?" + link copied":" (copy the link manually)"):""} — add the Link sticker in Instagram.</span>}
+            {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:260,lineHeight:1.3}}>{pages.length>1?`${pages.length} frames downloaded`:"Image downloaded"}{storyLink?(manualCopied?" + link copied":" (copy the link manually)"):""} — add the Link sticker in Instagram.</span>}
             <button className="btn btn-ghost btn-sm"
               onClick={()=>{const opening=sideTab!=="ai";setSideTab(opening?"ai":null);if(opening&&aiTips.length===0)runAICopilot();}}>
               {sideTab==="ai"?"Hide AI":"AI Refine"}
@@ -1197,7 +1340,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     style={{width:190,height:32,padding:"0 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.surface,fontSize:12,color:T.text,outline:"none"}}/>
                   <button className="btn btn-primary btn-sm" onClick={manualPublish} title="Download the story image and copy the link, then post it by hand"><Download size={14} style={{marginRight:4}}/> Download + copy link</button>
                 </>
-                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title="Download as PNG"><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title="Flatten the story and attach it so it auto-publishes at its scheduled time">Render &amp; save</button></>}
+                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title={pages.length>1?`Download all ${pages.length} canvases as separate PNGs`:"Download the canvas as PNG"}><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title={pages.length>1?`Flatten all ${pages.length} canvases and attach them so they auto-publish as a ${pages.length}-frame story`:"Flatten the story and attach it so it auto-publishes at its scheduled time"}>{postState==="posting"?(pages.length>1?`Rendering ${pages.length} frames…`:"Rendering…"):(pages.length>1?`Render ${pages.length} frames & save`:"Render & save")}</button></>}
             <button className="m-x" onClick={onClose} aria-label="Close story designer"><X size={16}/></button>
           </div>
         </div>
@@ -1207,6 +1350,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
           <input ref={imgFileRef} type="file" accept="image/*,image/gif" style={{display:"none"}} onChange={e=>{addMedia(e.target.files?.[0]); e.target.value="";}}/>
           <input ref={vidFileRef} type="file" accept="video/*,image/gif"  style={{display:"none"}} onChange={e=>{addMedia(e.target.files?.[0]); e.target.value="";}}/>
           <input ref={bgFileRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}} onChange={e=>{setBg(e.target.files?.[0]); e.target.value="";}}/>
+          <input ref={spanFileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{spanImageAcross(e.target.files?.[0]); e.target.value="";}}/>
 
           {/* ── ICON RAIL ── */}
           <div style={{
@@ -1691,17 +1835,27 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 </button>
               </div>
             )}
-            <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top center"}}>
+            {!filmstrip && (
+            <div className="sd-canvas-row">
+            {/* The frame is sized to the ZOOMED dimensions so the scaled canvas
+                occupies real layout space — siblings (the add rail, the page
+                strip below) can never overlap it. */}
+            <div style={{width:preset.w*zoom,height:preset.h*zoom,flexShrink:0}}>
+            <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left"}}>
               <div className="canvas" ref={canvasRef} role="application" aria-label="Story canvas"
                 onPointerDown={handleCanvasPointerDown}
                 onDragOver={handleCanvasDragOver}
                 onDragLeave={handleCanvasDragLeave}
                 onDrop={handleCanvasDrop}
                 style={{width:preset.w,height:preset.h,...(canvasDragOver ? {outline:'2px solid #0EA5E9',outlineOffset:-2} : {})}}>
-                {elements.filter(e=>e.locked).map(el=>(
+                {elements.filter(e=>e.locked).map(el=>{
+                  const sp = spanInfoFor(activePageIdx);
+                  return (
                   <CanvasElement key={el.id} data={el} isSelected={selectedIds.has(el.id)}
+                    bgSpanTotal={sp?.total} bgSpanIndex={sp?.index}
                     onSelect={()=>setSelectedIds(new Set([el.id]))} onUpdate={p=>updateEl(el.id,p)} canvasW={preset.w} canvasH={preset.h}/>
-                ))}
+                  );
+                })}
                 {elements.filter(e=>!e.locked).map(el=>(
                   <CanvasElement key={el.id} data={el} isSelected={selectedIds.has(el.id)}
                     onSelect={(id, shiftKey)=>{handleSelect(el.id, shiftKey);initMultiDrag();if(editingId&&editingId!==el.id)setEditingId(null);}}
@@ -1742,9 +1896,50 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   </div>
                 )}
                 <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",pointerEvents:"none",zIndex:50}}>R&F</div>
-                <div className="sd-shortcuts-hint" title="Keyboard shortcuts: Arrow keys to nudge, Shift+Arrow for 10px, Delete to remove, Ctrl+Z/Y for undo/redo, Escape to deselect">{"\u2318?"}</div>
               </div>
             </div>
+            </div>
+            {/* Add-canvas rail \u2014 hugs the right edge of the canvas, Photoshop-artboard style */}
+            <div className="sd-page-add-wrap side">
+              <button className="sd-page-add" title="Add canvas" aria-label="Add canvas" onClick={() => setPageMenuOpen(o => !o)}><Plus size={15} /></button>
+              {pageMenuOpen && (
+                <>
+                  <div className="sd-page-menu-backdrop" onClick={() => setPageMenuOpen(false)} />
+                  <div className="sd-page-menu">
+                    <button onClick={() => addPage(false)}>New canvas</button>
+                    <button onClick={() => addPage(true)}>Duplicate canvas</button>
+                  </div>
+                </>
+              )}
+            </div>
+            </div>
+            )}
+
+            {filmstrip && (
+              <div className="sd-filmstrip">
+                {pages.map((pg, i) => {
+                  const sp = spanInfoFor(i);
+                  const filmH = 300;
+                  const filmW = Math.round(filmH * (preset.w / preset.h));
+                  return (
+                    <div key={pg.id} className={"sd-film-item" + (i === activePageIdx ? " active" : "")}>
+                      <button className="sd-film-canvas" style={{ width: filmW, height: filmH }}
+                        onClick={() => { switchPage(i); setFilmstrip(false); }} title={`Edit canvas ${i + 1}`}>
+                        <PagePreview elements={pg.elements} cw={preset.w} ch={preset.h}
+                          spanTotal={sp?.total} spanIndex={sp?.index} />
+                      </button>
+                      <div className="sd-film-cap">
+                        <button className="sd-page-move" title="Move left" disabled={i === 0} onClick={() => movePage(i, -1)}>{"\u2039"}</button>
+                        <span className="sd-film-num">{String(i + 1).padStart(2, "0")}</span>
+                        <button className="sd-page-move" title="Move right" disabled={i === pages.length - 1} onClick={() => movePage(i, 1)}>{"\u203a"}</button>
+                        <button className="sd-page-del" title="Delete canvas" disabled={pages.length <= 1} onClick={() => deletePage(i)}><X size={9} /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+                <button className="sd-film-add" title="Add canvas" onClick={() => addPage(false)} style={{ height: 300 }}><Plus size={18} /><span>Add canvas</span></button>
+              </div>
+            )}
 
             {/* Artboards / page strip */}
             <div className="sd-pages">
@@ -1762,18 +1957,15 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   )}
                 </div>
               ))}
-              <div className="sd-page-add-wrap">
-                <button className="sd-page-add" title="Add canvas" onClick={() => setPageMenuOpen(o => !o)}><Plus size={15} /></button>
-                {pageMenuOpen && (
-                  <>
-                    <div className="sd-page-menu-backdrop" onClick={() => setPageMenuOpen(false)} />
-                    <div className="sd-page-menu">
-                      <button onClick={() => addPage(false)}>New canvas</button>
-                      <button onClick={() => addPage(true)}>Duplicate canvas</button>
-                    </div>
-                  </>
-                )}
-              </div>
+              <span className="sd-pages-sep" />
+              {pages.length > 1 && (
+                <button className="sd-pages-tool" title="Fit one image seamlessly across every canvas" onClick={() => spanFileRef.current?.click()}>
+                  <ImageIcon size={13} /> Fit image across {pages.length}
+                </button>
+              )}
+              <button className={"sd-pages-tool" + (filmstrip ? " on" : "")} title="View every canvas side by side" onClick={() => setFilmstrip(f => !f)}>
+                <Grid3x3 size={13} /> {filmstrip ? "Edit one" : "View all"}
+              </button>
             </div>
 
 
@@ -1823,6 +2015,72 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Static, non-interactive preview of a single artboard page — used by the
+// side-by-side filmstrip. Positions are percentage-based so it scales to any
+// rendered size; a ResizeObserver drives font scaling. Honors a panorama
+// slice (spanTotal / spanIndex) the same way the live canvas does.
+function PagePreview({ elements, cw, ch, spanTotal, spanIndex }) {
+  const bgEl = elements.find(e => e.locked);
+  const isVid = bgEl?.mediaType === 'video';
+  const ref = useRef(null);
+  const [w, setW] = useState(cw);
+  useEffect(() => {
+    if (!ref.current) return undefined;
+    const ro = new ResizeObserver(([entry]) => setW(entry.contentRect.width));
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+  const s = w / cw;
+  const bgStyle = spanTotal > 1
+    ? { position:'absolute', top:0, left:`${-spanIndex * 100}%`, width:`${spanTotal * 100}%`, height:'100%', objectFit:'cover' }
+    : { position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' };
+  return (
+    <div ref={ref} style={{ position:'absolute', inset:0, overflow:'hidden' }}>
+      {bgEl?.url && !isVid && <img src={bgEl.url} style={bgStyle} alt="" draggable="false" onError={e=>{e.target.style.display='none';}}/>}
+      {bgEl?.url && isVid && <video src={bgEl.url} style={bgStyle} muted playsInline loop/>}
+      {bgEl?.url && <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,rgba(0,0,0,.72) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,.26) 100%)', pointerEvents:'none' }}/>}
+      {elements.filter(e => !e.locked && e.type === 'text').map(el => (
+        <div key={el.id} style={{
+          position:'absolute',
+          left:`${(el.x / cw) * 100}%`,
+          top:`${(el.y / ch) * 100}%`,
+          width:`${((el.boxWidth || 190) / cw) * 100}%`,
+          fontSize:(el.fontSize || 14) * s,
+          fontFamily:`'${el.fontFamily || 'Bricolage Grotesque'}', sans-serif`,
+          fontWeight:el.fontWeight || 600,
+          fontStyle:el.italic ? 'italic' : 'normal',
+          textDecoration:[el.underline && 'underline', el.strikethrough && 'line-through'].filter(Boolean).join(' ') || 'none',
+          letterSpacing:(el.letterSpacing || 0) * s,
+          lineHeight:el.lineHeight || 1.25,
+          textShadow:el.shadow ? '0 1px 4px rgba(0,0,0,.8)' : undefined,
+          color:el.gradient ? 'transparent' : (el.color || '#fff'),
+          background:el.gradient || undefined,
+          WebkitBackgroundClip:el.gradient ? 'text' : undefined,
+          WebkitTextFillColor:el.gradient ? 'transparent' : undefined,
+          whiteSpace:'pre-wrap',
+          pointerEvents:'none',
+        }}>{el.content}</div>
+      ))}
+      {elements.filter(e => !e.locked && e.type === 'image' && e.url).map(el => (
+        <div key={el.id} style={{
+          position:'absolute',
+          left:`${(el.x / cw) * 100}%`,
+          top:`${(el.y / ch) * 100}%`,
+          width:`${((el.width || 140) * (el.scale || 1) / cw) * 100}%`,
+          height:`${((el.height || 140) * (el.scale || 1) / ch) * 100}%`,
+          transform:el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+          pointerEvents:'none',
+        }}>
+          {el.mediaType === 'video'
+            ? <video src={el.url} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:2 }} muted playsInline loop/>
+            : <img src={el.url} alt="" draggable="false" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:2 }}/>}
+        </div>
+      ))}
+      {!bgEl?.url && <div style={{ position:'absolute', inset:0, background:'#080A0E' }}/>}
     </div>
   );
 }

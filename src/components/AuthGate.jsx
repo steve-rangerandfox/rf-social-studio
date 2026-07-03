@@ -177,7 +177,7 @@ const AUTH_STYLES = `
 
   .auth-panel{
     border-right:none;
-    border-bottom:1px solid rgba(24,23,20,0.08);
+    border-bottom:1px solid rgba(9,9,11,0.08);
     min-height:auto;
     gap:28px;
   }
