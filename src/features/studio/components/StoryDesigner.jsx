@@ -975,8 +975,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   };
 
   // ── Render the story to a flattened canvas (shared by PNG export +
-  //    the real publish path, which needs a hosted image URL). ──
-  const renderCanvas = async () => {
+  //    the real publish path, which needs a hosted image URL). Defaults to the
+  //    active page; pass explicit elements + span info to flatten any page
+  //    (used when rendering every canvas of a multi-frame story). ──
+  const renderCanvas = async (els = elements, spanInfo = spanInfoFor(activePageIdxRef.current)) => {
     const EXPORT_W = preset.exportW;
     const EXPORT_H = preset.exportH;
     const SCALE = EXPORT_W / preset.w;
@@ -987,12 +989,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     const ctx = canvas.getContext("2d");
 
     // Draw background
-    const bgEl = elements.find(e => e.locked);
+    const bgEl = els.find(e => e.locked);
     if (bgEl?.url && bgEl.mediaType !== 'video') {
       const img = new Image();
       img.crossOrigin = "anonymous";
       await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; img.src = bgEl.url; });
-      const sp = spanInfoFor(activePageIdxRef.current);
+      const sp = spanInfo;
       if (sp && sp.total > 1 && img.width) {
         // Cover-fit the image across the full N-canvas panorama, then draw
         // only this page's slice (the same maths as the CSS preview).
@@ -1011,7 +1013,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
 
     // Draw text elements
-    for (const el of elements.filter(e => !e.locked && e.type === "text")) {
+    for (const el of els.filter(e => !e.locked && e.type === "text")) {
       ctx.save();
       const x = el.x * SCALE;
       const y = el.y * SCALE;
@@ -1056,7 +1058,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
 
     // Draw image / GIF elements
-    for (const el of elements.filter(e => !e.locked && (e.type === "image" || e.mediaType === "image" || e.mediaType === "gif") && e.url && e.mediaType !== "video")) {
+    for (const el of els.filter(e => !e.locked && (e.type === "image" || e.mediaType === "image" || e.mediaType === "gif") && e.url && e.mediaType !== "video")) {
       try {
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -1086,8 +1088,8 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     link.click();
   };
 
-  const renderToBlob = async () => {
-    const canvas = await renderCanvas();
+  const renderToBlob = async (els, spanInfo) => {
+    const canvas = await renderCanvas(els, spanInfo);
     return await new Promise((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Render failed"))), "image/png"));
   };
@@ -1136,18 +1138,24 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     setAiLoading(false);
   };
 
-  // Real publish prep: flatten the story to an image, upload it, and attach
-  // it as the post's mediaUrl/thumbnailUrl so the scheduler can publish it
-  // as a STORY (auto). No fake "live", no approval bypass — the normal
-  // schedule/approval flow still governs when it actually posts.
+  // Real publish prep: flatten EVERY canvas to an image, upload each, and
+  // attach them as the post's story frames so the scheduler can publish them
+  // as a multi-frame story (one frame per canvas, in order). Frame 0 doubles
+  // as mediaUrl/thumbnailUrl for back-compat (the readiness gate + previews).
+  // No fake "live", no approval bypass — the normal schedule/approval flow
+  // still governs when it actually posts.
   const doPost = async () => {
     setManualError("");
     setPostState("posting");
     try {
-      const blob = await renderToBlob();
-      const file = new File([blob], `story-${row?.id || Date.now()}.png`, { type: "image/png" });
-      const url = await uploadAssetWithProgress(file, () => {});
-      onUpdate?.({ mediaUrl: url, thumbnailUrl: url });
+      const urls = [];
+      for (let i = 0; i < pages.length; i++) {
+        const blob = await renderToBlob(pages[i].elements, spanInfoFor(i));
+        const file = new File([blob], `story-${row?.id || "draft"}-${i + 1}.png`, { type: "image/png" });
+        urls.push(await uploadAssetWithProgress(file, () => {}));
+      }
+      // A fresh render supersedes any partial publish from a previous attempt.
+      onUpdate?.({ mediaUrl: urls[0], thumbnailUrl: urls[0], storyFrameUrls: urls, storyFramesPosted: 0, storyFrameIds: [] });
       setPostState("done");
     } catch {
       setPostState("idle");
@@ -1227,7 +1235,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
           <div><div className="m-title">Story Designer</div><div className="m-sub">{row?.note}</div></div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Rendering&hellip;</span></div>}
-            {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">Saved &mdash; auto-publishes on schedule</span></div>}
+            {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">{pages.length>1?`Saved ${pages.length} frames`:"Saved"} &mdash; auto-publishes on schedule</span></div>}
             {manualError&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.red,maxWidth:260,lineHeight:1.3}}>{manualError}</span>}
             {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:260,lineHeight:1.3}}>Image downloaded{storyLink?(manualCopied?" + link copied":" (copy the link manually)"):""} — add the Link sticker in Instagram.</span>}
             <button className="btn btn-ghost btn-sm"
@@ -1251,7 +1259,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     style={{width:190,height:32,padding:"0 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.surface,fontSize:12,color:T.text,outline:"none"}}/>
                   <button className="btn btn-primary btn-sm" onClick={manualPublish} title="Download the story image and copy the link, then post it by hand"><Download size={14} style={{marginRight:4}}/> Download + copy link</button>
                 </>
-                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title="Download as PNG"><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title="Flatten the story and attach it so it auto-publishes at its scheduled time">Render &amp; save</button></>}
+                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title="Download the current canvas as PNG"><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title={pages.length>1?`Flatten all ${pages.length} canvases and attach them so they auto-publish as a ${pages.length}-frame story`:"Flatten the story and attach it so it auto-publishes at its scheduled time"}>{postState==="posting"?(pages.length>1?`Rendering ${pages.length} frames…`:"Rendering…"):(pages.length>1?`Render ${pages.length} frames & save`:"Render & save")}</button></>}
             <button className="m-x" onClick={onClose} aria-label="Close story designer"><X size={16}/></button>
           </div>
         </div>

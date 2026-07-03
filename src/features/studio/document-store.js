@@ -176,6 +176,11 @@ export function normalizeRow(row, actor = "system") {
     // designer saves pages; storyElements stays as page 0 for back-compat
     // (scheduler/export read storyElements).
     storyPages: Array.isArray(row.storyPages) ? row.storyPages : null,
+    // Multi-frame story publishing: one flattened frame URL per canvas, plus
+    // resume bookkeeping the scheduler writes back after a partial publish.
+    storyFrameUrls: Array.isArray(row.storyFrameUrls) ? row.storyFrameUrls : null,
+    storyFrameIds: Array.isArray(row.storyFrameIds) ? row.storyFrameIds : null,
+    storyFramesPosted: Number.isInteger(row.storyFramesPosted) ? row.storyFramesPosted : 0,
     // Publish mode: "auto" goes through the API scheduler; "manual" is
     // skipped by the scheduler so the user posts by hand (e.g. to add an
     // Instagram Story link sticker, which the API can't attach).

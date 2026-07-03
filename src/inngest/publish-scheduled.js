@@ -48,13 +48,26 @@ async function getSupabaseClient(env) {
 }
 
 // Exported for unit tests only — treat as module-internal in app code.
-export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows, findDueLinkedInRows };
+export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows, findDueLinkedInRows, resolveStoryFrames };
 
 /** Map platform identifier → Instagram mediaType string. */
 function platformToMediaType(platform) {
   if (platform === "ig_reel") return "REELS";
   if (platform === "ig_story") return "STORIES";
   return "IMAGE"; // ig_post default
+}
+
+/** The ordered list of media URLs to publish for a row.
+ *  A multi-canvas story carries one flattened frame per canvas in
+ *  `storyFrameUrls`; everything else publishes a single media. Falls back to
+ *  the single `mediaUrl` when a story has no frame array (older drafts). */
+function resolveStoryFrames(row) {
+  if (row.platform === "ig_story" && Array.isArray(row.storyFrameUrls)) {
+    const frames = row.storyFrameUrls.filter(Boolean);
+    if (frames.length) return frames;
+  }
+  const single = row.mediaUrl || row.imageUrl || null;
+  return single ? [single] : [];
 }
 
 /** Find rows that are due for publishing right now. */
@@ -179,45 +192,86 @@ export const publishScheduledPosts = inngest.createFunction(
         let published = 0;
 
         for (const row of dueRows) {
-          try {
-            const mediaUrl = row.mediaUrl || row.imageUrl || null;
-            if (!mediaUrl) {
-              // No media attached — mark as failed so it doesn't re-run endlessly
-              document = applyRowPatch(document, row.id, {
-                status: "approved", // revert to approved so user can fix it
-                publishError: "No media URL attached — re-approve and reschedule after attaching media",
-                publishErrorAt: new Date().toISOString(),
-              });
-              continue;
-            }
+          const isStory = row.platform === "ig_story";
+          const frames = resolveStoryFrames(row);
 
-            const mediaType = platformToMediaType(row.platform);
-            const isVideo = mediaType === "REELS" || mediaType === "STORIES" || mediaType === "VIDEO";
-
-            const { mediaId } = await publishInstagramPost({
-              userToken: tokenRecord.igUserToken,
-              imageUrl: isVideo ? undefined : mediaUrl,
-              videoUrl: isVideo ? mediaUrl : undefined,
-              caption: row.caption || "",
-              mediaType,
-            });
-
+          if (!frames.length) {
+            // No media attached — mark as failed so it doesn't re-run endlessly
             document = applyRowPatch(document, row.id, {
-              status: "posted",
-              postedAt: new Date().toISOString(),
-              igPostId: mediaId,
-              publishError: null,
-              publishErrorAt: null,
+              status: "approved", // revert to approved so user can fix it
+              publishError: "No media URL attached — re-approve and reschedule after attaching media",
+              publishErrorAt: new Date().toISOString(),
             });
+            continue;
+          }
+
+          // Resume support for multi-frame stories: `storyFramesPosted` records
+          // how many frames already went live on a prior attempt, so a
+          // reschedule after a partial failure posts only the remaining frames
+          // instead of duplicating the whole story.
+          const startIdx = isStory && Number.isInteger(row.storyFramesPosted) ? row.storyFramesPosted : 0;
+          const frameIds = isStory && Array.isArray(row.storyFrameIds) ? [...row.storyFrameIds] : [];
+          let postedNow = 0;
+
+          try {
+            if (isStory) {
+              // Each canvas publishes as its own STORIES frame, in order.
+              // Frames are flattened PNGs, so they go up as image_url and IG
+              // ignores captions on stories.
+              for (let i = startIdx; i < frames.length; i++) {
+                const { mediaId } = await publishInstagramPost({
+                  userToken: tokenRecord.igUserToken,
+                  imageUrl: frames[i],
+                  caption: "",
+                  mediaType: "STORIES",
+                });
+                frameIds.push(mediaId);
+                postedNow++;
+              }
+              document = applyRowPatch(document, row.id, {
+                status: "posted",
+                postedAt: new Date().toISOString(),
+                igPostId: frameIds[0] || null,
+                storyFrameIds: frameIds,
+                storyFramesPosted: frames.length,
+                publishError: null,
+                publishErrorAt: null,
+              });
+            } else {
+              const mediaType = platformToMediaType(row.platform);
+              const isVideo = mediaType === "REELS" || mediaType === "VIDEO";
+              const { mediaId } = await publishInstagramPost({
+                userToken: tokenRecord.igUserToken,
+                imageUrl: isVideo ? undefined : frames[0],
+                videoUrl: isVideo ? frames[0] : undefined,
+                caption: row.caption || "",
+                mediaType,
+              });
+              document = applyRowPatch(document, row.id, {
+                status: "posted",
+                postedAt: new Date().toISOString(),
+                igPostId: mediaId,
+                publishError: null,
+                publishErrorAt: null,
+              });
+            }
             published++;
           } catch (err) {
             logger.error(`publish-scheduled: post ${row.id} failed for ${ownerUserId}`, { error: err.message });
             // Mark the row with the error — revert to "approved" so the user sees it
-            document = applyRowPatch(document, row.id, {
+            const patch = {
               status: "approved",
               publishError: err.message || "Unknown publish error",
               publishErrorAt: new Date().toISOString(),
-            });
+            };
+            if (isStory) {
+              // Persist how far we got so the reschedule resumes cleanly.
+              const done = startIdx + postedNow;
+              patch.storyFramesPosted = done;
+              patch.storyFrameIds = frameIds;
+              patch.publishError = `Published ${done} of ${frames.length} story frames — reschedule to post the rest. (${err.message || "error"})`;
+            }
+            document = applyRowPatch(document, row.id, patch);
           }
         }
 

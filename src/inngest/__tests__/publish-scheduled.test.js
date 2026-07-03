@@ -5,6 +5,7 @@ import {
   platformToMediaType,
   findDueRows,
   findDueLinkedInRows,
+  resolveStoryFrames,
 } from "../publish-scheduled.js";
 
 describe("platformToMediaType", () => {
@@ -24,6 +25,45 @@ describe("platformToMediaType", () => {
     expect(platformToMediaType("tiktok")).toBe("IMAGE");
     expect(platformToMediaType(undefined)).toBe("IMAGE");
     expect(platformToMediaType("")).toBe("IMAGE");
+  });
+});
+
+describe("resolveStoryFrames", () => {
+  it("returns each frame for a multi-canvas story", () => {
+    expect(resolveStoryFrames({
+      platform: "ig_story",
+      storyFrameUrls: ["a.png", "b.png", "c.png"],
+      mediaUrl: "a.png",
+    })).toEqual(["a.png", "b.png", "c.png"]);
+  });
+
+  it("drops null / empty frames", () => {
+    expect(resolveStoryFrames({
+      platform: "ig_story",
+      storyFrameUrls: ["a.png", null, "", "b.png"],
+    })).toEqual(["a.png", "b.png"]);
+  });
+
+  it("falls back to the single mediaUrl when a story has no frame array", () => {
+    expect(resolveStoryFrames({ platform: "ig_story", mediaUrl: "solo.png" })).toEqual(["solo.png"]);
+    expect(resolveStoryFrames({ platform: "ig_story", storyFrameUrls: [], mediaUrl: "solo.png" })).toEqual(["solo.png"]);
+  });
+
+  it("ignores storyFrameUrls for non-story platforms (single media only)", () => {
+    expect(resolveStoryFrames({
+      platform: "ig_post",
+      storyFrameUrls: ["a.png", "b.png"],
+      mediaUrl: "post.png",
+    })).toEqual(["post.png"]);
+  });
+
+  it("returns [] when there is no media at all", () => {
+    expect(resolveStoryFrames({ platform: "ig_story" })).toEqual([]);
+    expect(resolveStoryFrames({ platform: "ig_post" })).toEqual([]);
+  });
+
+  it("uses imageUrl as a last-resort single fallback", () => {
+    expect(resolveStoryFrames({ platform: "ig_post", imageUrl: "img.png" })).toEqual(["img.png"]);
   });
 });
 
