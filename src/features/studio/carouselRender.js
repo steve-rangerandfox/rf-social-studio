@@ -38,6 +38,49 @@ function hexStops(value) {
   return String(value || "").match(/#[0-9a-f]{3,8}/gi) || [];
 }
 
+// Load an image for canvas drawing; resolves null on failure so a broken
+// photo degrades to the color background instead of blocking publish.
+function loadImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+// Seamless photo: slides sharing a bgSpanId show slices of one image. The
+// slice each slide shows is derived from its position among the sharing
+// slides — the same maths as the SlicedBg CSS preview (cover-fit across an
+// N-slide-wide box, shifted left by index slides).
+function spanInfoFor(slides, i) {
+  const sid = slides[i]?.bgSpanId;
+  if (!sid) return null;
+  const members = [];
+  slides.forEach((s, idx) => { if (s.bgSpanId === sid) members.push(idx); });
+  if (members.length < 2) return null;
+  return { total: members.length, index: members.indexOf(i) };
+}
+
+function drawPhotoBackground(ctx, img, span) {
+  const total = span?.total || 1;
+  const index = span?.index || 0;
+  const totalW = SIZE * total;
+  const scale = Math.max(totalW / img.width, SIZE / img.height);
+  const drawW = img.width * scale, drawH = img.height * scale;
+  const offsetX = (totalW - drawW) / 2;
+  const offsetY = (SIZE - drawH) / 2;
+  ctx.drawImage(img, offsetX - index * SIZE, offsetY, drawW, drawH);
+  // Scrim matching the DOM preview so overlaid copy stays readable.
+  const scrim = ctx.createLinearGradient(0, SIZE, 0, 0);
+  scrim.addColorStop(0, "rgba(0,0,0,0.55)");
+  scrim.addColorStop(0.55, "rgba(0,0,0,0.08)");
+  scrim.addColorStop(1, "rgba(0,0,0,0.32)");
+  ctx.fillStyle = scrim;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+}
+
 function paintBackground(ctx, bg) {
   const stops = hexStops(bg);
   if (String(bg).includes("gradient") && stops.length >= 2) {
@@ -83,11 +126,15 @@ function drawBlock(ctx, text, { x, y, font, color, lineHeight, maxWidth, align =
   return y + lines.length * lineHeight;
 }
 
-function drawSlide(ctx, slide) {
+async function drawSlide(ctx, slide, span) {
   const pad = SIZE * 0.1;
   const maxW = SIZE - pad * 2;
   const fg = slide.fg || FG_DARK;
   paintBackground(ctx, slide.bg);
+  if (slide.bgImage) {
+    const img = await loadImage(slide.bgImage);
+    if (img?.width) drawPhotoBackground(ctx, img, span);
+  }
 
   if (slide.layout === "number") {
     const kH = slide.label ? 40 : 0;
@@ -188,7 +235,8 @@ function canvasToFile(canvas, name) {
   });
 }
 
-// Render every slide to a JPEG File, in order.
+// Render every slide to a JPEG File, in order. Honors the seamless photo
+// (bgImage sliced across slides sharing a bgSpanId).
 export async function renderCarouselSlidesToFiles(slides) {
   await ensureFonts();
   const files = [];
@@ -197,7 +245,7 @@ export async function renderCarouselSlidesToFiles(slides) {
     canvas.width = SIZE;
     canvas.height = SIZE;
     const ctx = canvas.getContext("2d");
-    drawSlide(ctx, slides[i]);
+    await drawSlide(ctx, slides[i], spanInfoFor(slides, i));
     files.push(await canvasToFile(canvas, `carousel-${i + 1}.jpg`));
   }
   return files;

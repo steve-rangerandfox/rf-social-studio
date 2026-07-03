@@ -18,7 +18,7 @@ import { NonRetriableError } from "inngest";
 import { inngest } from "../server/inngest-client.js";
 import { listActiveIGTokenOwners, loadIGToken, saveIGToken } from "../server/ig-token-store.js";
 import { listActiveLITokenOwners, loadLIToken } from "../server/li-token-store.js";
-import { publishInstagramPost, refreshInstagramToken } from "../server/meta.js";
+import { publishInstagramPost, publishInstagramCarousel, refreshInstagramToken } from "../server/meta.js";
 import { publishLinkedInText } from "../server/linkedin.js";
 
 // ─── Constants ─────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ async function getSupabaseClient(env) {
 }
 
 // Exported for unit tests only — treat as module-internal in app code.
-export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows, findDueLinkedInRows, resolveStoryFrames };
+export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows, findDueLinkedInRows, resolveStoryFrames, resolveCarouselFrames, applyRowPatches, saveDocumentWithRetry };
 
 /** Map platform identifier → Instagram mediaType string. */
 function platformToMediaType(platform) {
@@ -77,6 +77,15 @@ function resolveStoryFrames(row) {
   }
   const single = row.mediaUrl || row.imageUrl || null;
   return single ? [{ url: single, kind: "image" }] : [];
+}
+
+/** The ordered slide-image URLs for a designed carousel row, or [] when the
+ *  carousel hasn't been rendered yet (the composer's "Render & save" writes
+ *  `carouselFrameUrls`; editing slides afterwards clears them). */
+function resolveCarouselFrames(row) {
+  if (row.mediaKind !== "carousel") return [];
+  if (!Array.isArray(row.carouselFrameUrls)) return [];
+  return row.carouselFrameUrls.filter(Boolean);
 }
 
 /** Find rows that are due for publishing right now. */
@@ -122,6 +131,45 @@ function applyRowPatch(document, rowId, patch) {
     ...document,
     rows: document.rows.map((r) => (r.id === rowId ? { ...r, ...patch } : r)),
   };
+}
+
+/** Re-apply a list of publish-outcome patches ({rowId, patch}) to a document.
+ *  Outcomes are authoritative — the posts DID (or did not) go live — so on a
+ *  version conflict they re-apply cleanly on top of whatever the user saved
+ *  concurrently, preserving their edits to every other field. */
+function applyRowPatches(document, rowPatches) {
+  let next = document;
+  for (const { rowId, patch } of rowPatches) next = applyRowPatch(next, rowId, patch);
+  return next;
+}
+
+/** Save the patched document with the optimistic lock; on a version conflict,
+ *  refetch the fresh document, re-apply the publish outcomes, and try again.
+ *  Publish outcomes must never be lost: dropping a "posted" status leaves the
+ *  row "scheduled", and the next cron tick re-publishes it — duplicate posts
+ *  on the user's real account. Returns true when the save landed. */
+async function saveDocumentWithRetry({ supabase, ownerUserId, document, version, rowPatches, logger, attempts = 3 }) {
+  let doc = document;
+  let ver = version;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const { error } = await supabase
+      .from("studio_documents")
+      .update({ document: doc, version: ver + 1, updated_at: new Date().toISOString() })
+      .eq("owner_user_id", ownerUserId)
+      .eq("version", ver);
+    if (!error) return true;
+    logger.warn(`publish-scheduled: document save failed for ${ownerUserId} (attempt ${attempt}/${attempts})`, { error: error.message });
+    if (attempt === attempts) break;
+    const { data: fresh, error: refetchErr } = await supabase
+      .from("studio_documents")
+      .select("document, version")
+      .eq("owner_user_id", ownerUserId)
+      .maybeSingle();
+    if (refetchErr || !fresh?.document) continue; // transient read failure — retry the write as-is
+    doc = applyRowPatches(fresh.document, rowPatches);
+    ver = fresh.version ?? ver;
+  }
+  return false;
 }
 
 // ─── Inngest function ──────────────────────────────────────────────
@@ -197,18 +245,59 @@ export const publishScheduledPosts = inngest.createFunction(
         if (!dueRows.length) return { published: 0, skipped: "none_due" };
 
         let document = record.document;
-        let version = record.version ?? 1;
+        const version = record.version ?? 1;
         let published = 0;
+        // Every publish outcome is tracked so a save conflict can re-apply
+        // them onto a freshly-loaded document instead of losing them.
+        const rowPatches = [];
+        const patchRow = (rowId, patch) => {
+          rowPatches.push({ rowId, patch });
+          document = applyRowPatch(document, rowId, patch);
+        };
 
         for (const row of dueRows) {
           const isStory = row.platform === "ig_story";
+          const isCarousel = row.platform === "ig_post" && row.mediaKind === "carousel";
+          const carouselFrames = resolveCarouselFrames(row);
           const frames = resolveStoryFrames(row);
 
+          // Designed carousel with rendered slides: publish as a real IG
+          // carousel (atomic — the three-step container flow only goes live
+          // at the final publish, so no resume bookkeeping is needed). A
+          // single-slide carousel falls through to the single-image path.
+          if (isCarousel && carouselFrames.length >= 2) {
+            try {
+              const { mediaId } = await publishInstagramCarousel({
+                userToken: tokenRecord.igUserToken,
+                imageUrls: carouselFrames.slice(0, 10),
+                caption: row.caption || "",
+              });
+              patchRow(row.id, {
+                status: "posted",
+                postedAt: new Date().toISOString(),
+                igPostId: mediaId,
+                publishError: null,
+                publishErrorAt: null,
+              });
+              published++;
+            } catch (err) {
+              logger.error(`publish-scheduled: carousel ${row.id} failed for ${ownerUserId}`, { error: err.message });
+              patchRow(row.id, {
+                status: "approved",
+                publishError: err.message || "Carousel publish error",
+                publishErrorAt: new Date().toISOString(),
+              });
+            }
+            continue;
+          }
+
           if (!frames.length) {
-            // No media attached — mark as failed so it doesn't re-run endlessly
-            document = applyRowPatch(document, row.id, {
+            // No publishable media — mark as failed so it doesn't re-run endlessly
+            patchRow(row.id, {
               status: "approved", // revert to approved so user can fix it
-              publishError: "No media URL attached — re-approve and reschedule after attaching media",
+              publishError: isCarousel
+                ? "Carousel isn't rendered — open the carousel composer, hit Render & save, then reschedule"
+                : "No media URL attached — re-approve and reschedule after attaching media",
               publishErrorAt: new Date().toISOString(),
             });
             continue;
@@ -239,7 +328,7 @@ export const publishScheduledPosts = inngest.createFunction(
                 frameIds.push(mediaId);
                 postedNow++;
               }
-              document = applyRowPatch(document, row.id, {
+              patchRow(row.id, {
                 status: "posted",
                 postedAt: new Date().toISOString(),
                 igPostId: frameIds[0] || null,
@@ -259,7 +348,7 @@ export const publishScheduledPosts = inngest.createFunction(
                 caption: row.caption || "",
                 mediaType,
               });
-              document = applyRowPatch(document, row.id, {
+              patchRow(row.id, {
                 status: "posted",
                 postedAt: new Date().toISOString(),
                 igPostId: mediaId,
@@ -283,28 +372,18 @@ export const publishScheduledPosts = inngest.createFunction(
               patch.storyFrameIds = frameIds;
               patch.publishError = `Published ${done} of ${frames.length} story frames — reschedule to post the rest. (${err.message || "error"})`;
             }
-            document = applyRowPatch(document, row.id, patch);
+            patchRow(row.id, patch);
           }
         }
 
-        // Write the updated document back with optimistic lock
-        const { error: saveErr } = await supabase
-          .from("studio_documents")
-          .update({
-            document,
-            version: version + 1,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("owner_user_id", ownerUserId)
-          .eq("version", version);
-
-        if (saveErr) {
-          // Version conflict or write error — the document will be retried next cron tick.
-          // Posts that were already published but not saved will have status "posted" on
-          // the next run attempt, but findDueRows skips non-"scheduled" rows, so they
-          // won't be double-published. The window is at most 5 minutes.
-          logger.warn(`publish-scheduled: document save failed for ${ownerUserId}`, { error: saveErr.message });
-          throw new NonRetriableError(`Document save conflict for ${ownerUserId}: ${saveErr.message}`);
+        // Persist the outcomes. On a version conflict the helper re-fetches
+        // the fresh document, re-applies the outcome patches, and retries —
+        // losing a "posted" status would re-publish the post next tick.
+        const saved = await saveDocumentWithRetry({ supabase, ownerUserId, document, version, rowPatches, logger });
+        if (!saved) {
+          // NonRetriable on purpose: letting Inngest retry the whole step
+          // would re-run the publish loop against Instagram.
+          throw new NonRetriableError(`Document save failed for ${ownerUserId} after retries — publish outcomes may be re-attempted next tick`);
         }
 
         return { published };
@@ -344,6 +423,11 @@ export const publishScheduledPosts = inngest.createFunction(
         let document = record.document;
         const version = record.version ?? 1;
         let published = 0;
+        const rowPatches = [];
+        const patchRow = (rowId, patch) => {
+          rowPatches.push({ rowId, patch });
+          document = applyRowPatch(document, rowId, patch);
+        };
 
         for (const row of dueRows) {
           try {
@@ -353,7 +437,7 @@ export const publishScheduledPosts = inngest.createFunction(
               text: row.caption,
             });
 
-            document = applyRowPatch(document, row.id, {
+            patchRow(row.id, {
               status: "posted",
               postedAt: new Date().toISOString(),
               liPostUrn: postUrn || null,
@@ -364,7 +448,7 @@ export const publishScheduledPosts = inngest.createFunction(
             published++;
           } catch (err) {
             logger.error(`publish-scheduled: LI post ${row.id} failed for ${ownerUserId}`, { error: err.message });
-            document = applyRowPatch(document, row.id, {
+            patchRow(row.id, {
               status: "approved",
               publishError: err.message || "LinkedIn publish error",
               publishErrorAt: new Date().toISOString(),
@@ -372,19 +456,9 @@ export const publishScheduledPosts = inngest.createFunction(
           }
         }
 
-        const { error: saveErr } = await supabase
-          .from("studio_documents")
-          .update({
-            document,
-            version: version + 1,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("owner_user_id", ownerUserId)
-          .eq("version", version);
-
-        if (saveErr) {
-          logger.warn(`publish-scheduled: LI document save failed for ${ownerUserId}`, { error: saveErr.message });
-          throw new NonRetriableError(`Document save conflict for ${ownerUserId}: ${saveErr.message}`);
+        const saved = await saveDocumentWithRetry({ supabase, ownerUserId, document, version, rowPatches, logger });
+        if (!saved) {
+          throw new NonRetriableError(`LI document save failed for ${ownerUserId} after retries — publish outcomes may be re-attempted next tick`);
         }
 
         return { published };

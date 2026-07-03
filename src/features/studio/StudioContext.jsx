@@ -173,6 +173,7 @@ export function StudioProvider({ children }) {
 
   const igConfig = useMemo(() => studioDoc.instagram?.account || null, [studioDoc]);
   const igMedia = useMemo(() => studioDoc.instagram?.media || null, [studioDoc]);
+  const reviewConfig = useMemo(() => studioDoc.review || null, [studioDoc]);
   const brandProfile = useMemo(
     () => normalizeBrandProfile(studioDoc.brandProfile || createDefaultBrandProfile()),
     [studioDoc],
@@ -865,7 +866,7 @@ export function StudioProvider({ children }) {
     yearScrollRef,
 
     // Derived
-    rows, filteredRows, igConfig, igMedia,
+    rows, filteredRows, igConfig, igMedia, reviewConfig,
     allSorted, sorted, grouped,
     igC, liC, readyC, reviewC, attentionCount,
     monthCounts, maxMonthCount,

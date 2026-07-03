@@ -446,8 +446,15 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   const [history, setHistory] = useState(() => [elements]);
   const [historyIndex, setHistoryIndex] = useState(0);
 
+  // Canvas-deletion undo: deleted pages stack here; Ctrl+Z restores the top
+  // entry when the deletion is more recent than the last element edit
+  // (otherwise it falls through to normal element undo).
+  const deletedPagesRef = useRef([]);
+  const lastElementEditRef = useRef(0);
+
   const pushElements = (newElements) => {
     const resolved = typeof newElements === 'function' ? newElements(elements) : newElements;
+    lastElementEditRef.current = Date.now();
     // Compute next history + index OUTSIDE the setState updater — calling a
     // setState inside another's updater throws "cannot update a component
     // while rendering a different component".
@@ -495,11 +502,23 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   };
   const deletePage = (idx) => {
     if (pages.length <= 1) return;
+    // Deletion is undoable: Ctrl+Z restores the most recently deleted canvas
+    // (when that deletion is more recent than the last element edit).
+    deletedPagesRef.current.push({ page: pages[idx], index: idx, at: Date.now() });
     const remaining = pages.filter((_, i) => i !== idx);
     const newActive = idx < activePageIdx ? activePageIdx - 1 : Math.min(idx === activePageIdx ? idx : activePageIdx, remaining.length - 1);
     setPages(remaining);
     setActivePageIdx(newActive);
     resetPageEditState(remaining[newActive]?.elements || []);
+  };
+  const restoreDeletedPage = () => {
+    const entry = deletedPagesRef.current.pop();
+    if (!entry) return false;
+    const at = Math.min(entry.index, pages.length);
+    setPages(prev => { const next = [...prev]; next.splice(Math.min(entry.index, next.length), 0, entry.page); return next; });
+    setActivePageIdx(at);
+    resetPageEditState(entry.page.elements || []);
+    return true;
   };
   const movePage = (idx, dir) => {
     const j = idx + dir;
@@ -1264,17 +1283,23 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     setManualDone(true);
   };
 
-  // Undo/Redo keyboard shortcuts
+  // Undo/Redo keyboard shortcuts. Ctrl+Z restores a just-deleted canvas when
+  // that deletion is the most recent action; otherwise it's element undo.
   useEffect(() => {
     const hUR = (e) => {
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if (mod && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        const stack = deletedPagesRef.current;
+        if (stack.length && stack[stack.length - 1].at > lastElementEditRef.current) restoreDeletedPage();
+        else undo();
+      }
       if (mod && e.key === 'z' && e.shiftKey)  { e.preventDefault(); redo(); }
       if (mod && e.key === 'y')                 { e.preventDefault(); redo(); }
     };
     window.addEventListener('keydown', hUR);
     return () => window.removeEventListener('keydown', hUR);
-  }, [historyIndex, history]);
+  }, [historyIndex, history, pages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Push elements to history on pointerup (after drag / resize finishes)
   useEffect(() => {
@@ -1870,7 +1895,18 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               );
               return (
               <div key={pg.id} className="sd-board active">
-              {pages.length > 1 && <button className="sd-board-label" title={`Canvas ${i + 1} (editing)`}>{String(i + 1).padStart(2, "0")}</button>}
+              {/* Canvas toolbar — hugs the active canvas's top-right corner:
+                  move left / move right / delete (⌘Z restores a deleted canvas). */}
+              {pages.length > 1 && (
+                <div className="sd-board-bar" style={{width:preset.w*zoom}}>
+                  <span className="sd-board-label">{String(i + 1).padStart(2, "0")}</span>
+                  <div className="sd-board-tools">
+                    <button className="sd-board-tool" title="Move canvas left" aria-label="Move canvas left" disabled={i === 0} onClick={() => movePage(i, -1)}>{"‹"}</button>
+                    <button className="sd-board-tool" title="Move canvas right" aria-label="Move canvas right" disabled={i === pages.length - 1} onClick={() => movePage(i, 1)}>{"›"}</button>
+                    <button className="sd-board-tool danger" title="Delete canvas (Ctrl+Z to undo)" aria-label="Delete canvas" onClick={() => deletePage(i)}><Trash2 size={11}/></button>
+                  </div>
+                </div>
+              )}
               <div style={{width:preset.w*zoom,height:preset.h*zoom,flexShrink:0}}>
             <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left"}}>
               <div className="canvas" ref={canvasRef} role="application" aria-label="Story canvas"
@@ -1949,16 +1985,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
             <div className="sd-pages">
               {pages.map((pg, i) => (
                 <div key={pg.id} className={"sd-page-tab" + (i === activePageIdx ? " active" : "")} onClick={() => switchPage(i)} title={`Canvas ${i + 1}`}>
-                  {i === activePageIdx && pages.length > 1 && (
-                    <button className="sd-page-move" title="Move left" disabled={i === 0} onClick={(e) => { e.stopPropagation(); movePage(i, -1); }}>{"\u2039"}</button>
-                  )}
                   <span className="sd-page-num">{i + 1}</span>
-                  {i === activePageIdx && pages.length > 1 && (
-                    <>
-                      <button className="sd-page-move" title="Move right" disabled={i === pages.length - 1} onClick={(e) => { e.stopPropagation(); movePage(i, 1); }}>{"\u203a"}</button>
-                      <button className="sd-page-del" title="Delete canvas" onClick={(e) => { e.stopPropagation(); deletePage(i); }}><X size={9} /></button>
-                    </>
-                  )}
                 </div>
               ))}
               <span className="sd-pages-sep" />

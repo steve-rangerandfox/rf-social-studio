@@ -27,3 +27,6 @@ export const About = lazy(() =>
 export const NotFound = lazy(() =>
   import("./components/NotFound.jsx").then((m) => ({ default: m.NotFound })),
 );
+export const ReviewPage = lazy(() =>
+  import("./components/ReviewPage.jsx").then((m) => ({ default: m.ReviewPage })),
+);
