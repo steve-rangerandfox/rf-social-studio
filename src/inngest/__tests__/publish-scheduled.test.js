@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import {
   MAX_LATE_MS,
@@ -7,6 +7,8 @@ import {
   findDueLinkedInRows,
   resolveStoryFrames,
   resolveCarouselFrames,
+  applyRowPatches,
+  saveDocumentWithRetry,
 } from "../publish-scheduled.js";
 
 describe("platformToMediaType", () => {
@@ -241,5 +243,84 @@ describe("findDueLinkedInRows", () => {
   it("excludes rows more than MAX_LATE_MS in the past", () => {
     const tooStale = new Date(now - MAX_LATE_MS - oneMin).toISOString();
     expect(findDueLinkedInRows({ rows: [liRow({ scheduledAt: tooStale })] })).toEqual([]);
+  });
+});
+
+describe("applyRowPatches", () => {
+  it("applies patches in order and preserves untouched rows/fields", () => {
+    const doc = { rows: [
+      { id: "a", status: "scheduled", caption: "hi" },
+      { id: "b", status: "scheduled", caption: "yo" },
+    ] };
+    const result = applyRowPatches(doc, [
+      { rowId: "a", patch: { status: "posted", igPostId: "m1" } },
+    ]);
+    expect(result.rows[0]).toEqual({ id: "a", status: "posted", caption: "hi", igPostId: "m1" });
+    expect(result.rows[1]).toEqual({ id: "b", status: "scheduled", caption: "yo" });
+    expect(doc.rows[0].status).toBe("scheduled"); // input untouched
+  });
+});
+
+// Minimal supabase mock: `update` outcomes are scripted per call; `select`
+// (the conflict refetch) returns the given fresh record.
+function mockSupabase({ updateResults, fresh }) {
+  const updateCalls = [];
+  return {
+    updateCalls,
+    from() {
+      return {
+        update(payload) {
+          updateCalls.push(payload);
+          const result = updateResults[updateCalls.length - 1] ?? { error: null };
+          return { eq() { return { eq() { return Promise.resolve(result); } }; } };
+        },
+        select() {
+          return { eq() { return { maybeSingle: () => Promise.resolve(fresh) }; } };
+        },
+      };
+    },
+  };
+}
+
+const silentLogger = { warn: vi.fn(), error: vi.fn() };
+
+describe("saveDocumentWithRetry", () => {
+  const patches = [{ rowId: "a", patch: { status: "posted", igPostId: "m1" } }];
+  const patchedDoc = { rows: [{ id: "a", status: "posted", igPostId: "m1" }] };
+
+  it("returns true on a clean first save", async () => {
+    const supabase = mockSupabase({ updateResults: [{ error: null }] });
+    const ok = await saveDocumentWithRetry({ supabase, ownerUserId: "u", document: patchedDoc, version: 3, rowPatches: patches, logger: silentLogger });
+    expect(ok).toBe(true);
+    expect(supabase.updateCalls).toHaveLength(1);
+    expect(supabase.updateCalls[0].version).toBe(4);
+  });
+
+  it("re-merges publish outcomes onto the fresh document after a version conflict", async () => {
+    // Concurrent user edit changed the caption AND bumped the version.
+    const freshDoc = { rows: [{ id: "a", status: "scheduled", caption: "edited meanwhile" }] };
+    const supabase = mockSupabase({
+      updateResults: [{ error: { message: "version conflict" } }, { error: null }],
+      fresh: { data: { document: freshDoc, version: 7 }, error: null },
+    });
+    const ok = await saveDocumentWithRetry({ supabase, ownerUserId: "u", document: patchedDoc, version: 3, rowPatches: patches, logger: silentLogger });
+    expect(ok).toBe(true);
+    expect(supabase.updateCalls).toHaveLength(2);
+    // Second write targets the fresh version and carries BOTH the user's
+    // concurrent edit and the authoritative publish outcome.
+    expect(supabase.updateCalls[1].version).toBe(8);
+    expect(supabase.updateCalls[1].document.rows[0]).toEqual({
+      id: "a", status: "posted", caption: "edited meanwhile", igPostId: "m1",
+    });
+  });
+
+  it("gives up after the attempt budget and returns false", async () => {
+    const supabase = mockSupabase({
+      updateResults: [{ error: { message: "x" } }, { error: { message: "x" } }, { error: { message: "x" } }],
+      fresh: { data: null, error: { message: "read failed" } },
+    });
+    const ok = await saveDocumentWithRetry({ supabase, ownerUserId: "u", document: patchedDoc, version: 3, rowPatches: patches, logger: silentLogger, attempts: 3 });
+    expect(ok).toBe(false);
+    expect(supabase.updateCalls).toHaveLength(3);
   });
 });

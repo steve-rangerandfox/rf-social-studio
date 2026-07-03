@@ -170,7 +170,12 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onSelect
         >
           <span className="s-dot" style={{ background: s.dot }} />{s.label}
         </button>
-        {needsAttention && (
+        {row.publishError && row.status !== "posted" && (
+          <span title={`Publishing failed: ${row.publishError}`}>
+            <AlertTriangle size={13} color={T.red} className="row-attention-icon" />
+          </span>
+        )}
+        {needsAttention && !(row.publishError && row.status !== "posted") && (
           <span title="Needs attention — missing caption, media, owner, or approval">
             <AlertTriangle size={13} color={T.amber} className="row-attention-icon" />
           </span>

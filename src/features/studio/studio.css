@@ -1903,6 +1903,11 @@ input,textarea,select,button{font-family:inherit}
 
 /* ─── Published banner (DetailPanel) ──────────────────────────── */
 .dp-published-banner{display:flex;align-items:center;gap:12px;padding:14px 16px;background:linear-gradient(135deg,rgba(61,140,92,0.08),rgba(61,140,92,0.04));border:1px solid rgba(61,140,92,0.2);border-radius:var(--radius-md)}
+/* Failed-publish receipt */
+.dp-publish-error{display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:rgba(220,38,38,0.05);border:1px solid rgba(220,38,38,0.22);border-radius:var(--radius-md)}
+.dp-publish-error-title{font:600 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--t-red)}
+.dp-publish-error-msg{font-size:var(--text-base);color:var(--t-text);line-height:1.45}
+.dp-publish-error-hint{font-size:var(--text-sm);color:var(--t-text-sub)}
 .dp-published-icon{width:32px;height:32px;border-radius:50%;background:#3D8C5C;color:var(--t-surface);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 10px rgba(61,140,92,0.25)}
 .dp-published-info{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
 .dp-published-title{font-size:var(--text-base);font-weight:700;color:var(--t-text);letter-spacing:-0.01em}

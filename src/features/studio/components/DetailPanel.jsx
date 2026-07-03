@@ -280,7 +280,17 @@ export function DetailPanel() {
         {/* Body */}
         <div className="detail-panel-body" ref={bodyRef}>
 
-          {row.status === "posted" && (row.igMediaId || row.igPublishedUrl) && (
+          {/* Publish receipt: the scheduler reverted this post after a failed
+              attempt — surface the why and the when instead of failing silently. */}
+          {row.publishError && row.status !== "posted" && (
+            <section className="dp-publish-error">
+              <div className="dp-publish-error-title">Publishing failed{row.publishErrorAt ? ` · ${formatRelativeStamp(row.publishErrorAt)}` : ""}</div>
+              <div className="dp-publish-error-msg">{row.publishError}</div>
+              <div className="dp-publish-error-hint">Fix the issue, then approve &amp; reschedule — the scheduler will retry at the new time.</div>
+            </section>
+          )}
+
+          {row.status === "posted" && (row.igMediaId || row.igPostId || row.igPublishedUrl) && (
             <section className="dp-published-banner">
               <div className="dp-published-icon">
                 <Check size={14} />
