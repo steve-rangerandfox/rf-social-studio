@@ -35,6 +35,7 @@ import {
   setInstagramSession,
 } from "./instagram-session.js";
 import { requireRequestAuth, checkRateLimit } from "./middleware.js";
+import { handleReviewLinkPost, handleReviewGet, handleReviewActionPost } from "./review.js";
 import { handleCaptionRequest } from "./handlers/captions.js";
 import {
   handleStudioDocumentGet,
@@ -640,6 +641,50 @@ export async function handleApiRequest(req, res, overrides = {}) {
     res.setHeader("Allow", "GET, PUT, OPTIONS");
     res.end();
     endTimer({ reqId, status: 405, route: "/api/studio-document" });
+    return;
+  }
+
+  if (url.pathname === "/api/review-link") {
+    if (req.method !== "POST") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "POST, OPTIONS");
+      res.end();
+      endTimer({ reqId, status: 405, route: "/api/review-link" });
+      return;
+    }
+    const auth = requireRequestAuth(req, res, env);
+    if (!auth) { endTimer({ reqId, status: 401, route: "/api/review-link" }); return; }
+    if (!await checkRateLimit(res, auth.userId, "review-link:POST", { maxRequests: 10, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/review-link" }); return; }
+    try {
+      return await handleReviewLinkPost(req, res, env, reqId, auth);
+    } finally {
+      endTimer({ reqId, route: "/api/review-link", status: res.statusCode });
+    }
+  }
+
+  if (url.pathname === "/api/review") {
+    // Public (capability-URL) endpoints — no login; rate-limited by caller IP.
+    const ipKey = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "anon").split(",")[0].trim();
+    if (req.method === "GET") {
+      if (!await checkRateLimit(res, ipKey, "review:GET", { maxRequests: 60, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/review" }); return; }
+      try {
+        return await handleReviewGet(req, res, env, reqId, url);
+      } finally {
+        endTimer({ reqId, route: "/api/review", method: "GET", status: res.statusCode });
+      }
+    }
+    if (req.method === "POST") {
+      if (!await checkRateLimit(res, ipKey, "review:POST", { maxRequests: 20, windowMs: 60_000 })) { endTimer({ reqId, status: 429, route: "/api/review" }); return; }
+      try {
+        return await handleReviewActionPost(req, res, env, reqId);
+      } finally {
+        endTimer({ reqId, route: "/api/review", method: "POST", status: res.statusCode });
+      }
+    }
+    res.statusCode = 405;
+    res.setHeader("Allow", "GET, POST, OPTIONS");
+    res.end();
+    endTimer({ reqId, status: 405, route: "/api/review" });
     return;
   }
 

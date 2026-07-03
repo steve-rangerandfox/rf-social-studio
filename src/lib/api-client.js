@@ -225,6 +225,17 @@ export function fetchStudioDocument() {
   }));
 }
 
+// ─── Client review share link ──────────────────────────────────────
+
+/** Enable (returns { token }) or revoke ({ revoked: true }) the no-login
+ *  client review link. Enabling rotates the token, invalidating old links. */
+export function manageReviewLink(action) {
+  return requestJson("/api/review-link", {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+}
+
 // ─── Billing ───────────────────────────────────────────────────────
 
 export function fetchBilling() {

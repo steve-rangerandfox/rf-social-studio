@@ -2175,6 +2175,10 @@ input,textarea,select,button{font-family:inherit}
 .cc2-top-c{flex:0 0 auto}
 .cc2-top-r{flex:1;display:flex;align-items:center;justify-content:flex-end;gap:8px}
 .cc2-rendered-note{font:600 11px var(--font-mono);letter-spacing:.04em;color:var(--t-mint,#0c8f5f);white-space:nowrap}
+
+/* Client review link (Settings → Team) */
+.review-link-row{display:flex;gap:6px;align-items:center}
+.review-link-input{flex:1;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t-text-sub)}
 .cc2-close{width:30px;height:30px;border:1px solid var(--surface-2);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .cc2-breadcrumb{display:flex;align-items:center;gap:8px;font:500 12px var(--font-mono);color:var(--text-dim);overflow:hidden}
 .cc2-bc-sep{color:var(--text-faint)}
@@ -2447,6 +2451,11 @@ input,textarea,select,button{font-family:inherit}
    zoomed dimensions, so nothing overlaps; the row itself scrolls
    horizontally and centers when it fits. */
 .sd-canvas-row{display:flex;align-items:center;gap:26px;width:max-content;max-width:100%;overflow-x:auto;margin:0 auto;padding:4px 10px 14px}
+/* The wrap sits inside a frame sized to the ZOOMED dimensions; as a block
+   element it would fill that frame and then get scaled AGAIN, so its box
+   (and the active-board outline drawn on it) overshoots the canvas by the
+   zoom factor. Hug the canvas instead. */
+.sd-canvas-row .canvas-wrap{width:max-content}
 .sd-board{display:flex;flex-direction:column;gap:7px;flex-shrink:0}
 .sd-board-label{align-self:flex-start;border:none;background:transparent;padding:0 2px;font:600 10px var(--font-mono);letter-spacing:.14em;color:var(--t-text-dim);cursor:pointer}
 .sd-board.active .sd-board-label{color:var(--accent);cursor:default}

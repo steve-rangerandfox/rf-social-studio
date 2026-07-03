@@ -329,6 +329,7 @@ export function loadStudioDocument(scope = "anonymous") {
             ? legacy.auditLog.slice(0, MAX_AUDIT_ENTRIES).map(normalizeAuditEntry)
             : [],
           instagram: legacy.instagram || { account: null, media: null, syncedAt: null },
+          review: legacy.review || null,
           lastSavedAt: legacy.lastSavedAt || null,
         };
       }
@@ -345,6 +346,9 @@ export function loadStudioDocument(scope = "anonymous") {
         ? stored.auditLog.slice(0, MAX_AUDIT_ENTRIES).map(normalizeAuditEntry)
         : [],
       instagram: stored.instagram || { account: null, media: null, syncedAt: null },
+      // Client-review share-link config (written server-side; must survive
+      // the round trip through this whitelist or every save revokes the link)
+      review: stored.review || null,
       lastSavedAt: stored.lastSavedAt || null,
     };
   }

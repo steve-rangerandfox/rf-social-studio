@@ -11,9 +11,70 @@ import { useStudio } from "../StudioContext.jsx";
 import {
   fetchBilling,
   learnBrandFromUrl,
+  manageReviewLink,
   openBillingPortal,
   startBillingCheckout,
 } from "../../../lib/api-client.js";
+
+// Client approval link: a no-login capability URL a client can open to see
+// posts awaiting approval and approve / request changes. Creating a new link
+// rotates the token, which turns every previously shared link off.
+function ReviewLinkCard() {
+  const { reviewConfig, showToast } = useStudio();
+  const [busy, setBusy] = useState(false);
+  // Server-confirmed state wins once the user acts; falls back to the doc.
+  const [local, setLocal] = useState(null);
+  const active = local ?? (reviewConfig?.enabled ? { token: reviewConfig.token } : null);
+  const url = active?.token ? `${window.location.origin}/review?t=${active.token}` : null;
+
+  const enable = async () => {
+    setBusy(true);
+    try {
+      const { token } = await manageReviewLink("enable");
+      setLocal({ token });
+      try { await navigator.clipboard.writeText(`${window.location.origin}/review?t=${token}`); showToast("Review link copied — send it to your client.", T.mint); }
+      catch { showToast("Review link created.", T.mint); }
+    } catch (err) {
+      showToast(err?.message || "Couldn't create the link — try again.", T.red);
+    } finally { setBusy(false); }
+  };
+  const revoke = async () => {
+    setBusy(true);
+    try {
+      await manageReviewLink("revoke");
+      setLocal(false); // explicit off
+      showToast("Review link turned off.");
+    } catch (err) {
+      showToast(err?.message || "Couldn't turn the link off — try again.", T.red);
+    } finally { setBusy(false); }
+  };
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); showToast("Link copied.", T.mint); }
+    catch { showToast("Couldn't copy — select the link text instead.", T.red); }
+  };
+
+  const isOn = local === false ? false : !!(active?.token);
+  return (
+    <div className="settings-card settings-mt-8">
+      <div className="settings-card-title">Client review link</div>
+      <div className="settings-field-sub settings-mt-0">
+        A private link your client can open — no account needed — to see posts awaiting approval and approve or request changes. Creating a new link turns the old one off.
+      </div>
+      {isOn && url && (
+        <div className="review-link-row settings-mt-12">
+          <input className="inp review-link-input" readOnly value={url} onFocus={(e) => e.target.select()} />
+          <button className="btn btn-ghost btn-sm" onClick={copy}>Copy</button>
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+        <button className="btn btn-primary btn-sm" disabled={busy} onClick={enable}>
+          {busy ? "Working…" : isOn ? "Create new link" : "Create review link"}
+        </button>
+        {isOn && <button className="btn btn-ghost btn-sm" disabled={busy} onClick={revoke}>Turn off</button>}
+      </div>
+    </div>
+  );
+}
 
 // Editorial numbered tabs — extends the "01 / Calendar" Sidebar motif
 // so chrome reads as one authored system. Render label = "01 General" etc.
@@ -605,6 +666,8 @@ export function SettingsPanel({ onClose, onExport, team = TEAM, onTeamUpdate, br
               ) : (
                 <button className="btn btn-ghost settings-invite-trigger" onClick={()=>setShowInvite(true)}><Plus size={12} className="cp-icon-mr"/> Invite team member</button>
               )}
+
+              <ReviewLinkCard />
             </div>
           )}
         </div>
