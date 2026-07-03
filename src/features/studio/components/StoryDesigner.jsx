@@ -1868,7 +1868,11 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               const sp = spanInfoFor(i);
               if (!isActive) return (
                 <div key={pg.id} className="sd-board">
-                  <button className="sd-board-label" onClick={() => switchPage(i)} title={`Edit canvas ${i + 1}`}>{String(i + 1).padStart(2, "0")}</button>
+                  {/* Same fixed-height bar as the active board (tools omitted)
+                      so activating a canvas never shifts its position. */}
+                  <div className="sd-board-bar" style={{width:preset.w*zoom}}>
+                    <button className="sd-board-label" onClick={() => switchPage(i)} title={`Edit canvas ${i + 1}`}>{String(i + 1).padStart(2, "0")}</button>
+                  </div>
                   <div style={{width:preset.w*zoom,height:preset.h*zoom,flexShrink:0}}>
                     <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left"}}>
                       <div className="canvas" role="button" aria-label={`Activate canvas ${i + 1}`}
