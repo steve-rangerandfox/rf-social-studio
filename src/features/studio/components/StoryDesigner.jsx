@@ -554,9 +554,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
   };
 
-  // ── Filmstrip (side-by-side) view of every canvas ──
-  const [filmstrip, setFilmstrip] = useState(false);
-
   // ── Guide overlay ──
   const [showGuides, setShowGuides] = useState(false);
 
@@ -1835,12 +1832,46 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 </button>
               </div>
             )}
-            {!filmstrip && (
-            <div className="sd-canvas-row">
-            {/* The frame is sized to the ZOOMED dimensions so the scaled canvas
-                occupies real layout space — siblings (the add rail, the page
-                strip below) can never overlap it. */}
-            <div style={{width:preset.w*zoom,height:preset.h*zoom,flexShrink:0}}>
+            {/* ── ARTBOARD WORKSPACE — every canvas visible side by side
+                   (Photoshop/Figma-style). The active board carries the full
+                   editing machinery; clicking any other board activates it.
+                   Each frame is sized to the ZOOMED dimensions so the scaled
+                   canvases occupy real layout space and never overlap. ── */}
+            <div className={"sd-canvas-row" + (pages.length > 1 ? " multi" : "")}>
+            {pages.map((pg, i) => {
+              const isActive = i === activePageIdx;
+              const sp = spanInfoFor(i);
+              if (!isActive) return (
+                <div key={pg.id} className="sd-board">
+                  <button className="sd-board-label" onClick={() => switchPage(i)} title={`Edit canvas ${i + 1}`}>{String(i + 1).padStart(2, "0")}</button>
+                  <div style={{width:preset.w*zoom,height:preset.h*zoom,flexShrink:0}}>
+                    <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left"}}>
+                      <div className="canvas" role="button" aria-label={`Activate canvas ${i + 1}`}
+                        onPointerDown={() => switchPage(i)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); switchPage(i); }}
+                        style={{width:preset.w,height:preset.h,cursor:"pointer"}}>
+                        <div style={{position:'absolute',inset:0,pointerEvents:'none'}}>
+                          {pg.elements.filter(e=>e.locked).map(el=>(
+                            <CanvasElement key={el.id} data={el} isSelected={false}
+                              bgSpanTotal={sp?.total} bgSpanIndex={sp?.index}
+                              onSelect={()=>{}} onUpdate={()=>{}} canvasW={preset.w} canvasH={preset.h}/>
+                          ))}
+                          {pg.elements.filter(e=>!e.locked).map(el=>(
+                            <CanvasElement key={el.id} data={el} isSelected={false}
+                              onSelect={()=>{}} onUpdate={()=>{}} zoom={zoom} canvasW={preset.w} canvasH={preset.h}/>
+                          ))}
+                          <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",zIndex:50}}>R&F</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+              return (
+              <div key={pg.id} className="sd-board active">
+              {pages.length > 1 && <button className="sd-board-label" title={`Canvas ${i + 1} (editing)`}>{String(i + 1).padStart(2, "0")}</button>}
+              <div style={{width:preset.w*zoom,height:preset.h*zoom,flexShrink:0}}>
             <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left"}}>
               <div className="canvas" ref={canvasRef} role="application" aria-label="Story canvas"
                 onPointerDown={handleCanvasPointerDown}
@@ -1848,14 +1879,11 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 onDragLeave={handleCanvasDragLeave}
                 onDrop={handleCanvasDrop}
                 style={{width:preset.w,height:preset.h,...(canvasDragOver ? {outline:'2px solid #0EA5E9',outlineOffset:-2} : {})}}>
-                {elements.filter(e=>e.locked).map(el=>{
-                  const sp = spanInfoFor(activePageIdx);
-                  return (
+                {elements.filter(e=>e.locked).map(el=>(
                   <CanvasElement key={el.id} data={el} isSelected={selectedIds.has(el.id)}
                     bgSpanTotal={sp?.total} bgSpanIndex={sp?.index}
                     onSelect={()=>setSelectedIds(new Set([el.id]))} onUpdate={p=>updateEl(el.id,p)} canvasW={preset.w} canvasH={preset.h}/>
-                  );
-                })}
+                ))}
                 {elements.filter(e=>!e.locked).map(el=>(
                   <CanvasElement key={el.id} data={el} isSelected={selectedIds.has(el.id)}
                     onSelect={(id, shiftKey)=>{handleSelect(el.id, shiftKey);initMultiDrag();if(editingId&&editingId!==el.id)setEditingId(null);}}
@@ -1898,8 +1926,11 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",pointerEvents:"none",zIndex:50}}>R&F</div>
               </div>
             </div>
-            </div>
-            {/* Add-canvas rail \u2014 hugs the right edge of the canvas, Photoshop-artboard style */}
+              </div>
+              </div>
+              );
+            })}
+            {/* Add-canvas rail \u2014 hugs the right edge of the last canvas, Photoshop-artboard style */}
             <div className="sd-page-add-wrap side">
               <button className="sd-page-add" title="Add canvas" aria-label="Add canvas" onClick={() => setPageMenuOpen(o => !o)}><Plus size={15} /></button>
               {pageMenuOpen && (
@@ -1913,33 +1944,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               )}
             </div>
             </div>
-            )}
-
-            {filmstrip && (
-              <div className="sd-filmstrip">
-                {pages.map((pg, i) => {
-                  const sp = spanInfoFor(i);
-                  const filmH = 300;
-                  const filmW = Math.round(filmH * (preset.w / preset.h));
-                  return (
-                    <div key={pg.id} className={"sd-film-item" + (i === activePageIdx ? " active" : "")}>
-                      <button className="sd-film-canvas" style={{ width: filmW, height: filmH }}
-                        onClick={() => { switchPage(i); setFilmstrip(false); }} title={`Edit canvas ${i + 1}`}>
-                        <PagePreview elements={pg.elements} cw={preset.w} ch={preset.h}
-                          spanTotal={sp?.total} spanIndex={sp?.index} />
-                      </button>
-                      <div className="sd-film-cap">
-                        <button className="sd-page-move" title="Move left" disabled={i === 0} onClick={() => movePage(i, -1)}>{"\u2039"}</button>
-                        <span className="sd-film-num">{String(i + 1).padStart(2, "0")}</span>
-                        <button className="sd-page-move" title="Move right" disabled={i === pages.length - 1} onClick={() => movePage(i, 1)}>{"\u203a"}</button>
-                        <button className="sd-page-del" title="Delete canvas" disabled={pages.length <= 1} onClick={() => deletePage(i)}><X size={9} /></button>
-                      </div>
-                    </div>
-                  );
-                })}
-                <button className="sd-film-add" title="Add canvas" onClick={() => addPage(false)} style={{ height: 300 }}><Plus size={18} /><span>Add canvas</span></button>
-              </div>
-            )}
 
             {/* Artboards / page strip */}
             <div className="sd-pages">
@@ -1963,9 +1967,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   <ImageIcon size={13} /> Fit image across {pages.length}
                 </button>
               )}
-              <button className={"sd-pages-tool" + (filmstrip ? " on" : "")} title="View every canvas side by side" onClick={() => setFilmstrip(f => !f)}>
-                <Grid3x3 size={13} /> {filmstrip ? "Edit one" : "View all"}
-              </button>
             </div>
 
 
@@ -2019,68 +2020,3 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   );
 }
 
-// Static, non-interactive preview of a single artboard page — used by the
-// side-by-side filmstrip. Positions are percentage-based so it scales to any
-// rendered size; a ResizeObserver drives font scaling. Honors a panorama
-// slice (spanTotal / spanIndex) the same way the live canvas does.
-function PagePreview({ elements, cw, ch, spanTotal, spanIndex }) {
-  const bgEl = elements.find(e => e.locked);
-  const isVid = bgEl?.mediaType === 'video';
-  const ref = useRef(null);
-  const [w, setW] = useState(cw);
-  useEffect(() => {
-    if (!ref.current) return undefined;
-    const ro = new ResizeObserver(([entry]) => setW(entry.contentRect.width));
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, []);
-  const s = w / cw;
-  const bgStyle = spanTotal > 1
-    ? { position:'absolute', top:0, left:`${-spanIndex * 100}%`, width:`${spanTotal * 100}%`, height:'100%', objectFit:'cover' }
-    : { position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' };
-  return (
-    <div ref={ref} style={{ position:'absolute', inset:0, overflow:'hidden' }}>
-      {bgEl?.url && !isVid && <img src={bgEl.url} style={bgStyle} alt="" draggable="false" onError={e=>{e.target.style.display='none';}}/>}
-      {bgEl?.url && isVid && <video src={bgEl.url} style={bgStyle} muted playsInline loop/>}
-      {bgEl?.url && <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,rgba(0,0,0,.72) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,.26) 100%)', pointerEvents:'none' }}/>}
-      {elements.filter(e => !e.locked && e.type === 'text').map(el => (
-        <div key={el.id} style={{
-          position:'absolute',
-          left:`${(el.x / cw) * 100}%`,
-          top:`${(el.y / ch) * 100}%`,
-          width:`${((el.boxWidth || 190) / cw) * 100}%`,
-          fontSize:(el.fontSize || 14) * s,
-          fontFamily:`'${el.fontFamily || 'Bricolage Grotesque'}', sans-serif`,
-          fontWeight:el.fontWeight || 600,
-          fontStyle:el.italic ? 'italic' : 'normal',
-          textDecoration:[el.underline && 'underline', el.strikethrough && 'line-through'].filter(Boolean).join(' ') || 'none',
-          letterSpacing:(el.letterSpacing || 0) * s,
-          lineHeight:el.lineHeight || 1.25,
-          textShadow:el.shadow ? '0 1px 4px rgba(0,0,0,.8)' : undefined,
-          color:el.gradient ? 'transparent' : (el.color || '#fff'),
-          background:el.gradient || undefined,
-          WebkitBackgroundClip:el.gradient ? 'text' : undefined,
-          WebkitTextFillColor:el.gradient ? 'transparent' : undefined,
-          whiteSpace:'pre-wrap',
-          pointerEvents:'none',
-        }}>{el.content}</div>
-      ))}
-      {elements.filter(e => !e.locked && e.type === 'image' && e.url).map(el => (
-        <div key={el.id} style={{
-          position:'absolute',
-          left:`${(el.x / cw) * 100}%`,
-          top:`${(el.y / ch) * 100}%`,
-          width:`${((el.width || 140) * (el.scale || 1) / cw) * 100}%`,
-          height:`${((el.height || 140) * (el.scale || 1) / ch) * 100}%`,
-          transform:el.rotation ? `rotate(${el.rotation}deg)` : undefined,
-          pointerEvents:'none',
-        }}>
-          {el.mediaType === 'video'
-            ? <video src={el.url} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:2 }} muted playsInline loop/>
-            : <img src={el.url} alt="" draggable="false" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:2 }}/>}
-        </div>
-      ))}
-      {!bgEl?.url && <div style={{ position:'absolute', inset:0, background:'#080A0E' }}/>}
-    </div>
-  );
-}

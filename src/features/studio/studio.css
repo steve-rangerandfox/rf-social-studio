@@ -2184,14 +2184,19 @@ input,textarea,select,button{font-family:inherit}
 .cc2-photo-btn:disabled{opacity:0.6;cursor:default}
 .cc2-photo-btn.on{border-color:var(--accent);color:var(--accent)}
 .cc2-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;overflow:auto}
+/* Artboard workspace: every slide side by side; the row scrolls when wide */
+.cc2-boards{display:flex;align-items:center;gap:22px;width:max-content;max-width:100%;overflow-x:auto;margin:0 auto;padding:6px 10px 12px}
+.cc2-board{display:flex;flex-direction:column;gap:7px;flex-shrink:0;cursor:pointer}
+.cc2-board-n{font:600 10px var(--font-mono);letter-spacing:.14em;color:var(--text-faint)}
+.cc2-board.on .cc2-board-n{color:var(--accent)}
+.cc2-board .cc2-device{width:min(38vh,340px)}
+.cc2-board.on .cc2-device{outline:2px solid var(--accent);outline-offset:4px}
+.cc2-board:not(.on):hover .cc2-device{outline:2px solid rgba(255,90,31,0.35);outline-offset:4px}
+.cc2-board-add{align-self:center;flex-shrink:0;width:40px;height:40px;border:1px dashed var(--surface-3);border-radius:10px;background:var(--surface);color:var(--text-sub);font-size:18px;cursor:pointer;transition:border-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
+.cc2-board-add:hover:not(:disabled){border-color:var(--accent);color:var(--accent);border-style:solid}
+.cc2-board-add:disabled{opacity:.35;cursor:default}
 .cc2-device{width:min(64vh,520px);max-width:100%;border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);overflow:hidden;background:var(--surface)}
 .cc2-card{width:100%;height:100%}
-.cc2-nav{display:flex;align-items:center;gap:14px}
-.cc2-nav button{width:32px;height:32px;border:1px solid var(--surface-2);border-radius:50%;background:var(--surface);color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center}
-.cc2-nav button:disabled{opacity:.35;cursor:default}
-.cc2-dots{display:flex;gap:6px}
-.cc2-dot{width:7px;height:7px;border-radius:50%;background:var(--surface-3);cursor:pointer}
-.cc2-dot.on{background:var(--accent)}
 .cc2-stage-foot{font:500 11px var(--font-mono);color:var(--text-faint)}
 .cc2-right{border-left:1px solid var(--surface-2);padding:18px;overflow-y:auto;background:var(--surface)}
 .cc2-pp-head{margin-bottom:16px}
@@ -2418,11 +2423,18 @@ input,textarea,select,button{font-family:inherit}
 .sd-page-menu button{text-align:left;background:transparent;border:none;border-radius:6px;padding:8px 10px;font:500 13px var(--font-body);color:var(--t-text);cursor:pointer}
 .sd-page-menu button:hover{background:var(--t-s2)}
 
-/* Canvas row: the zoomed canvas plus the add-canvas rail on its right.
-   The frame inside is sized to the zoomed dimensions, so nothing overlaps. */
-.sd-canvas-row{display:flex;align-items:center;justify-content:center;gap:14px}
+/* Artboard workspace: every canvas side by side (Photoshop/Figma boards),
+   plus the add-canvas rail after the last one. Frames are sized to the
+   zoomed dimensions, so nothing overlaps; the row itself scrolls
+   horizontally and centers when it fits. */
+.sd-canvas-row{display:flex;align-items:center;gap:26px;width:max-content;max-width:100%;overflow-x:auto;margin:0 auto;padding:4px 10px 14px}
+.sd-board{display:flex;flex-direction:column;gap:7px;flex-shrink:0}
+.sd-board-label{align-self:flex-start;border:none;background:transparent;padding:0 2px;font:600 10px var(--font-mono);letter-spacing:.14em;color:var(--t-text-dim);cursor:pointer}
+.sd-board.active .sd-board-label{color:var(--accent);cursor:default}
+.sd-canvas-row.multi .sd-board.active .canvas-wrap{outline:2px solid var(--accent);outline-offset:4px}
+.sd-canvas-row.multi .sd-board:not(.active):hover .canvas-wrap{outline:2px solid rgba(255,90,31,0.35);outline-offset:4px}
 .sd-page-add-wrap.side{align-self:center}
-.sd-page-add-wrap.side .sd-page-menu{bottom:auto;top:50%;left:calc(100% + 8px);transform:translateY(-50%)}
+.sd-page-add-wrap.side .sd-page-menu{bottom:auto;top:50%;right:calc(100% + 8px);left:auto;transform:translateY(-50%)}
 
 /* Artboard tools: panorama fit + side-by-side toggle */
 .sd-pages-sep{width:1px;height:20px;background:var(--t-border);margin:0 2px}
@@ -2430,19 +2442,6 @@ input,textarea,select,button{font-family:inherit}
 .sd-pages-tool:hover{border-color:var(--t-border2);color:var(--t-ink)}
 .sd-pages-tool.on{border-color:var(--t-ink);color:var(--t-ink);background:var(--t-s2)}
 
-/* Side-by-side filmstrip */
-.sd-filmstrip{display:flex;align-items:flex-start;gap:18px;width:100%;overflow-x:auto;padding:8px 16px 16px;scroll-snap-type:x proximity}
-.sd-film-item{display:flex;flex-direction:column;align-items:center;gap:8px;flex:0 0 auto;scroll-snap-align:center}
-.sd-film-canvas{position:relative;padding:0;border:1px solid rgba(255,255,255,0.14);border-radius:10px;overflow:hidden;background:#080A0E;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.35);transition:border-color var(--duration-fast) var(--ease-out),transform var(--duration-fast) var(--ease-out)}
-.sd-film-canvas:hover{border-color:rgba(255,255,255,0.4);transform:translateY(-2px)}
-.sd-film-item.active .sd-film-canvas{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 8px 24px rgba(0,0,0,0.35)}
-.sd-film-cap{display:flex;align-items:center;gap:2px}
-.sd-film-num{font:600 11px var(--font-mono);color:rgba(255,255,255,0.65);letter-spacing:0.08em;padding:0 4px;font-variant-numeric:tabular-nums}
-.sd-filmstrip .sd-page-move,.sd-filmstrip .sd-page-del{color:rgba(255,255,255,0.5)}
-.sd-filmstrip .sd-page-move:hover:not(:disabled),.sd-filmstrip .sd-page-del:hover:not(:disabled){background:rgba(255,255,255,0.12);color:#fff}
-.sd-filmstrip .sd-page-del:hover:not(:disabled){color:var(--t-red)}
-.sd-film-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;width:120px;border:1px dashed rgba(255,255,255,0.2);border-radius:10px;background:transparent;color:rgba(255,255,255,0.55);cursor:pointer;font:600 12px var(--font-body);transition:border-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
-.sd-film-add:hover{border-color:var(--accent);color:#fff}
 
 /* ─── Post editor: Buffer-style cleanup ──────────────────────────────
    1) THE overlap fix: the body is a fixed-height flex column, so its

@@ -181,27 +181,26 @@ export function CarouselComposer({ row, onClose }) {
         </div>
 
         <div className="cc2-stage">
-          <div className="cc2-device" style={{ aspectRatio: aspect }}>
-            <div className="cc2-card" style={{ background: slide.bg, color: slide.fg, position: "relative", overflow: "hidden" }}>
-              {slide.bgImage && <>
-                <SlicedBg url={slide.bgImage} span={slideSpanInfo(cur)} />
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,0.55),rgba(0,0,0,0.08) 55%,rgba(0,0,0,0.32))", pointerEvents: "none" }} />
-              </>}
-              <div style={{ position: "relative", height: "100%" }}>
-                <CarouselSlideRender slide={slide} />
+          {/* Artboard workspace — every slide side by side (Figma-board style).
+              Click a slide to edit it in the properties panel. */}
+          <div className="cc2-boards">
+            {slides.map((s, i) => (
+              <div key={s.id} className={"cc2-board" + (i === cur ? " on" : "")} onClick={() => setCur(i)} role="button" aria-label={`Edit slide ${i + 1}`}>
+                <div className="cc2-board-n">{String(i + 1).padStart(2, "0")}</div>
+                <div className="cc2-device" style={{ aspectRatio: aspect }}>
+                  <div className="cc2-card" style={{ background: s.bg, color: s.fg, position: "relative", overflow: "hidden" }}>
+                    {s.bgImage && <>
+                      <SlicedBg url={s.bgImage} span={slideSpanInfo(i)} />
+                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,0.55),rgba(0,0,0,0.08) 55%,rgba(0,0,0,0.32))", pointerEvents: "none" }} />
+                    </>}
+                    <div style={{ position: "relative", height: "100%" }}>
+                      <CarouselSlideRender slide={s} />
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="cc2-nav">
-            <button onClick={() => setCur((c) => Math.max(0, c - 1))} disabled={cur === 0} aria-label="Previous slide">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="m10 3-5 5 5 5" /></svg>
-            </button>
-            <div className="cc2-dots">
-              {slides.map((_, i) => <div key={i} className={"cc2-dot " + (i === cur ? "on" : "")} onClick={() => setCur(i)} />)}
-            </div>
-            <button onClick={() => setCur((c) => Math.min(slides.length - 1, c + 1))} disabled={cur === slides.length - 1} aria-label="Next slide">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="m6 3 5 5-5 5" /></svg>
-            </button>
+            ))}
+            <button className="cc2-board-add" onClick={add} disabled={slides.length >= 10} title="Add slide">+</button>
           </div>
           <div className="cc2-stage-foot">
             Slide {cur + 1} of {slides.length} · {platform === "instagram" ? "Instagram · 1080×1080" : "LinkedIn · 1200×960"}
