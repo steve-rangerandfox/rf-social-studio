@@ -2455,8 +2455,10 @@ input,textarea,select,button{font-family:inherit}
 .sd-board{display:flex;flex-direction:column;gap:7px;flex-shrink:0}
 .sd-board-label{align-self:flex-start;border:none;background:transparent;padding:0 2px;font:600 10px var(--font-mono);letter-spacing:.14em;color:var(--t-text-dim);cursor:pointer}
 .sd-board.active .sd-board-label{color:var(--accent);cursor:default}
-/* Canvas toolbar above the active board — number left, move/delete right */
-.sd-board-bar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+/* Canvas toolbar above the active board — number left, move/delete right.
+   Fixed height and rendered on EVERY board (inactive ones show only the
+   label) so activating a canvas never changes its vertical position. */
+.sd-board-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;height:22px}
 .sd-board-tools{display:flex;align-items:center;gap:2px}
 .sd-board-tool{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid transparent;background:transparent;border-radius:6px;color:var(--t-text-dim);cursor:pointer;font-size:14px;line-height:1;padding:0;transition:background var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
 .sd-board-tool:hover:not(:disabled){background:var(--t-s2);color:var(--t-ink);border-color:var(--t-border)}
