@@ -1080,12 +1080,18 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     return canvas;
   };
 
+  // Download every canvas as its own PNG (one file per frame for a multi-canvas
+  // story) so a manual post can rebuild the whole story by hand.
   const exportAsPng = async () => {
-    const canvas = await renderCanvas();
-    const link = document.createElement("a");
-    link.download = `story-${Date.now()}.png`;
-    link.href = canvas.toDataURL("image/png"); // throws on a tainted canvas
-    link.click();
+    for (let i = 0; i < pages.length; i++) {
+      const canvas = await renderCanvas(pages[i].elements, spanInfoFor(i));
+      const link = document.createElement("a");
+      link.download = pages.length > 1 ? `story-frame-${i + 1}.png` : `story-${Date.now()}.png`;
+      link.href = canvas.toDataURL("image/png"); // throws on a tainted canvas
+      link.click();
+      // Stagger downloads — browsers block a rapid burst of programmatic clicks.
+      if (i < pages.length - 1) await new Promise((r) => setTimeout(r, 250));
+    }
   };
 
   const renderToBlob = async (els, spanInfo) => {
@@ -1148,14 +1154,35 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     setManualError("");
     setPostState("posting");
     try {
-      const urls = [];
+      const frames = [];
       for (let i = 0; i < pages.length; i++) {
-        const blob = await renderToBlob(pages[i].elements, spanInfoFor(i));
-        const file = new File([blob], `story-${row?.id || "draft"}-${i + 1}.png`, { type: "image/png" });
-        urls.push(await uploadAssetWithProgress(file, () => {}));
+        const els = pages[i].elements;
+        const bg = els.find(e => e.locked);
+        // Overlays (text or a placed image) can't be composited onto a video
+        // via the Graph API, so a canvas only publishes as a real video frame
+        // when its video background stands alone; otherwise it's flattened.
+        const hasOverlay = els.some(e => !e.locked && ((e.type === "text" && (e.content || "").trim()) || (e.type === "image" && e.url)));
+        // Only a fully-uploaded (public) video can be published directly; a
+        // still-uploading blob: URL isn't reachable by the API, so flatten it.
+        if (bg?.mediaType === "video" && bg.url && !bg.url.startsWith("blob:") && !hasOverlay) {
+          frames.push({ url: bg.url, kind: "video" });
+        } else {
+          const blob = await renderToBlob(els, spanInfoFor(i));
+          const file = new File([blob], `story-${row?.id || "draft"}-${i + 1}.png`, { type: "image/png" });
+          frames.push({ url: await uploadAssetWithProgress(file, () => {}), kind: "image" });
+        }
       }
       // A fresh render supersedes any partial publish from a previous attempt.
-      onUpdate?.({ mediaUrl: urls[0], thumbnailUrl: urls[0], storyFrameUrls: urls, storyFramesPosted: 0, storyFrameIds: [] });
+      // Thumbnail prefers the first flattened (image) frame — a raw video URL
+      // won't render as a still.
+      const firstImage = frames.find(f => f.kind === "image");
+      onUpdate?.({
+        mediaUrl: frames[0].url,
+        thumbnailUrl: (firstImage || frames[0]).url,
+        storyFrames: frames,
+        storyFramesPosted: 0,
+        storyFrameIds: [],
+      });
       setPostState("done");
     } catch {
       setPostState("idle");
@@ -1237,7 +1264,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
             {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Rendering&hellip;</span></div>}
             {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">{pages.length>1?`Saved ${pages.length} frames`:"Saved"} &mdash; auto-publishes on schedule</span></div>}
             {manualError&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.red,maxWidth:260,lineHeight:1.3}}>{manualError}</span>}
-            {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:260,lineHeight:1.3}}>Image downloaded{storyLink?(manualCopied?" + link copied":" (copy the link manually)"):""} — add the Link sticker in Instagram.</span>}
+            {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:260,lineHeight:1.3}}>{pages.length>1?`${pages.length} frames downloaded`:"Image downloaded"}{storyLink?(manualCopied?" + link copied":" (copy the link manually)"):""} — add the Link sticker in Instagram.</span>}
             <button className="btn btn-ghost btn-sm"
               onClick={()=>{const opening=sideTab!=="ai";setSideTab(opening?"ai":null);if(opening&&aiTips.length===0)runAICopilot();}}>
               {sideTab==="ai"?"Hide AI":"AI Refine"}

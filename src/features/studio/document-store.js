@@ -176,8 +176,11 @@ export function normalizeRow(row, actor = "system") {
     // designer saves pages; storyElements stays as page 0 for back-compat
     // (scheduler/export read storyElements).
     storyPages: Array.isArray(row.storyPages) ? row.storyPages : null,
-    // Multi-frame story publishing: one flattened frame URL per canvas, plus
-    // resume bookkeeping the scheduler writes back after a partial publish.
+    // Multi-frame story publishing: one frame per canvas as { url, kind }
+    // (kind "image" | "video"), plus resume bookkeeping the scheduler writes
+    // back after a partial publish. storyFrameUrls is the legacy (image-only)
+    // shape, still read as a fallback.
+    storyFrames: Array.isArray(row.storyFrames) ? row.storyFrames : null,
     storyFrameUrls: Array.isArray(row.storyFrameUrls) ? row.storyFrameUrls : null,
     storyFrameIds: Array.isArray(row.storyFrameIds) ? row.storyFrameIds : null,
     storyFramesPosted: Number.isInteger(row.storyFramesPosted) ? row.storyFramesPosted : 0,

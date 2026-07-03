@@ -57,17 +57,26 @@ function platformToMediaType(platform) {
   return "IMAGE"; // ig_post default
 }
 
-/** The ordered list of media URLs to publish for a row.
- *  A multi-canvas story carries one flattened frame per canvas in
- *  `storyFrameUrls`; everything else publishes a single media. Falls back to
- *  the single `mediaUrl` when a story has no frame array (older drafts). */
+/** The ordered list of media frames to publish for a row, each `{ url, kind }`
+ *  where kind is "image" or "video". A multi-canvas story carries one frame
+ *  per canvas in `storyFrames`; a pure-video canvas is kind "video" (published
+ *  as the raw video), everything else is a flattened "image". Falls back to the
+ *  legacy `storyFrameUrls` (all images) and then the single `mediaUrl`. */
 function resolveStoryFrames(row) {
-  if (row.platform === "ig_story" && Array.isArray(row.storyFrameUrls)) {
-    const frames = row.storyFrameUrls.filter(Boolean);
-    if (frames.length) return frames;
+  if (row.platform === "ig_story") {
+    if (Array.isArray(row.storyFrames)) {
+      const frames = row.storyFrames
+        .filter((f) => f && f.url)
+        .map((f) => ({ url: f.url, kind: f.kind === "video" ? "video" : "image" }));
+      if (frames.length) return frames;
+    }
+    if (Array.isArray(row.storyFrameUrls)) {
+      const frames = row.storyFrameUrls.filter(Boolean).map((url) => ({ url, kind: "image" }));
+      if (frames.length) return frames;
+    }
   }
   const single = row.mediaUrl || row.imageUrl || null;
-  return single ? [single] : [];
+  return single ? [{ url: single, kind: "image" }] : [];
 }
 
 /** Find rows that are due for publishing right now. */
@@ -215,13 +224,15 @@ export const publishScheduledPosts = inngest.createFunction(
 
           try {
             if (isStory) {
-              // Each canvas publishes as its own STORIES frame, in order.
-              // Frames are flattened PNGs, so they go up as image_url and IG
-              // ignores captions on stories.
+              // Each canvas publishes as its own STORIES frame, in order. A
+              // flattened canvas goes up as image_url; a stand-alone video
+              // canvas as video_url. IG ignores captions on stories.
               for (let i = startIdx; i < frames.length; i++) {
+                const frame = frames[i];
                 const { mediaId } = await publishInstagramPost({
                   userToken: tokenRecord.igUserToken,
-                  imageUrl: frames[i],
+                  imageUrl: frame.kind === "video" ? undefined : frame.url,
+                  videoUrl: frame.kind === "video" ? frame.url : undefined,
                   caption: "",
                   mediaType: "STORIES",
                 });
@@ -240,10 +251,11 @@ export const publishScheduledPosts = inngest.createFunction(
             } else {
               const mediaType = platformToMediaType(row.platform);
               const isVideo = mediaType === "REELS" || mediaType === "VIDEO";
+              const single = frames[0].url;
               const { mediaId } = await publishInstagramPost({
                 userToken: tokenRecord.igUserToken,
-                imageUrl: isVideo ? undefined : frames[0],
-                videoUrl: isVideo ? frames[0] : undefined,
+                imageUrl: isVideo ? undefined : single,
+                videoUrl: isVideo ? single : undefined,
                 caption: row.caption || "",
                 mediaType,
               });

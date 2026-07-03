@@ -29,32 +29,52 @@ describe("platformToMediaType", () => {
 });
 
 describe("resolveStoryFrames", () => {
-  it("returns each frame for a multi-canvas story", () => {
+  it("returns each frame with its kind for a multi-canvas story", () => {
     expect(resolveStoryFrames({
       platform: "ig_story",
-      storyFrameUrls: ["a.png", "b.png", "c.png"],
-      mediaUrl: "a.png",
-    })).toEqual(["a.png", "b.png", "c.png"]);
+      storyFrames: [
+        { url: "a.png", kind: "image" },
+        { url: "clip.mp4", kind: "video" },
+        { url: "c.png", kind: "image" },
+      ],
+    })).toEqual([
+      { url: "a.png", kind: "image" },
+      { url: "clip.mp4", kind: "video" },
+      { url: "c.png", kind: "image" },
+    ]);
   });
 
-  it("drops null / empty frames", () => {
+  it("drops frames without a url and defaults an unknown kind to image", () => {
     expect(resolveStoryFrames({
       platform: "ig_story",
-      storyFrameUrls: ["a.png", null, "", "b.png"],
-    })).toEqual(["a.png", "b.png"]);
+      storyFrames: [{ url: "a.png" }, { kind: "video" }, null, { url: "b.png", kind: "weird" }],
+    })).toEqual([
+      { url: "a.png", kind: "image" },
+      { url: "b.png", kind: "image" },
+    ]);
+  });
+
+  it("falls back to legacy storyFrameUrls as image frames", () => {
+    expect(resolveStoryFrames({
+      platform: "ig_story",
+      storyFrameUrls: ["a.png", null, "b.png"],
+    })).toEqual([
+      { url: "a.png", kind: "image" },
+      { url: "b.png", kind: "image" },
+    ]);
   });
 
   it("falls back to the single mediaUrl when a story has no frame array", () => {
-    expect(resolveStoryFrames({ platform: "ig_story", mediaUrl: "solo.png" })).toEqual(["solo.png"]);
-    expect(resolveStoryFrames({ platform: "ig_story", storyFrameUrls: [], mediaUrl: "solo.png" })).toEqual(["solo.png"]);
+    expect(resolveStoryFrames({ platform: "ig_story", mediaUrl: "solo.png" })).toEqual([{ url: "solo.png", kind: "image" }]);
+    expect(resolveStoryFrames({ platform: "ig_story", storyFrames: [], mediaUrl: "solo.png" })).toEqual([{ url: "solo.png", kind: "image" }]);
   });
 
-  it("ignores storyFrameUrls for non-story platforms (single media only)", () => {
+  it("ignores story frames for non-story platforms (single media only)", () => {
     expect(resolveStoryFrames({
       platform: "ig_post",
-      storyFrameUrls: ["a.png", "b.png"],
+      storyFrames: [{ url: "a.png", kind: "image" }, { url: "b.png", kind: "image" }],
       mediaUrl: "post.png",
-    })).toEqual(["post.png"]);
+    })).toEqual([{ url: "post.png", kind: "image" }]);
   });
 
   it("returns [] when there is no media at all", () => {
@@ -63,7 +83,7 @@ describe("resolveStoryFrames", () => {
   });
 
   it("uses imageUrl as a last-resort single fallback", () => {
-    expect(resolveStoryFrames({ platform: "ig_post", imageUrl: "img.png" })).toEqual(["img.png"]);
+    expect(resolveStoryFrames({ platform: "ig_post", imageUrl: "img.png" })).toEqual([{ url: "img.png", kind: "image" }]);
   });
 });
 
