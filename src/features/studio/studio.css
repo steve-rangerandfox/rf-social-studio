@@ -2180,6 +2180,11 @@ input,textarea,select,button{font-family:inherit}
 .cc2-thumb-ctrls button{width:20px;height:16px;border:none;background:var(--surface-1);color:var(--text-dim);border-radius:3px;cursor:pointer;font-size:11px;line-height:1}
 .cc2-thumb-ctrls button:disabled{opacity:.35;cursor:default}
 .cc2-add{margin-top:4px;padding:8px;border:1px dashed var(--surface-3);border-radius:var(--radius-md);background:none;color:var(--text-dim);cursor:pointer;font:500 12px var(--font-body)}
+.cc2-photo-fit{margin-top:12px;padding-top:12px;border-top:1px solid var(--surface-2)}
+.cc2-photo-btn{width:100%;padding:9px;border:1px solid var(--surface-3);border-radius:var(--radius-md);background:var(--surface);color:var(--text-sub);cursor:pointer;font:600 12px var(--font-body);transition:border-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
+.cc2-photo-btn:hover:not(:disabled){border-color:var(--text-dim);color:var(--text)}
+.cc2-photo-btn:disabled{opacity:0.6;cursor:default}
+.cc2-photo-btn.on{border-color:var(--accent);color:var(--accent)}
 .cc2-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;overflow:auto}
 .cc2-device{width:min(64vh,520px);max-width:100%;border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);overflow:hidden;background:var(--surface)}
 .cc2-card{width:100%;height:100%}

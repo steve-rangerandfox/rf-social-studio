@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useStudio } from "../StudioContext.jsx";
+import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 
 // Multi-slide carousel composer for the active post. IG (1:1) or
 // LinkedIn (1.25:1), up to 10 slides. Slides persist onto the row as
@@ -52,6 +53,41 @@ export function CarouselComposer({ row, onClose }) {
 
   const slide = slides[cur] || slides[0];
   const aspect = platform === "linkedin" ? "1.25 / 1" : "1 / 1";
+
+  // ── Seamless photo: fit one image across every slide ──
+  // Slides that share a `bgSpanId` render slices of the same image; each
+  // slice is derived from the slide's position among the sharing slides, so
+  // add / delete / reorder re-spread the photo automatically.
+  const photoRef = useRef(null);
+  const [photoUp, setPhotoUp] = useState(0); // 0 = idle, else upload progress
+  const hasPhoto = slides.some((s) => s.bgImage);
+  const slideSpanInfo = (i) => {
+    const sid = slides[i]?.bgSpanId;
+    if (!sid) return null;
+    const members = [];
+    slides.forEach((s, idx) => { if (s.bgSpanId === sid) members.push(idx); });
+    if (members.length < 2) return null;
+    return { total: members.length, index: members.indexOf(i) };
+  };
+  const fitPhotoAcross = async (file) => {
+    if (!file) return;
+    try { checkFileSize(file); } catch (err) { showToast(err.message); return; }
+    const previewUrl = URL.createObjectURL(file);
+    const spanId = uniqueId("sp");
+    setSlides((ss) => ss.map((s) => ({ ...s, bgImage: previewUrl, bgSpanId: spanId, fg: "#fafafa" })));
+    setPhotoUp(0.01);
+    try {
+      const url = await uploadAssetWithProgress(file, (p) => setPhotoUp(Math.max(0.01, p)));
+      setSlides((ss) => ss.map((s) => (s.bgSpanId === spanId ? { ...s, bgImage: url } : s)));
+      URL.revokeObjectURL(previewUrl);
+      showToast("Photo fitted across all slides.");
+    } catch (err) {
+      showToast(err?.message || "Upload failed");
+    } finally {
+      setPhotoUp(0);
+    }
+  };
+  const removePhoto = () => setSlides((ss) => ss.map((s) => ({ ...s, bgImage: undefined, bgSpanId: undefined })));
 
   // Debounced persist onto the row.
   useEffect(() => {
@@ -116,8 +152,9 @@ export function CarouselComposer({ row, onClose }) {
             {slides.map((s, i) => (
               <div key={s.id} className={"cc2-thumb " + (i === cur ? "on" : "")} onClick={() => setCur(i)}>
                 <div className="cc2-thumb-n">{String(i + 1).padStart(2, "0")}</div>
-                <div className="cc2-thumb-prev" style={{ background: s.bg, color: s.fg, aspectRatio: aspect }}>
-                  <div className="cc2-thumb-lbl">{(s.title || "").split("\n")[0].slice(0, 22)}</div>
+                <div className="cc2-thumb-prev" style={{ background: s.bg, color: s.fg, aspectRatio: aspect, position: "relative", overflow: "hidden" }}>
+                  {s.bgImage && <SlicedBg url={s.bgImage} span={slideSpanInfo(i)} />}
+                  <div className="cc2-thumb-lbl" style={s.bgImage ? { position: "relative" } : undefined}>{(s.title || "").split("\n")[0].slice(0, 22)}</div>
                 </div>
                 <div className="cc2-thumb-ctrls">
                   <button onClick={(e) => { e.stopPropagation(); move(i, -1); }} disabled={i === 0} title="Up">{"↑"}</button>
@@ -128,12 +165,26 @@ export function CarouselComposer({ row, onClose }) {
             ))}
             <button className="cc2-add" onClick={add} disabled={slides.length >= 10}>+ Add slide</button>
           </div>
+          <div className="cc2-photo-fit">
+            <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { fitPhotoAcross(e.target.files?.[0]); e.target.value = ""; }} />
+            {hasPhoto
+              ? <button className="cc2-photo-btn on" onClick={removePhoto} title="Remove the photo from every slide">Remove photo</button>
+              : <button className="cc2-photo-btn" onClick={() => photoRef.current?.click()} disabled={photoUp > 0} title="Split one image seamlessly across every slide (the seamless-swipe look)">
+                  {photoUp > 0 ? `Uploading ${Math.round(photoUp * 100)}%` : "◨ Fit photo across slides"}
+                </button>}
+          </div>
         </div>
 
         <div className="cc2-stage">
           <div className="cc2-device" style={{ aspectRatio: aspect }}>
-            <div className="cc2-card" style={{ background: slide.bg, color: slide.fg }}>
-              <CarouselSlideRender slide={slide} />
+            <div className="cc2-card" style={{ background: slide.bg, color: slide.fg, position: "relative", overflow: "hidden" }}>
+              {slide.bgImage && <>
+                <SlicedBg url={slide.bgImage} span={slideSpanInfo(cur)} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,0.55),rgba(0,0,0,0.08) 55%,rgba(0,0,0,0.32))", pointerEvents: "none" }} />
+              </>}
+              <div style={{ position: "relative", height: "100%" }}>
+                <CarouselSlideRender slide={slide} />
+              </div>
             </div>
           </div>
           <div className="cc2-nav">
@@ -211,6 +262,15 @@ export function CarouselComposer({ row, onClose }) {
       </div>
     </div>
   );
+}
+
+// One slice of a photo fitted across N slides. When spanning, the image is
+// rendered N slides wide and shifted so only this slide's slice shows.
+function SlicedBg({ url, span }) {
+  const style = span && span.total > 1
+    ? { position: "absolute", top: 0, left: `${-span.index * 100}%`, width: `${span.total * 100}%`, height: "100%", objectFit: "cover" }
+    : { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" };
+  return <img src={url} alt="" draggable="false" style={style} onError={(e) => { e.target.style.display = "none"; }} />;
 }
 
 function LayoutMini({ kind }) {
