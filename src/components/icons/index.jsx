@@ -1,9 +1,9 @@
 import React from "react";
 
 // Bespoke icon set — replaces lucide-react across the studio.
-// Design language: 1.25px stroke, square caps, miter joins, 16px
-// viewBox, no auto-rounded corners. Reads tighter and more authored
-// than lucide's 2px rounded defaults.
+// Design language: Figma-grade precision — constant ~1px visual stroke,
+// butt caps, miter joins, 16px viewBox. Round caps at hairline weights
+// read soft and blobby; flat terminals keep every line crisp.
 //
 // API matches lucide: { size, color, className, style, ...rest } so
 // drop-in replacement is mechanical.
@@ -21,12 +21,11 @@ function asProps({ size = 18, color, className, style, ...rest }) {
     viewBox: "0 0 16 16",
     fill: "none",
     stroke: color || "currentColor",
-    // Normalize to a constant ~1.25px *visual* stroke at any size. Stroke is
-    // in the 16-unit viewBox, so a fixed 1.5 scaled up to ~2.2px on larger
-    // icons — reading thick/chunky.
-    strokeWidth: 20 / s,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
+    // Normalize to a constant ~1px *visual* stroke at any size (stroke is
+    // specified in the 16-unit viewBox, so it must shrink as size grows).
+    strokeWidth: 16 / s,
+    strokeLinecap: "butt",
+    strokeLinejoin: "miter",
     className,
     style,
     "aria-hidden": "true",
@@ -204,7 +203,10 @@ export function Trash(props) {
   const p = asProps(props);
   return (
     <svg {...p}>
-      <path d="M3 4 H13 M6 4 V2.5 H10 V4 M5 4 V13 H11 V4" />
+      <path d="M3 4.5 H13" />
+      <path d="M6.5 4.5 V3 H9.5 V4.5" />
+      <path d="M4.5 4.5 V13.5 H11.5 V4.5" />
+      <path d="M6.75 7 V11 M9.25 7 V11" />
     </svg>
   );
 }
@@ -382,9 +384,9 @@ export function TypeIcon(props) {
   const p = asProps(props);
   return (
     <svg {...p}>
-      <path d="M3 4 V3 H13 V4" />
-      <path d="M8 3 V13" />
-      <path d="M5 13 H11" />
+      <path d="M3.5 5 V3.5 H12.5 V5" />
+      <path d="M8 3.5 V12.5" />
+      <path d="M6 12.5 H10" />
     </svg>
   );
 }
@@ -414,8 +416,8 @@ export function Film(props) {
   const p = asProps(props);
   return (
     <svg {...p}>
-      <rect x="2.5" y="3" width="11" height="10" />
-      <path d="M2.5 5.5 H4 V3 M12 3 V5.5 H13.5 M2.5 8 H13.5 M2.5 10.5 H4 V13 M12 13 V10.5 H13.5" />
+      <rect x="2.5" y="3.5" width="11" height="9" />
+      <path d="M6.75 6 L10 8 L6.75 10 Z" fill={p.stroke} stroke="none" />
     </svg>
   );
 }

@@ -166,7 +166,7 @@ export function CarouselComposer({ row, onClose }) {
       <div className="cc2-topbar">
         <div className="cc2-top-l">
           <button className="cc2-close" onClick={onClose} aria-label="Close">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.1"><path d="m4 4 8 8M12 4l-8 8" /></svg>
           </button>
           <div className="cc2-breadcrumb">
             <span className="cc2-bc-k">Post · {(row?.note || row?.caption || "Untitled").slice(0, 28)}</span>
