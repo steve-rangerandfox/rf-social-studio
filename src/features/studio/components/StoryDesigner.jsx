@@ -1837,23 +1837,23 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   <span style={{fontSize:9,fontWeight:700,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",marginRight:4}}>{selectedIds.size} sel</span>
                 )}
                 <button onClick={() => alignSelected("left")} title="Align left" aria-label="Align left">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="1" x2="1" y2="13" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="3" y="8" width="5" height="3" rx="0.5" fill="currentColor"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="1" x2="1" y2="13" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="3" y="8" width="5" height="3" rx="0.5" fill="currentColor"/></svg>
                 </button>
                 <button onClick={() => alignSelected("center-h")} title="Align center" aria-label="Align center horizontally">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="4" y="8" width="6" height="3" rx="0.5" fill="currentColor"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="4" y="8" width="6" height="3" rx="0.5" fill="currentColor"/></svg>
                 </button>
                 <button onClick={() => alignSelected("right")} title="Align right" aria-label="Align right">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="13" y1="1" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="6" y="8" width="5" height="3" rx="0.5" fill="currentColor"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="13" y1="1" x2="13" y2="13" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="6" y="8" width="5" height="3" rx="0.5" fill="currentColor"/></svg>
                 </button>
                 <div className="sd-align-divider" />
                 <button onClick={() => alignSelected("top")} title="Align top" aria-label="Align top">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="1" x2="13" y2="1" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="3" width="3" height="5" rx="0.5" fill="currentColor"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="1" x2="13" y2="1" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="3" width="3" height="5" rx="0.5" fill="currentColor"/></svg>
                 </button>
                 <button onClick={() => alignSelected("center-v")} title="Align middle" aria-label="Align center vertically">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="4" width="3" height="6" rx="0.5" fill="currentColor"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="4" width="3" height="6" rx="0.5" fill="currentColor"/></svg>
                 </button>
                 <button onClick={() => alignSelected("bottom")} title="Align bottom" aria-label="Align bottom">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="13" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="6" width="3" height="5" rx="0.5" fill="currentColor"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="13" x2="13" y2="13" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="6" width="3" height="5" rx="0.5" fill="currentColor"/></svg>
                 </button>
               </div>
             )}
