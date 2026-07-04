@@ -321,6 +321,7 @@ function Footer() {
             <a href="#workflow">Workflow</a>
             <a href="#detail">Details</a>
             <Link to="/pricing">Pricing</Link>
+            <Link to="/tools/carousel-splitter">Free carousel splitter</Link>
             <Link to="/about">About</Link>
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms">Terms</Link>

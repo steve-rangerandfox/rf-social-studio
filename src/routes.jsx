@@ -30,3 +30,6 @@ export const NotFound = lazy(() =>
 export const ReviewPage = lazy(() =>
   import("./components/ReviewPage.jsx").then((m) => ({ default: m.ReviewPage })),
 );
+export const CarouselSplitter = lazy(() =>
+  import("./components/CarouselSplitter.jsx").then((m) => ({ default: m.CarouselSplitter })),
+);
