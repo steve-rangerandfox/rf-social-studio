@@ -163,6 +163,8 @@ export function ReviewPage() {
 }
 
 const REVIEW_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600,700&display=swap');
 .rvw-root{min-height:100vh;background:#fafafa;color:#09090b;font-family:'Switzer','Helvetica Neue',Arial,system-ui,sans-serif}
 .rvw-head{display:flex;align-items:baseline;justify-content:space-between;max-width:720px;margin:0 auto;padding:28px 24px 0}
 .rvw-brand{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:18px;letter-spacing:-0.03em}

@@ -302,7 +302,7 @@ function BrandTab({ brandProfile, onBrandProfileUpdate }) {
       </div>
 
       {showLearn ? (
-        <div className="settings-card settings-mt-8" style={{ borderColor: "rgba(229,106,11,0.28)" }}>
+        <div className="settings-card settings-mt-8" style={{ borderColor: "rgba(255,90,31,0.28)" }}>
           <div className="settings-card-title" style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <AIMark size={12} /> Learn from website
           </div>
