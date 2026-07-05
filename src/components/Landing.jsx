@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "./landing.css";
 import { Kicker, HeroArt, ChaosArt, CarouselArt, StoryArt } from "./LandingArt.jsx";
+import { Keyboard, CalendarIcon, Stack, Globe, CheckCircle, Person } from "./icons/index.jsx";
 
 // Public landing — Relay editorial marketing site, ported from the
 // design handoff. The prototype's Tweaks panel + accent/density toggles
@@ -66,14 +67,15 @@ function Hero() {
       <div className="lp-container">
         <div className="lp-hero-grid">
           <div className="lp-hero-copy lp-reveal">
-            <Kicker num="01" label="Editorial calendar for studios" />
+            <Kicker num="01" label="The design-first social studio" />
             <h1>
-              the calendar for studios that run client work.{" "}
-              <em>your queue, finally readable.</em>
+              design seamless carousels and stories.{" "}
+              <em>publish them on schedule.</em>
             </h1>
             <p className="lp-hero-sub">
-              One workspace for boutique studios managing Instagram, LinkedIn, and
-              TikTok for brand clients. One queue, one composer, no tab-switching.
+              Relay is one workspace for studios running client social — a real canvas
+              for carousels and multi-frame stories, an editorial queue your clients can
+              approve from a link, and Instagram + LinkedIn publishing built in.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/app" className="lp-btn lp-btn-primary lp-btn-large">
@@ -129,32 +131,74 @@ function Workflow() {
             design the post. don&rsquo;t just schedule it.
           </h2>
           <p className="lp-pricing-sub" style={{ margin: 0 }}>
-            Most planners stop at a caption box. Relay has a full carousel composer and a story designer built in &mdash; so the creative happens where the calendar lives, with nothing exported to another app.
+            Most planners stop at a caption box. Relay has a full carousel designer and a multi-artboard story canvas built in &mdash; so the creative happens where the calendar lives, and publishes itself on schedule.
           </p>
         </div>
 
         <div className="lp-pair lp-reveal">
           <div className="lp-pair-copy">
-            <Kicker num="3.1" label="Carousel designer" />
-            <h3 className="lp-pair-h">build the whole carousel, slide by slide.</h3>
+            <Kicker num="3.1" label="Seamless carousels" />
+            <h3 className="lp-pair-h">one photo, split seamlessly across every slide.</h3>
             <p className="lp-pair-body">
-              Five editorial layouts, your palette, drag to reorder. Design a 2&ndash;10 slide carousel and publish it straight to Instagram &mdash; no separate canvas tool, no re-upload, no leaving the studio.
+              Fit a single image edge-to-edge across a 2&ndash;10 slide carousel &mdash; the swipe reads as one continuous frame. Five editorial layouts on top, then Relay renders every slide and publishes the carousel to Instagram at its scheduled time.
             </p>
-            <div className="lp-pair-feature">Title · number · photo · quote · CTA layouts · live preview</div>
+            <div className="lp-pair-feature">Seamless photo split · title / number / quote / CTA layouts · auto-publish</div>
+            <Link to="/tools/carousel-splitter" className="lp-pair-toollink">
+              Just need the split? Use the free carousel splitter →
+            </Link>
           </div>
           <div className="lp-pair-art"><CarouselArt /></div>
         </div>
 
         <div className="lp-pair lp-pair-r lp-reveal">
           <div className="lp-pair-copy">
-            <Kicker num="3.2" label="Story designer" />
-            <h3 className="lp-pair-h">stories, on a real canvas.</h3>
+            <Kicker num="3.2" label="Story artboards" />
+            <h3 className="lp-pair-h">stories on artboards &mdash; published as every frame.</h3>
             <p className="lp-pair-body">
-              A 9:16 editor with layers, snap, and live preview. Compose the story where you plan it, then send it live &mdash; the design and the schedule never leave the same place.
+              A Figma-style canvas with side-by-side artboards: pan one image across all of them, layer type over video, and Relay publishes each canvas as its own story frame, in order, at the scheduled time.
             </p>
-            <div className="lp-pair-feature">Layers · snap-to-grid · type &amp; image · instant preview</div>
+            <div className="lp-pair-feature">Multi-canvas artboards · panorama fit · layers &amp; snap · multi-frame auto-publish</div>
           </div>
           <div className="lp-pair-art"><StoryArt /></div>
+        </div>
+
+        <div className="lp-pair lp-reveal">
+          <div className="lp-pair-copy">
+            <Kicker num="3.3" label="Client approvals" />
+            <h3 className="lp-pair-h">clients approve from a link. no login, no exports.</h3>
+            <p className="lp-pair-body">
+              Send one private link &mdash; your client sees everything awaiting sign-off, taps Approve or requests changes, and their notes land on the post as comments. No accounts to manage, no screenshots in Slack, no &ldquo;which version is this?&rdquo;
+            </p>
+            <div className="lp-pair-feature">One shareable link · approve / request changes · revoke anytime</div>
+          </div>
+          <div className="lp-pair-art">
+            <div className="lp-approve-mock">
+              <div className="lp-approve-head">
+                <span className="lp-approve-brand">Relay</span>
+                <span className="lp-approve-studio">@rangerandfox</span>
+              </div>
+              <div className="lp-approve-title">2 posts need your sign-off.</div>
+              <div className="lp-approve-card">
+                <div className="lp-approve-thumb" />
+                <div className="lp-approve-body">
+                  <div className="lp-approve-meta">Instagram post · Thu, Jul 16, 9:30 AM</div>
+                  <div className="lp-approve-note">New work — the Whitworth identity, in public today.</div>
+                  <div className="lp-approve-actions">
+                    <span className="lp-approve-btn primary">Approve</span>
+                    <span className="lp-approve-btn">Request changes</span>
+                  </div>
+                </div>
+              </div>
+              <div className="lp-approve-card done">
+                <div className="lp-approve-thumb alt" />
+                <div className="lp-approve-body">
+                  <div className="lp-approve-meta">Instagram carousel · Fri, Jul 17, 10:00 AM</div>
+                  <div className="lp-approve-note">Case study — rebranding Nordlys Coffee.</div>
+                  <div className="lp-approve-ok">Approved ✓</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -162,26 +206,13 @@ function Workflow() {
 }
 
 const DETAIL_ITEMS = [
-  { n: "04.1", t: "Command palette", p: "Every action, one keystroke away. ⌘K opens commands across navigation, filter, status and publish — no menus, no hunt." },
-  { n: "04.2", t: "Calendar view", p: "Month, week, day. Quiet weeks read quiet. Drag a card to reschedule; the composer follows." },
-  { n: "04.3", t: "Bulk operations", p: "Multi-select across clients. Change status, reassign, reschedule in one action. Ten-second undo on everything." },
-  { n: "04.4", t: "Offline-first", p: "Works on the train. Every edit persists locally and syncs the moment you're back." },
-  { n: "04.5", t: "Story designer", p: "A small canvas tool for designing Instagram stories without leaving the workspace." },
-  { n: "04.6", t: "Team & assignees", p: "Every post belongs to a person. Avatar in the row, color in the calendar, no wondering who's on what." },
+  { n: "04.1", t: "Command palette", p: "Every action, one keystroke away. ⌘K opens commands across navigation, filter, status and publish — no menus, no hunt.", Icon: Keyboard },
+  { n: "04.2", t: "Calendar view", p: "Month, week, day. Quiet weeks read quiet. Drag a card to reschedule; the composer follows.", Icon: CalendarIcon },
+  { n: "04.3", t: "Bulk operations", p: "Multi-select across clients. Change status, reassign, reschedule in one action. Ten-second undo on everything.", Icon: Stack },
+  { n: "04.4", t: "Offline-first", p: "Works on the train. Every edit persists locally and syncs the moment you're back.", Icon: Globe },
+  { n: "04.5", t: "Publish receipts", p: "Every scheduled post reports back — posted with a link, or exactly why it didn't and how to fix it. No silent failures.", Icon: CheckCircle },
+  { n: "04.6", t: "Team & assignees", p: "Every post belongs to a person. Avatar in the row, color in the calendar, no wondering who's on what.", Icon: Person },
 ];
-
-function DetailIcon({ i }) {
-  const props = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" };
-  switch (i) {
-    case 0: return (<svg {...props}><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M8 11l2 2-2 2" /><path d="M12 15h4" /></svg>);
-    case 1: return (<svg {...props}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18" /><path d="M8 3v4M16 3v4" /><circle cx="8" cy="14" r="1.2" fill="currentColor" /><circle cx="13" cy="14" r="1.2" fill="currentColor" /></svg>);
-    case 2: return (<svg {...props}><rect x="3" y="4" width="14" height="3" rx="1" /><rect x="3" y="10" width="14" height="3" rx="1" /><rect x="3" y="16" width="14" height="3" rx="1" /><path d="M20 5l1.5 1.5" /><path d="M20 11l1.5 1.5" /><path d="M20 17l1.5 1.5" /></svg>);
-    case 3: return (<svg {...props}><path d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0" /><path d="M3 12h18" /><path d="M12 3a14 14 0 0 1 0 18" /><path d="M12 3a14 14 0 0 0 0 18" /><path d="M5 8l3 1.5" /></svg>);
-    case 4: return (<svg {...props}><rect x="6" y="3" width="12" height="18" rx="2" /><circle cx="12" cy="9" r="2" /><path d="M9 15l3-2 3 2" /></svg>);
-    case 5: return (<svg {...props}><circle cx="9" cy="9" r="3.5" /><circle cx="17" cy="11" r="2.5" /><path d="M3 19c0-3 3-5 6-5s6 2 6 5" /><path d="M14 19c0-2 2-3 3-3s3 1 3 3" /></svg>);
-    default: return null;
-  }
-}
 
 function Detail() {
   return (
@@ -195,10 +226,10 @@ function Detail() {
           </p>
         </div>
         <div className="lp-detail-grid lp-reveal">
-          {DETAIL_ITEMS.map((it, i) => (
+          {DETAIL_ITEMS.map((it) => (
             <div className="lp-detail" key={it.n}>
               <div className="lp-detail-num">{it.n}</div>
-              <div className="lp-detail-icon"><DetailIcon i={i} /></div>
+              <div className="lp-detail-icon"><it.Icon size={22} /></div>
               <h3>{it.t}</h3>
               <p>{it.p}</p>
             </div>

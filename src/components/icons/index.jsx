@@ -23,7 +23,9 @@ import {
   GridIcon,
   HamburgerMenuIcon,
   HeartIcon,
+  GlobeIcon,
   ImageIcon as RxImageIcon,
+  KeyboardIcon,
   LayersIcon,
   LayoutIcon,
   LoopIcon,
@@ -32,6 +34,7 @@ import {
   MixerHorizontalIcon,
   PaperPlaneIcon,
   PauseIcon,
+  PersonIcon,
   PinLeftIcon,
   PlayIcon,
   PlusIcon,
@@ -40,6 +43,7 @@ import {
   Share2Icon,
   SpeakerLoudIcon,
   SpeakerOffIcon,
+  StackIcon,
   StrikethroughIcon,
   TextAlignCenterIcon,
   TextAlignLeftIcon,
@@ -158,6 +162,13 @@ export function Redo(props) {
     </svg>
   );
 }
+
+// ─── Landing / marketing surfaces ──────────────────────────────────
+
+export function Keyboard(props) { return <KeyboardIcon {...radixProps(props)} />; }
+export function Person(props) { return <PersonIcon {...radixProps(props)} />; }
+export function Stack(props) { return <StackIcon {...radixProps(props)} />; }
+export function Globe(props) { return <GlobeIcon {...radixProps(props)} />; }
 
 // ─── Drag handle ───────────────────────────────────────────────────
 
