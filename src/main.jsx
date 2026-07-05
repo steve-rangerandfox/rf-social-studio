@@ -8,6 +8,7 @@ import { ToasterProvider } from './components/Toaster.jsx'
 import {
   About,
   AuthGate,
+  CarouselSplitter,
   DataDeletion,
   Landing,
   NotFound,
@@ -50,6 +51,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/data-deletion" element={<DataDeletion />} />
             <Route path="/review" element={<ReviewPage />} />
+            <Route path="/tools/carousel-splitter" element={<CarouselSplitter />} />
             <Route path="/app/*" element={
               <ClerkProvider
                 publishableKey={PUBLISHABLE_KEY}
