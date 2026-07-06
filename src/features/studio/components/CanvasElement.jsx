@@ -347,7 +347,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
         </div>
       )}
       {data.type === 'shape' ? (
-        <ShapeSVG shape={data.shape} fill={data.fill || '#FFFFFF'} opacity={data.opacity} />
+        <ShapeSVG shape={data.shape} fill={data.fill || '#FFFFFF'} stroke={data.stroke} strokeWidth={data.strokeWidth || 0} opacity={data.opacity} />
       ) : data.type === 'text' ? (
         <div
           ref={editRef}
@@ -474,17 +474,18 @@ export function starPoints() {
 // Vector shapes drawn as fills in unit space and stretched to the element's
 // box (preserveAspectRatio none) — no strokes, so non-uniform resize never
 // distorts line weights. "line" is simply a thin filled box.
-export function ShapeSVG({ shape, fill, opacity }) {
-  const common = { width: "100%", height: "100%", viewBox: "0 0 100 100", preserveAspectRatio: "none", style: { display: "block", opacity: opacity ?? 1, pointerEvents: "none" } };
-  if (shape === "ellipse") return <svg {...common}><ellipse cx="50" cy="50" rx="50" ry="50" fill={fill} /></svg>;
-  if (shape === "polygon") return <svg {...common}><polygon points="50,0 100,100 0,100" fill={fill} /></svg>;
-  if (shape === "star") return <svg {...common}><polygon points={starPoints()} fill={fill} /></svg>;
+export function ShapeSVG({ shape, fill, stroke, strokeWidth, opacity }) {
+  const common = { width: "100%", height: "100%", viewBox: "0 0 100 100", preserveAspectRatio: "none", style: { display: "block", opacity: opacity ?? 1, pointerEvents: "none", overflow: "visible" } };
+  const sp = strokeWidth > 0 ? { stroke: stroke || "#09090b", strokeWidth, vectorEffect: "non-scaling-stroke" } : {};
+  if (shape === "ellipse") return <svg {...common}><ellipse cx="50" cy="50" rx="50" ry="50" fill={fill} {...sp} /></svg>;
+  if (shape === "polygon") return <svg {...common}><polygon points="50,0 100,100 0,100" fill={fill} {...sp} /></svg>;
+  if (shape === "star") return <svg {...common}><polygon points={starPoints()} fill={fill} {...sp} /></svg>;
   if (shape === "arrow") return (
     <svg {...common}>
-      <rect x="0" y="38" width="74" height="24" fill={fill} />
-      <polygon points="70,8 100,50 70,92" fill={fill} />
+      <rect x="0" y="38" width="74" height="24" fill={fill} {...sp} />
+      <polygon points="70,8 100,50 70,92" fill={fill} {...sp} />
     </svg>
   );
   // rect + line share geometry — a line is a thin filled box
-  return <svg {...common}><rect width="100" height="100" fill={fill} /></svg>;
+  return <svg {...common}><rect width="100" height="100" fill={fill} {...sp} /></svg>;
 }

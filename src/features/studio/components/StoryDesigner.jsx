@@ -1194,6 +1194,11 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         ctx.rect(0, 0, w, h); // rect + line share geometry
       }
       ctx.fill();
+      if (el.strokeWidth > 0) {
+        ctx.lineWidth = el.strokeWidth * SCALE;
+        ctx.strokeStyle = el.stroke || "#09090b";
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
@@ -1818,6 +1823,16 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                           ))}
                           <input type="color" value={selected.fill||'#FFFFFF'} onChange={e=>updateEl(selectedId,{fill:e.target.value})}
                             style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom fill"/>
+                        </div>
+                        <div className="inspector-group-title" style={{marginTop:8}}>Stroke</div>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <input type="color" value={selected.stroke||'#09090b'}
+                            onChange={e=>updateEl(selectedId,{stroke:e.target.value, strokeWidth: selected.strokeWidth || 2})}
+                            style={{width:24,height:24,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Stroke color"/>
+                          <input type="number" min={0} max={20} step={1} value={selected.strokeWidth||0} title="Stroke width (0 = none)"
+                            onChange={e=>updateEl(selectedId,{strokeWidth: Math.max(0, Math.min(20, parseInt(e.target.value)||0))})}
+                            style={{width:48,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,textAlign:"center",fontSize:11,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,outline:"none"}}/>
+                          <span style={{fontSize:10,color:T.textDim}}>px</span>
                         </div>
                       </div>
                     )}
