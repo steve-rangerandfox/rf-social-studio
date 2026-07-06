@@ -194,6 +194,23 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
       </div>
       {fontError && <div style={{fontSize:10,color:T.red,lineHeight:1.4}}>{fontError}</div>}
 
+      {/* ── Weight · line height · letter spacing (Figma typography row) ── */}
+      <div style={{display:"flex",gap:4}}>
+        <select value={selected.fontWeight || 600} onChange={e => updateEl(selectedId, { fontWeight: parseInt(e.target.value) })}
+          title="Font weight"
+          style={{flex:1,minWidth:0,height:28,borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,fontSize:11,fontWeight:600,color:T.text,padding:"0 6px",outline:"none"}}>
+          {[[300,"Light"],[400,"Regular"],[500,"Medium"],[600,"Semibold"],[700,"Bold"],[800,"Extrabold"]].map(([w,l]) => (
+            <option key={w} value={w}>{l} · {w}</option>
+          ))}
+        </select>
+        <input type="number" step={0.05} min={0.8} max={3} value={selected.lineHeight ?? 1.25} title="Line height"
+          onChange={e => updateEl(selectedId, { lineHeight: Math.max(0.8, Math.min(3, parseFloat(e.target.value) || 1.25)) })}
+          style={{height:28,borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,...numInput,width:52}}/>
+        <input type="number" step={0.1} min={-2} max={10} value={selected.letterSpacing ?? 0} title="Letter spacing"
+          onChange={e => updateEl(selectedId, { letterSpacing: Math.max(-2, Math.min(10, parseFloat(e.target.value) || 0)) })}
+          style={{height:28,borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,...numInput,width:52}}/>
+      </div>
+
       {/* ── Row 2: [Color] | [B] [I] [U] [S] | [spacing ▾] ── */}
       <div style={{display:"flex",alignItems:"center",gap:2,background:T.s2,borderRadius:8,padding:2,border:`1px solid ${T.border}`}}>
         {/* Color */}
@@ -736,6 +753,21 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     pushElements(els => els.filter(e => !toDelete.includes(e.id)));
     setSelectedIds(new Set());
   };
+  // Vector shapes (Figma-style): centered on the canvas, selected on insert.
+  const addShape = (shape) => {
+    const dims = shape === 'line' ? { width: 140, height: 4 }
+      : shape === 'arrow' ? { width: 140, height: 16 }
+      : { width: 110, height: 110 };
+    const id = uid();
+    pushElements(els => [...els, {
+      id, type: 'shape', shape, fill: '#FFFFFF', scale: 1,
+      x: Math.round(preset.w / 2 - dims.width / 2),
+      y: Math.round(preset.h / 2 - dims.height / 2),
+      ...dims,
+    }]);
+    setSelectedIds(new Set([id]));
+  };
+
   // Canva-style duplicate (Cmd/Ctrl+D): clone selected elements offset by 16px.
   const duplicateSelected = () => {
     const toDup = elements.filter(el => selectedIds.has(el.id) && !el.locked);
@@ -1108,6 +1140,38 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
     }
 
+    // Draw vector shapes (under text, mirroring the editor stack)
+    for (const el of els.filter(e => !e.locked && e.type === "shape")) {
+      const w = (el.width || 110) * (el.scale || 1) * SCALE;
+      const h = (el.height || 110) * (el.scale || 1) * SCALE;
+      ctx.save();
+      ctx.translate(el.x * SCALE + w / 2, el.y * SCALE + h / 2);
+      if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
+      ctx.translate(-w / 2, -h / 2);
+      ctx.globalAlpha = el.opacity ?? 1;
+      ctx.fillStyle = el.fill || "#FFFFFF";
+      ctx.beginPath();
+      if (el.shape === "ellipse") ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+      else if (el.shape === "polygon") { ctx.moveTo(w / 2, 0); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); }
+      else if (el.shape === "star") {
+        for (let i = 0; i < 10; i++) {
+          const a = -Math.PI / 2 + (i * Math.PI) / 5;
+          const r = i % 2 ? 0.19 : 0.5;
+          const px = w / 2 + r * w * Math.cos(a), py = h / 2 + r * h * Math.sin(a);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+      } else if (el.shape === "arrow") {
+        // shaft + head, matching ShapeSVG's unit geometry
+        ctx.rect(0, h * 0.38, w * 0.74, h * 0.24);
+        ctx.moveTo(w * 0.7, h * 0.08); ctx.lineTo(w, h / 2); ctx.lineTo(w * 0.7, h * 0.92); ctx.closePath();
+      } else {
+        ctx.rect(0, 0, w, h); // rect + line share geometry
+      }
+      ctx.fill();
+      ctx.restore();
+    }
+
     // Draw text elements
     for (const el of els.filter(e => !e.locked && e.type === "text")) {
       ctx.save();
@@ -1357,6 +1421,13 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       if (mod && (e.key === 'c' || e.key === 'C') && !inField && selectedIds.size > 0) { e.preventDefault(); copySelected(); return; }
       if ((e.key==='Backspace'||e.key==='Delete') && selectedIds.size > 0 && !inField) deleteSelected();
       if (e.key==='Escape') { setSelectedIds(new Set()); setCtxMenu(null); }
+      // Figma shape shortcuts (plain keys, guarded against typing contexts)
+      if (!mod && !e.altKey && !inField) {
+        if (e.key === 'r' || e.key === 'R') { e.preventDefault(); addShape('rect'); }
+        else if (e.key === 'l') { e.preventDefault(); addShape('line'); }
+        else if (e.key === 'L') { e.preventDefault(); addShape('arrow'); }
+        else if (e.key === 'o' || e.key === 'O') { e.preventDefault(); addShape('ellipse'); }
+      }
     };
     // Paste rides the real clipboard event (not a Ctrl+V keydown) so an image
     // copied from another site or the desktop pastes straight onto the canvas
@@ -1498,6 +1569,23 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                       onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
                       <Type size={16}/> Add text box
                     </button>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:4}}>
+                      {[
+                        ["rect","Rectangle","R",<svg key="r" width="18" height="18" viewBox="0 0 18 18"><rect x="2.5" y="4" width="13" height="10" fill="none" stroke="currentColor" strokeWidth="1.1"/></svg>],
+                        ["line","Line","L",<svg key="l" width="18" height="18" viewBox="0 0 18 18"><path d="M3 14 L15 4" stroke="currentColor" strokeWidth="1.1"/></svg>],
+                        ["arrow","Arrow","Shift+L",<svg key="a" width="18" height="18" viewBox="0 0 18 18"><path d="M3 14 L14 4 M8.5 4 H14 V9.5" fill="none" stroke="currentColor" strokeWidth="1.1"/></svg>],
+                        ["ellipse","Ellipse","O",<svg key="o" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" strokeWidth="1.1"/></svg>],
+                        ["polygon","Polygon","",<svg key="p" width="18" height="18" viewBox="0 0 18 18"><path d="M9 3.5 L15 14.5 H3 Z" fill="none" stroke="currentColor" strokeWidth="1.1"/></svg>],
+                        ["star","Star","",<svg key="s" width="18" height="18" viewBox="0 0 18 18"><path d="M9 2.8 L10.9 6.9 L15.4 7.4 L12 10.4 L13 14.9 L9 12.5 L5 14.9 L6 10.4 L2.6 7.4 L7.1 6.9 Z" fill="none" stroke="currentColor" strokeWidth="1.1"/></svg>],
+                      ].map(([shape, label, kbd, icon]) => (
+                        <button key={shape} onClick={()=>addShape(shape)} title={kbd ? `${label} (${kbd})` : label}
+                          style={{padding:"10px 4px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontSize:10,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                          onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
+                          onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+                          {icon} {label}
+                        </button>
+                      ))}
+                    </div>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
                       <button onClick={()=>imgFileRef.current?.click()} draggable onDragStart={(e)=>handleToolDragStart(e,"image")}
                         style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
@@ -1643,7 +1731,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                           )}
                           {!el.locked && <span className="layer-grip" aria-hidden="true"><GripVertical size={12}/></span>}
                           <span className="layer-icon" style={{color:selectedIds.has(el.id)?T.ink:T.textDim}}>
-                            {el.type==='text'?<Type size={12}/>:el.locked?<Wallpaper size={12}/>:el.mediaType==='video'?<Film size={12}/>:<ImageIcon size={12}/>}
+                            {el.type==='text'?<Type size={12}/>:el.locked?<Wallpaper size={12}/>:el.type==='shape'?<svg width="12" height="12" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1.1"/></svg>:el.mediaType==='video'?<Film size={12}/>:<ImageIcon size={12}/>}
                           </span>
                           <span className="layer-label">{el.type==='text'?el.content?.slice(0,20):el.locked?'Background':el.mediaType==='video'?'Video':'Image'}</span>
                           {!el.locked&&<button className="layer-del" aria-label="Remove layer" onClick={e=>{e.stopPropagation();deleteEl(el.id);}}><X size={10}/></button>}
@@ -1674,7 +1762,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   <>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
                       <span style={{fontSize:11,fontWeight:600,color:T.textSub}}>
-                        {selected.type==='text'?'Text':selected.mediaType==='video'?'Video':'Image'}
+                        {selected.type==='text'?'Text':selected.type==='shape'?(selected.shape||'Shape'):selected.mediaType==='video'?'Video':'Image'}
                       </span>
                       <button className="del-btn" onClick={()=>deleteEl(selectedId)} aria-label="Delete selected element" style={{fontSize:10,padding:"2px 8px"}}><X size={9} style={{marginRight:2}}/> Delete</button>
                     </div>
@@ -1694,6 +1782,20 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                         <span className="sd-opacity-value">{Math.round((selected.opacity ?? 1) * 100)}%</span>
                       </div>
                     </div>
+
+                    {selected.type==='shape' && (
+                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        <div className="inspector-group-title">Fill</div>
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                          {BRAND_COLORS.map(c => (
+                            <button key={c} onClick={()=>updateEl(selectedId,{fill:c})} title={c}
+                              style={{width:20,height:20,borderRadius:6,border:(selected.fill||'#FFFFFF')===c?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:c,cursor:"pointer",padding:0}}/>
+                          ))}
+                          <input type="color" value={selected.fill||'#FFFFFF'} onChange={e=>updateEl(selectedId,{fill:e.target.value})}
+                            style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom fill"/>
+                        </div>
+                      </div>
+                    )}
 
                     {selected.type==='text' && (
                       <>
@@ -1721,18 +1823,27 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                           ))}
                         </div>
                       </div>
-                      {/* Text Outline */}
-                      <div className="inspector-group">
-                        <div className="inspector-group-title">Outline</div>
-                        <div className="sd-outline-row">
-                          <label style={{fontSize:11,color:T.textSub,fontWeight:600}}>Outline</label>
-                          <input type="checkbox" checked={!!selected.outline} onChange={(e) => updateEl(selectedId, { outline: e.target.checked ? 1 : 0 })} />
-                          {selected.outline > 0 && (
-                            <>
-                              <input type="range" className="s-slider" min="0.5" max="3" step="0.5" value={selected.outline || 1} onChange={(e) => updateEl(selectedId, { outline: Number(e.target.value) })} style={{flex:1}} />
-                              <input type="color" value={selected.outlineColor || "#000000"} onChange={(e) => updateEl(selectedId, { outlineColor: e.target.value })} style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} />
-                            </>
-                          )}
+                      {/* Fill + Stroke, adjacent (Figma-style) */}
+                      <div className="inspector-group" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                        <div>
+                          <div className="inspector-group-title">Fill</div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <input type="color" value={selected.gradient ? "#ffffff" : (selected.color || "#ffffff")}
+                              onChange={(e) => updateEl(selectedId, { color: e.target.value, gradient: null })}
+                              style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Fill color"/>
+                            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textSub}}>{selected.gradient ? "Gradient" : (selected.color || "#ffffff").toUpperCase()}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="inspector-group-title">Stroke</div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <input type="color" value={selected.outlineColor || "#000000"}
+                              onChange={(e) => updateEl(selectedId, { outlineColor: e.target.value, outline: selected.outline || 1 })}
+                              style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Stroke color"/>
+                            <input type="number" min={0} max={3} step={0.5} value={selected.outline || 0} title="Stroke weight (0 = none)"
+                              onChange={(e) => updateEl(selectedId, { outline: Math.max(0, Math.min(3, parseFloat(e.target.value) || 0)) })}
+                              style={{width:44,height:26,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,textAlign:"center",fontSize:11,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,outline:"none"}}/>
+                          </div>
                         </div>
                       </div>
                       </>

@@ -97,10 +97,10 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
     zIndex: isSelected ? 10 : 2,
     opacity: data.opacity ?? 1,
     transform: [
-      data.type === "image" ? `scale(${mediaScale})` : null,
+      (data.type === "image" || data.type === "shape") ? `scale(${mediaScale})` : null,
       rotation ? `rotate(${rotation}deg)` : null,
     ].filter(Boolean).join(' ') || undefined,
-    ...(data.type === "image"
+    ...((data.type === "image" || data.type === "shape")
       ? {
           width: mediaWidth,
           height: mediaHeight,
@@ -346,7 +346,9 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
           <span style={{fontSize:10,fontWeight:700,color:'#0EA5E9',fontFamily:"'JetBrains Mono',monospace",letterSpacing:0.5}}>Replace</span>
         </div>
       )}
-      {data.type === 'text' ? (
+      {data.type === 'shape' ? (
+        <ShapeSVG shape={data.shape} fill={data.fill || '#FFFFFF'} opacity={data.opacity} />
+      ) : data.type === 'text' ? (
         <div
           ref={editRef}
           contentEditable={isEditing}
@@ -455,4 +457,34 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
       )}
     </div>
   );
+}
+
+// Unit-space (100×100) star points, stretched by the viewBox — 5 outer
+// points, standard 0.38 inner radius ratio.
+export function starPoints() {
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const r = i % 2 ? 19 : 50;
+    pts.push(`${(50 + r * Math.cos(a)).toFixed(2)},${(50 + r * Math.sin(a)).toFixed(2)}`);
+  }
+  return pts.join(" ");
+}
+
+// Vector shapes drawn as fills in unit space and stretched to the element's
+// box (preserveAspectRatio none) — no strokes, so non-uniform resize never
+// distorts line weights. "line" is simply a thin filled box.
+export function ShapeSVG({ shape, fill, opacity }) {
+  const common = { width: "100%", height: "100%", viewBox: "0 0 100 100", preserveAspectRatio: "none", style: { display: "block", opacity: opacity ?? 1, pointerEvents: "none" } };
+  if (shape === "ellipse") return <svg {...common}><ellipse cx="50" cy="50" rx="50" ry="50" fill={fill} /></svg>;
+  if (shape === "polygon") return <svg {...common}><polygon points="50,0 100,100 0,100" fill={fill} /></svg>;
+  if (shape === "star") return <svg {...common}><polygon points={starPoints()} fill={fill} /></svg>;
+  if (shape === "arrow") return (
+    <svg {...common}>
+      <rect x="0" y="38" width="74" height="24" fill={fill} />
+      <polygon points="70,8 100,50 70,92" fill={fill} />
+    </svg>
+  );
+  // rect + line share geometry — a line is a thin filled box
+  return <svg {...common}><rect width="100" height="100" fill={fill} /></svg>;
 }
