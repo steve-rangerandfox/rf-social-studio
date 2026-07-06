@@ -38,6 +38,7 @@ import {
 import { CanvasElement, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { StoryDesignerTour } from "./StoryDesignerTour.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
+import { useStudio } from "../StudioContext.jsx";
 import { generateStoryTips } from "../../../lib/api-client.js";
 import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 
@@ -674,6 +675,24 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
   // Custom fonts
   const [customFonts, setCustomFonts] = useState(() => loadCustomFonts());
+  // Brand fonts live in the synced brand profile (uploaded to storage), so a
+  // font added once follows the brand to every device; localStorage stays as
+  // the device-local cache/fallback.
+  const { brandProfile, updateBrandProfile } = useStudio();
+  useEffect(() => {
+    const brandFonts = brandProfile?.fonts || [];
+    if (!brandFonts.length) return;
+    brandFonts.forEach(bf => {
+      if (!bf.url) return;
+      const face = new FontFace(bf.name, `url(${bf.url})`);
+      face.load().then(() => document.fonts.add(face)).catch(() => {});
+    });
+    setCustomFonts(prev => {
+      const have = new Set(prev.map(p => p.name));
+      return [...prev, ...brandFonts.filter(bf => !have.has(bf.name))];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [fontInstalling, setFontInstalling] = useState(false);
   const [fontError, setFontError] = useState(null);
 
@@ -686,6 +705,11 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       const updated = [...customFonts, font];
       setCustomFonts(updated);
       saveCustomFonts(updated);
+      // Persist to brand assets: host the file, store by URL in the profile.
+      try {
+        const url = await uploadAssetWithProgress(file, () => {});
+        updateBrandProfile({ fonts: [...(brandProfile?.fonts || []).filter(bf => bf.name !== font.name), { id: font.id, name: font.name, label: font.label, url }] });
+      } catch { /* upload failed — font stays device-local */ }
     } catch (err) {
       setFontError(err.message);
     }
@@ -696,6 +720,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     const updated = customFonts.filter(f => f.id !== fontId);
     setCustomFonts(updated);
     saveCustomFonts(updated);
+    updateBrandProfile({ fonts: (brandProfile?.fonts || []).filter(bf => bf.id !== fontId) });
   };
 
   const preset = CANVAS_PRESETS.find(p => p.key === canvasPreset) || CANVAS_PRESETS[0];
@@ -1169,6 +1194,11 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         ctx.rect(0, 0, w, h); // rect + line share geometry
       }
       ctx.fill();
+      if (el.strokeWidth > 0) {
+        ctx.lineWidth = el.strokeWidth * SCALE;
+        ctx.strokeStyle = el.stroke || "#09090b";
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
@@ -1793,6 +1823,16 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                           ))}
                           <input type="color" value={selected.fill||'#FFFFFF'} onChange={e=>updateEl(selectedId,{fill:e.target.value})}
                             style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom fill"/>
+                        </div>
+                        <div className="inspector-group-title" style={{marginTop:8}}>Stroke</div>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <input type="color" value={selected.stroke||'#09090b'}
+                            onChange={e=>updateEl(selectedId,{stroke:e.target.value, strokeWidth: selected.strokeWidth || 2})}
+                            style={{width:24,height:24,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Stroke color"/>
+                          <input type="number" min={0} max={20} step={1} value={selected.strokeWidth||0} title="Stroke width (0 = none)"
+                            onChange={e=>updateEl(selectedId,{strokeWidth: Math.max(0, Math.min(20, parseInt(e.target.value)||0))})}
+                            style={{width:48,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,textAlign:"center",fontSize:11,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,outline:"none"}}/>
+                          <span style={{fontSize:10,color:T.textDim}}>px</span>
                         </div>
                       </div>
                     )}
