@@ -50,7 +50,8 @@ const CANVAS_PRESETS = [
   { key: "ig_post", label: "IG Post", w: 290, h: 290, exportW: 1080, exportH: 1080, ratio: "1:1" },
   { key: "ig_reel", label: "IG Reel", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
   { key: "tiktok", label: "TikTok", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
-  { key: "linkedin", label: "LinkedIn", w: 290, h: 152, exportW: 1200, exportH: 628, ratio: "1.91:1" },
+  { key: "linkedin", label: "LinkedIn Post", w: 290, h: 290, exportW: 1200, exportH: 1200, ratio: "1:1" },
+  { key: "linkedin_link", label: "LinkedIn Link", w: 290, h: 152, exportW: 1200, exportH: 628, ratio: "1.91:1" },
   { key: "youtube", label: "YouTube", w: 290, h: 163, exportW: 1280, exportH: 720, ratio: "16:9" },
 ];
 
