@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /review
+
+Sitemap: https://www.rangerandfox-social.studio/sitemap.xml

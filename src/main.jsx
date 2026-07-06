@@ -14,6 +14,7 @@ import {
   NotFound,
   Pricing,
   PrivacyPolicy,
+  GuidePage,
   ReviewPage,
   TermsOfService,
 } from './routes.jsx'
@@ -52,6 +53,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/data-deletion" element={<DataDeletion />} />
             <Route path="/review" element={<ReviewPage />} />
             <Route path="/tools/carousel-splitter" element={<CarouselSplitter />} />
+            <Route path="/guides/:slug" element={<GuidePage />} />
             <Route path="/app/*" element={
               <ClerkProvider
                 publishableKey={PUBLISHABLE_KEY}
