@@ -50,7 +50,8 @@ const CANVAS_PRESETS = [
   { key: "ig_post", label: "IG Post", w: 290, h: 290, exportW: 1080, exportH: 1080, ratio: "1:1" },
   { key: "ig_reel", label: "IG Reel", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
   { key: "tiktok", label: "TikTok", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
-  { key: "linkedin", label: "LinkedIn", w: 290, h: 152, exportW: 1200, exportH: 628, ratio: "1.91:1" },
+  { key: "linkedin", label: "LinkedIn Post", w: 290, h: 290, exportW: 1200, exportH: 1200, ratio: "1:1" },
+  { key: "linkedin_link", label: "LinkedIn Link", w: 290, h: 152, exportW: 1200, exportH: 628, ratio: "1.91:1" },
   { key: "youtube", label: "YouTube", w: 290, h: 163, exportW: 1280, exportH: 720, ratio: "16:9" },
 ];
 
@@ -397,12 +398,18 @@ function saveDefaultTmplId(id) {
 }
 
 export function StoryDesigner({ row, onClose, onUpdate }) {
-  const makeDefault = () => [
-    { id:"bg",  type:"image", url:null, x:0, y:0, scale:1, locked:true, mediaType:'image' },
-    { id:uid(), type:"text",  content:"RANGER & FOX",          x:20, y:22,  fontSize:8.5, fontFamily:"JetBrains Mono",     color:T.ink, letterSpacing:3,    fontWeight:600, shadow:false },
-    { id:uid(), type:"text",  content:row?.note||"Headline",   x:20, y:155, fontSize:24,  fontFamily:"Bricolage Grotesque",color:"#FFFFFF", letterSpacing:-0.5, fontWeight:700, shadow:true  },
-    { id:uid(), type:"text",  content:"Supporting detail",      x:20, y:205, fontSize:12,  fontFamily:"Bricolage Grotesque",color:"rgba(255,255,255,0.6)", letterSpacing:0, fontWeight:400, shadow:false },
-  ];
+  // Default template, positioned relative to the given canvas dimensions so a
+  // new canvas fits whatever preset is active (the y fractions reproduce the
+  // original 290×515 story layout exactly).
+  const makeDefault = (dims) => {
+    const H = dims?.h ?? 515;
+    return [
+      { id:"bg",  type:"image", url:null, x:0, y:0, scale:1, locked:true, mediaType:'image' },
+      { id:uid(), type:"text",  content:"RANGER & FOX",          x:20, y:Math.round(H*0.043), fontSize:8.5, fontFamily:"JetBrains Mono",     color:T.ink, letterSpacing:3,    fontWeight:600, shadow:false },
+      { id:uid(), type:"text",  content:row?.note||"Headline",   x:20, y:Math.round(H*0.301), fontSize:24,  fontFamily:"Bricolage Grotesque",color:"#FFFFFF", letterSpacing:-0.5, fontWeight:700, shadow:true  },
+      { id:uid(), type:"text",  content:"Supporting detail",      x:20, y:Math.round(H*0.398), fontSize:12,  fontFamily:"Bricolage Grotesque",color:"rgba(255,255,255,0.6)", letterSpacing:0, fontWeight:400, shadow:false },
+    ];
+  };
 
   const computeInitialElements = () => {
     // Use previously saved elements for this row
@@ -494,7 +501,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     const src = pages[activePageIdx];
     const newEls = duplicate && src
       ? src.elements.map(e => ({ ...e, id: e.id === "bg" ? "bg" : uid() })) // keep the special bg id per page
-      : makeDefault();
+      : makeDefault(preset);
     const insertAt = activePageIdx + 1;
     setPages(prev => { const next = [...prev]; next.splice(insertAt, 0, { id: uid(), elements: newEls }); return next; });
     setActivePageIdx(insertAt);
@@ -676,6 +683,32 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
   const preset = CANVAS_PRESETS.find(p => p.key === canvasPreset) || CANVAS_PRESETS[0];
   const selected  = selectedId ? elements.find(el => el.id === selectedId) : null;
+
+  // Switching canvas preset rescales every page's elements into the new
+  // dimensions — positions per-axis (nothing can end up clipped off-canvas),
+  // type and media by the geometric mean of the two ratios so scale stays
+  // proportionate in both directions. Backgrounds cover-fit on their own.
+  const handlePresetChange = (key) => {
+    const next = CANVAS_PRESETS.find(p => p.key === key);
+    if (!next || next.key === preset.key) return;
+    const wR = next.w / preset.w;
+    const hR = next.h / preset.h;
+    const sR = Math.sqrt(wR * hR);
+    const rescale = (els) => els.map(e => {
+      if (e.locked) return e;
+      const out = { ...e, x: Math.round(e.x * wR), y: Math.round(e.y * hR) };
+      if (out.boxWidth) out.boxWidth = Math.max(20, Math.round(out.boxWidth * wR));
+      if (out.fontSize) out.fontSize = Math.max(4, +(out.fontSize * sR).toFixed(1));
+      if (out.letterSpacing) out.letterSpacing = +(out.letterSpacing * sR).toFixed(2);
+      if (out.width) out.width = Math.max(8, Math.round(out.width * sR));
+      if (out.height) out.height = Math.max(8, Math.round(out.height * sR));
+      return out;
+    });
+    const rescaledActive = rescale(pages[activePageIdxRef.current]?.elements || []);
+    setPages(prev => prev.map(pg => ({ ...pg, elements: rescale(pg.elements) })));
+    setCanvasPreset(key);
+    resetPageEditState(rescaledActive);
+  };
 
   // Helper: select element(s) with shift support
   const handleSelect = (id, shiftKey) => {
@@ -1809,7 +1842,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
           <div className="s-canvas-area">
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%"}}>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <select className="sd-preset-select" value={canvasPreset} onChange={(e) => setCanvasPreset(e.target.value)} aria-label="Canvas size preset">
+                <select className="sd-preset-select" value={canvasPreset} onChange={(e) => handlePresetChange(e.target.value)} aria-label="Canvas size preset">
                   {CANVAS_PRESETS.map(p => (
                     <option key={p.key} value={p.key}>{p.label} ({p.ratio})</option>
                   ))}
@@ -1890,7 +1923,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                             <CanvasElement key={el.id} data={el} isSelected={false}
                               onSelect={()=>{}} onUpdate={()=>{}} zoom={zoom} canvasW={preset.w} canvasH={preset.h}/>
                           ))}
-                          <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",zIndex:50}}>R&F</div>
                         </div>
                       </div>
                     </div>
@@ -1963,7 +1995,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     <div style={{position:'absolute',left:'10%',top:'10%',right:'10%',bottom:'10%',border:'1px dashed rgba(255,122,0,0.3)',borderRadius:4}}/>
                   </div>
                 )}
-                <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",pointerEvents:"none",zIndex:50}}>R&F</div>
               </div>
             </div>
               </div>

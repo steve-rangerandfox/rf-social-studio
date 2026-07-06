@@ -4,7 +4,7 @@ import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js
 import { renderCarouselSlidesToFiles } from "../carouselRender.js";
 
 // Multi-slide carousel composer for the active post. IG (1:1) or
-// LinkedIn (1.25:1), up to 10 slides. Slides persist onto the row as
+// LinkedIn (also 1:1), up to 10 slides. Slides persist onto the row as
 // `carouselSlides`. "Render & save" flattens every slide to a hosted JPEG
 // (carouselFrameUrls) so the scheduler can auto-publish the carousel at its
 // scheduled time; editing a slide after a render invalidates the frames.
@@ -52,7 +52,10 @@ export function CarouselComposer({ row, onClose }) {
   const [platform, setPlatform] = useState(row?.platform === "linkedin" ? "linkedin" : "instagram");
 
   const slide = slides[cur] || slides[0];
-  const aspect = platform === "linkedin" ? "1.25 / 1" : "1 / 1";
+  // Both platforms preview square — IG carousels render 1080×1080, and
+  // LinkedIn native images are square too (1.91:1 is the LINK-preview
+  // format, not an image post).
+  const aspect = "1 / 1";
 
   // ── Seamless photo: fit one image across every slide ──
   // Slides that share a `bgSpanId` render slices of the same image; each
@@ -176,7 +179,7 @@ export function CarouselComposer({ row, onClose }) {
         </div>
         <div className="cc2-top-c">
           <div className="cc2-plats">
-            {[["instagram", "Instagram", "1:1"], ["linkedin", "LinkedIn", "1.25:1"]].map(([k, l, r]) => (
+            {[["instagram", "Instagram", "1:1"], ["linkedin", "LinkedIn", "1:1"]].map(([k, l, r]) => (
               <button key={k} className={"cc2-plat " + (platform === k ? "on" : "")} onClick={() => setPlatform(k)}>
                 <span className="cc2-plat-ratio">{r}</span>{l}
               </button>
@@ -246,7 +249,7 @@ export function CarouselComposer({ row, onClose }) {
             <button className="cc2-board-add" onClick={add} disabled={slides.length >= 10} title="Add slide">+</button>
           </div>
           <div className="cc2-stage-foot">
-            Slide {cur + 1} of {slides.length} · {platform === "instagram" ? "Instagram · 1080×1080" : "LinkedIn · 1200×960"}
+            Slide {cur + 1} of {slides.length} · {platform === "instagram" ? "Instagram · renders 1080×1080" : "LinkedIn · preview ratio only"}
           </div>
         </div>
 

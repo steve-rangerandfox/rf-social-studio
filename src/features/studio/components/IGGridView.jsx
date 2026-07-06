@@ -76,7 +76,6 @@ function IGCell({ post, index, onOpen, isQueued }) {
                 pointerEvents:"none",
               }}>{el.content}</div>
             ))}
-            <div className="ig-cell-watermark">R&F</div>
           </div>
         </div>
       )}
