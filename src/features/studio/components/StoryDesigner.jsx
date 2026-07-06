@@ -780,12 +780,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   };
   // Vector shapes (Figma-style): centered on the canvas, selected on insert.
   const addShape = (shape) => {
-    const dims = shape === 'line' ? { width: 140, height: 4 }
+    const dims = shape === 'line' ? { width: 140, height: 12 }
       : shape === 'arrow' ? { width: 140, height: 16 }
       : { width: 110, height: 110 };
     const id = uid();
     pushElements(els => [...els, {
-      id, type: 'shape', shape, fill: '#FFFFFF', scale: 1,
+      id, type: 'shape', shape, fill: '#FFFFFF', stroke: '#FFFFFF', strokeWidth: 1, strokeCap: 'butt', strokeAlign: 'center', scale: 1,
       x: Math.round(preset.w / 2 - dims.width / 2),
       y: Math.round(preset.h / 2 - dims.height / 2),
       ...dims,
@@ -1174,30 +1174,51 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
       ctx.translate(-w / 2, -h / 2);
       ctx.globalAlpha = el.opacity ?? 1;
-      ctx.fillStyle = el.fill || "#FFFFFF";
-      ctx.beginPath();
-      if (el.shape === "ellipse") ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-      else if (el.shape === "polygon") { ctx.moveTo(w / 2, 0); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); }
-      else if (el.shape === "star") {
-        for (let i = 0; i < 10; i++) {
-          const a = -Math.PI / 2 + (i * Math.PI) / 5;
-          const r = i % 2 ? 0.19 : 0.5;
-          const px = w / 2 + r * w * Math.cos(a), py = h / 2 + r * h * Math.sin(a);
-          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-      } else if (el.shape === "arrow") {
-        // shaft + head, matching ShapeSVG's unit geometry
-        ctx.rect(0, h * 0.38, w * 0.74, h * 0.24);
-        ctx.moveTo(w * 0.7, h * 0.08); ctx.lineTo(w, h / 2); ctx.lineTo(w * 0.7, h * 0.92); ctx.closePath();
-      } else {
-        ctx.rect(0, 0, w, h); // rect + line share geometry
+      ctx.lineCap = el.strokeCap === "round" ? "round" : "butt";
+      ctx.lineJoin = el.strokeCap === "round" ? "round" : "miter";
+      if (el.shape === "line") {
+        ctx.strokeStyle = el.stroke || "#FFFFFF";
+        ctx.lineWidth = Math.max((el.strokeWidth || 1) * SCALE, SCALE);
+        ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+        ctx.restore(); continue;
       }
+      // Rebuildable path (alignment strokes need it more than once), matching
+      // ShapeSVG's unit geometry exactly — including the single closed arrow.
+      const buildPath = () => {
+        ctx.beginPath();
+        if (el.shape === "ellipse") ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+        else if (el.shape === "polygon") { ctx.moveTo(w / 2, 0); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); }
+        else if (el.shape === "star") {
+          for (let i = 0; i < 10; i++) {
+            const a = -Math.PI / 2 + (i * Math.PI) / 5;
+            const r = i % 2 ? 0.19 : 0.5;
+            const px = w / 2 + r * w * Math.cos(a), py = h / 2 + r * h * Math.sin(a);
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+        } else if (el.shape === "arrow") {
+          ctx.moveTo(0, h * 0.38); ctx.lineTo(w * 0.74, h * 0.38); ctx.lineTo(w * 0.74, h * 0.08);
+          ctx.lineTo(w, h * 0.5); ctx.lineTo(w * 0.74, h * 0.92); ctx.lineTo(w * 0.74, h * 0.62);
+          ctx.lineTo(0, h * 0.62); ctx.closePath();
+        } else {
+          ctx.rect(0, 0, w, h);
+        }
+      };
+      // Stroke alignment mirrors the ShapeSVG technique: outside = 2x stroke
+      // painted under the fill; inside = 2x stroke clipped to the path over
+      // it; center = a normal stroke.
+      const sw = (el.strokeWidth > 0 ? el.strokeWidth : 0) * SCALE;
+      const align = el.strokeAlign || "center";
+      ctx.strokeStyle = el.stroke || "#FFFFFF";
+      ctx.fillStyle = el.fill || "#FFFFFF";
+      if (sw > 0 && align === "outside") { buildPath(); ctx.lineWidth = sw * 2; ctx.stroke(); }
+      buildPath();
       ctx.fill();
-      if (el.strokeWidth > 0) {
-        ctx.lineWidth = el.strokeWidth * SCALE;
-        ctx.strokeStyle = el.stroke || "#09090b";
-        ctx.stroke();
+      if (sw > 0 && align === "center") { ctx.lineWidth = sw; ctx.stroke(); }
+      if (sw > 0 && align === "inside") {
+        ctx.save(); buildPath(); ctx.clip();
+        ctx.lineWidth = sw * 2; buildPath(); ctx.stroke();
+        ctx.restore();
       }
       ctx.restore();
     }
@@ -1815,24 +1836,46 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
                     {selected.type==='shape' && (
                       <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                        <div className="inspector-group-title">Fill</div>
-                        <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
-                          {BRAND_COLORS.map(c => (
-                            <button key={c} onClick={()=>updateEl(selectedId,{fill:c})} title={c}
-                              style={{width:20,height:20,borderRadius:6,border:(selected.fill||'#FFFFFF')===c?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:c,cursor:"pointer",padding:0}}/>
-                          ))}
-                          <input type="color" value={selected.fill||'#FFFFFF'} onChange={e=>updateEl(selectedId,{fill:e.target.value})}
-                            style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom fill"/>
-                        </div>
-                        <div className="inspector-group-title" style={{marginTop:8}}>Stroke</div>
-                        <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <input type="color" value={selected.stroke||'#09090b'}
-                            onChange={e=>updateEl(selectedId,{stroke:e.target.value, strokeWidth: selected.strokeWidth || 2})}
+                        {selected.shape !== 'line' && (
+                          <>
+                            <div className="inspector-group-title">Fill</div>
+                            <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                              {BRAND_COLORS.map(c => (
+                                <button key={c} onClick={()=>updateEl(selectedId,{fill:c})} title={c}
+                                  style={{width:20,height:20,borderRadius:6,border:(selected.fill||'#FFFFFF')===c?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:c,cursor:"pointer",padding:0}}/>
+                              ))}
+                              <input type="color" value={selected.fill||'#FFFFFF'} onChange={e=>updateEl(selectedId,{fill:e.target.value})}
+                                style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom fill"/>
+                            </div>
+                          </>
+                        )}
+                        <div className="inspector-group-title" style={{marginTop:selected.shape==='line'?0:8}}>Stroke</div>
+                        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                          <input type="color" value={selected.stroke||'#FFFFFF'}
+                            onChange={e=>updateEl(selectedId,{stroke:e.target.value, strokeWidth: selected.strokeWidth || 1})}
                             style={{width:24,height:24,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Stroke color"/>
-                          <input type="number" min={0} max={20} step={1} value={selected.strokeWidth||0} title="Stroke width (0 = none)"
-                            onChange={e=>updateEl(selectedId,{strokeWidth: Math.max(0, Math.min(20, parseInt(e.target.value)||0))})}
-                            style={{width:48,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,textAlign:"center",fontSize:11,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,outline:"none"}}/>
+                          <input type="number" min={selected.shape==='line'?1:0} max={20} step={1} value={selected.strokeWidth||(selected.shape==='line'?1:0)} title={selected.shape==='line'?"Stroke width":"Stroke width (0 = none)"}
+                            onChange={e=>updateEl(selectedId,{strokeWidth: Math.max(selected.shape==='line'?1:0, Math.min(20, parseInt(e.target.value)||0))})}
+                            style={{width:44,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,textAlign:"center",fontSize:11,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,outline:"none"}}/>
                           <span style={{fontSize:10,color:T.textDim}}>px</span>
+                          {/* Cap ends: butt or rounded */}
+                          <div style={{display:"flex",gap:2,background:T.s2,border:`1px solid ${T.border}`,borderRadius:6,padding:2}} title="Stroke ends">
+                            {[["butt","Butt end"],["round","Rounded end"]].map(([c,label]) => (
+                              <button key={c} onClick={()=>updateEl(selectedId,{strokeCap:c})} title={label}
+                                style={{width:26,height:18,display:"flex",alignItems:"center",justifyContent:"center",border:"none",borderRadius:4,cursor:"pointer",background:(selected.strokeCap||"butt")===c?T.ink:"transparent",padding:0}}>
+                                <span style={{display:"block",width:14,height:4,background:(selected.strokeCap||"butt")===c?T.surface:T.textSub,borderRadius:c==="round"?99:0}}/>
+                              </button>
+                            ))}
+                          </div>
+                          {/* Alignment on the source spline (closed shapes only) */}
+                          {selected.shape !== 'line' && (
+                            <select value={selected.strokeAlign||"center"} onChange={e=>updateEl(selectedId,{strokeAlign:e.target.value})} title="Stroke position on the path"
+                              style={{height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,fontSize:10,fontWeight:600,color:T.text,outline:"none",padding:"0 4px"}}>
+                              <option value="inside">Inside</option>
+                              <option value="center">Center</option>
+                              <option value="outside">Outside</option>
+                            </select>
+                          )}
                         </div>
                       </div>
                     )}
