@@ -216,7 +216,7 @@ export function Composer({ row, onClose, onPosted, postNow, onOpenCarousel }) {
                 {st==="uploading" ? `Uploading \u2014 ${Math.round(uploadProgress*100)}%` : `Publishing to ${p.label}\u2026`}
               </div>
               {st==="uploading" && (
-                <div style={{width:240,height:4,background:"#e4e4e7",borderRadius:99,overflow:"hidden"}}>
+                <div style={{width:240,height:4,background:"#e4e4e7",borderRadius:999,overflow:"hidden"}}>
                   <div style={{height:"100%",width:`${Math.round(uploadProgress*100)}%`,background:"#09090b",transition:"width 140ms ease"}}/>
                 </div>
               )}
@@ -236,7 +236,7 @@ export function Composer({ row, onClose, onPosted, postNow, onOpenCarousel }) {
                   {st==="uploading" ? `Uploading \u2014 ${Math.round(uploadProgress*100)}%` : `Publishing to ${p.label}\u2026`}
                 </div>
                 {st==="uploading" && (
-                  <div style={{height:3,background:"#e4e4e7",borderRadius:99,overflow:"hidden"}}>
+                  <div style={{height:3,background:"#e4e4e7",borderRadius:999,overflow:"hidden"}}>
                     <div style={{height:"100%",width:`${Math.round(uploadProgress*100)}%`,background:"#09090b",transition:"width 140ms ease"}}/>
                   </div>
                 )}

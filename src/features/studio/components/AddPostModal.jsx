@@ -57,7 +57,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                     title={pl.label}
                     style={{
                       display:"flex",alignItems:"center",justifyContent:"center",
-                      width:40,height:40,borderRadius:10,border:"2px solid",cursor:"pointer",
+                      width:40,height:40,borderRadius:12,border:"2px solid",cursor:"pointer",
                       borderColor: platform===key ? pl.color : "transparent",
                       background: platform===key ? pl.bg : "rgba(0,0,0,0.03)",
                       opacity: platform===key ? 1 : 0.45,

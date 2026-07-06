@@ -15,7 +15,7 @@ export function UndoDeleteToast({ count, onUndo, onDone }) {
       <div className="t-dot" style={{background:T.red}}/>
       <span>{count} post{count !== 1 ? 's' : ''} deleted ({secs}s)</span>
       <button onClick={onUndo} style={{
-        background:T.s3, border:`1px solid ${T.border2}`, borderRadius:5,
+        background:T.s3, border:`1px solid ${T.border2}`, borderRadius:6,
         padding:'3px 10px', fontSize:11.5, fontWeight:700, cursor:'pointer', color:T.text, marginLeft:4,
       }}>Undo</button>
     </div>

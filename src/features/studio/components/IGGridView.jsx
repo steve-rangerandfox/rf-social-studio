@@ -200,7 +200,7 @@ export function IGGridView({ rows, onOpen, igMedia, igAccount }) {
           <span className="ig-section-header-label">Published</span>
           <span className="ig-section-header-count">{published.length}</span>
         </div>
-        <div className="ig-grid-frame ig-grid-frame-published" style={{borderRadius:"0 0 10px 10px"}}>
+        <div className="ig-grid-frame ig-grid-frame-published" style={{borderRadius:"0 0 12px 12px"}}>
           <div className="ig-grid">
             {publishedPadded.map((post, i) =>
               post
