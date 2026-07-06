@@ -174,12 +174,12 @@ const REVIEW_CSS = `
 .rvw-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(26px,4.5vw,40px);letter-spacing:-0.04em;line-height:1.05;margin:0 0 22px}
 .rvw-name-row{display:flex;align-items:center;gap:10px;margin-bottom:26px}
 .rvw-name-label{font-size:13px;color:#52525b}
-.rvw-name-input{padding:8px 12px;border:1px solid #e4e4e7;border-radius:8px;font-size:14px;background:#fff;outline:none;width:200px}
+.rvw-name-input{padding:8px 12px;border:1px solid #e4e4e7;border-radius:6px;font-size:14px;background:#fff;outline:none;width:200px}
 .rvw-name-input:focus{border-color:#a1a1aa}
 .rvw-list{display:flex;flex-direction:column;gap:16px}
-.rvw-card{display:flex;gap:16px;background:#fff;border:1px solid #e4e4e7;border-radius:14px;padding:16px;transition:opacity .2s}
+.rvw-card{display:flex;gap:16px;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:16px;transition:opacity .2s}
 .rvw-card.done{opacity:.62}
-.rvw-thumb{width:96px;height:96px;border-radius:10px;object-fit:cover;flex-shrink:0;border:1px solid #e4e4e7;background:#f4f4f5}
+.rvw-thumb{width:96px;height:96px;border-radius:12px;object-fit:cover;flex-shrink:0;border:1px solid #e4e4e7;background:#f4f4f5}
 .rvw-card-body{min-width:0;flex:1;display:flex;flex-direction:column;gap:8px}
 .rvw-card-meta{display:flex;align-items:center;gap:10px}
 .rvw-chip{font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;background:#f4f4f5;border:1px solid #e4e4e7;color:#52525b}
@@ -193,7 +193,7 @@ const REVIEW_CSS = `
 .rvw-btn.primary:hover:not(:disabled){background:#27272a}
 .rvw-btn:disabled{opacity:.5;cursor:default}
 .rvw-changes{display:flex;flex-direction:column;gap:8px}
-.rvw-changes-input{width:100%;padding:10px 12px;border:1px solid #e4e4e7;border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;background:#fff}
+.rvw-changes-input{width:100%;padding:10px 12px;border:1px solid #e4e4e7;border-radius:12px;font-size:13px;font-family:inherit;resize:vertical;outline:none;background:#fff}
 .rvw-changes-input:focus{border-color:#a1a1aa}
 .rvw-outcome{font-size:13px;font-weight:600;color:#52525b}
 .rvw-outcome.ok{color:#0c8f5f}

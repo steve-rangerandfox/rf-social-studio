@@ -25,7 +25,7 @@ export function TokenExpiryBanner({ igConfig, onRefresh, onDismiss }) {
       {!expired && (
         <button onClick={onRefresh} style={{
           background:'rgba(255,255,255,0.22)', border:'1px solid rgba(255,255,255,0.4)',
-          borderRadius:5, padding:'4px 12px', color:'#fff', fontSize:12, fontWeight:700,
+          borderRadius:6, padding:'4px 12px', color:'#fff', fontSize:12, fontWeight:700,
           cursor:'pointer',
         }}>Refresh Token</button>
       )}

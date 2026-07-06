@@ -186,20 +186,20 @@ const SPLITTER_CSS = `
 .spl-kicker{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#71717a;margin-bottom:10px}
 .spl-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:clamp(30px,5vw,48px);letter-spacing:-0.04em;line-height:1.02;margin:0 0 14px;max-width:16ch}
 .spl-sub{font-size:15px;line-height:1.6;color:#52525b;max-width:56ch;margin:0 0 30px}
-.spl-drop{width:100%;padding:72px 24px;border:1.5px dashed #d4d4d8;border-radius:16px;background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:border-color .15s,background .15s}
+.spl-drop{width:100%;padding:72px 24px;border:1.5px dashed #d4d4d8;border-radius:20px;background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:border-color .15s,background .15s}
 .spl-drop:hover,.spl-drop.over{border-color:#ff5a1f;background:#fffdfb}
 .spl-drop-big{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;letter-spacing:-0.02em}
 .spl-drop-small{font-size:13px;color:#71717a}
 .spl-controls{display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap;margin-bottom:18px}
 .spl-control{display:flex;flex-direction:column;gap:6px}
 .spl-control-label{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#71717a}
-.spl-seg{display:flex;gap:4px;background:#f4f4f5;border:1px solid #e4e4e7;border-radius:10px;padding:3px}
-.spl-seg-btn{padding:7px 13px;border:none;border-radius:7px;background:transparent;font-size:13px;font-weight:600;color:#52525b;cursor:pointer}
+.spl-seg{display:flex;gap:4px;background:#f4f4f5;border:1px solid #e4e4e7;border-radius:12px;padding:3px}
+.spl-seg-btn{padding:7px 13px;border:none;border-radius:6px;background:transparent;font-size:13px;font-weight:600;color:#52525b;cursor:pointer}
 .spl-seg-btn.on{background:#09090b;color:#fff}
 .spl-swap{margin-left:auto;padding:8px 14px;border:1px solid #e4e4e7;border-radius:999px;background:#fff;font-size:13px;font-weight:600;color:#52525b;cursor:pointer}
 .spl-swap:hover{border-color:#a1a1aa;color:#09090b}
 .spl-preview{display:flex;gap:6px;overflow-x:auto;padding:6px 2px 10px}
-.spl-panel{position:relative;flex-shrink:0;border-radius:8px;overflow:hidden;border:1px solid #e4e4e7;background:#f4f4f5}
+.spl-panel{position:relative;flex-shrink:0;border-radius:6px;overflow:hidden;border:1px solid #e4e4e7;background:#f4f4f5}
 .spl-panel-n{position:absolute;top:6px;left:6px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:#fff;background:rgba(9,9,11,0.6);border-radius:999px;padding:2px 7px}
 .spl-actions{display:flex;align-items:center;gap:14px;margin:10px 0 34px;flex-wrap:wrap}
 .spl-btn{padding:11px 22px;border-radius:999px;border:1px solid #09090b;background:#09090b;color:#fff;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
@@ -208,7 +208,7 @@ const SPLITTER_CSS = `
 .spl-btn.ghost{background:#fff;color:#09090b;border-color:#e4e4e7}
 .spl-btn.ghost:hover{border-color:#a1a1aa;background:#fff}
 .spl-actions-note{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a1a1aa}
-.spl-upsell{border:1px solid #e4e4e7;border-radius:16px;background:#fff;padding:22px 24px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.spl-upsell{border:1px solid #e4e4e7;border-radius:20px;background:#fff;padding:22px 24px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
 .spl-upsell-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;letter-spacing:-0.02em}
 .spl-upsell-sub{font-size:14px;line-height:1.55;color:#52525b;max-width:58ch}
 .spl-upsell-sub em{font-style:italic}

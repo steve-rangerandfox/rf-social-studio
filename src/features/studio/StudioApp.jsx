@@ -36,7 +36,7 @@ function viewFallback(scope) {
           background: "#09090b",
           color: "#ffffff",
           border: "none",
-          borderRadius: 10,
+          borderRadius:12,
           fontSize: 14,
           fontWeight: 600,
           cursor: "pointer",

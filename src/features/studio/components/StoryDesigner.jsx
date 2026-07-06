@@ -132,7 +132,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
           <button onClick={() => setFontOpen(v => !v)}
             style={{
               width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",
-              gap:4,padding:"0 8px",borderRadius:8,border:`1px solid ${T.border}`,
+              gap:4,padding:"0 8px",borderRadius:6,border:`1px solid ${T.border}`,
               background:T.s2,cursor:"pointer",fontFamily:`'${selected.fontFamily}',sans-serif`,
               fontSize:13,fontWeight:600,color:T.text,minHeight:32,
             }}>
@@ -142,7 +142,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
           {fontOpen && (
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:50,
-              background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
+              background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,
               boxShadow:"0 12px 32px rgba(9,9,11,0.1)",maxHeight:220,overflowY:"auto",padding:4,
             }}>
               {[
@@ -185,7 +185,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
           <input ref={fontFileRef} type="file" accept=".woff,.woff2,.ttf,.otf,.eot" style={{display:"none"}}
             onChange={e => { handleFontUpload(e.target.files?.[0]); e.target.value = ""; }}/>
         </div>
-        <div style={{display:"flex",alignItems:"center",border:`1px solid ${T.border}`,borderRadius:8,background:T.s2,flexShrink:0,width:80}}>
+        <div style={{display:"flex",alignItems:"center",border:`1px solid ${T.border}`,borderRadius:6,background:T.s2,flexShrink:0,width:80}}>
           <button onClick={() => stepSize(-1)} style={{padding:"0 4px",border:"none",background:"transparent",cursor:"pointer",color:T.textDim,display:"flex",alignItems:"center",height:"100%"}}><Minus size={10}/></button>
           <input type="number" value={Math.round(selected.fontSize)} min={6} max={96}
             onChange={e => updateEl(selectedId, { fontSize: Math.max(6, Math.min(96, parseInt(e.target.value) || 6)) })}
@@ -199,31 +199,31 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
       <div style={{display:"flex",gap:4}}>
         <select value={selected.fontWeight || 600} onChange={e => updateEl(selectedId, { fontWeight: parseInt(e.target.value) })}
           title="Font weight"
-          style={{flex:1,minWidth:0,height:28,borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,fontSize:11,fontWeight:600,color:T.text,padding:"0 6px",outline:"none"}}>
+          style={{flex:1,minWidth:0,height:28,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,fontSize:11,fontWeight:600,color:T.text,padding:"0 6px",outline:"none"}}>
           {[[300,"Light"],[400,"Regular"],[500,"Medium"],[600,"Semibold"],[700,"Bold"],[800,"Extrabold"]].map(([w,l]) => (
             <option key={w} value={w}>{l} · {w}</option>
           ))}
         </select>
         <input type="number" step={0.05} min={0.8} max={3} value={selected.lineHeight ?? 1.25} title="Line height"
           onChange={e => updateEl(selectedId, { lineHeight: Math.max(0.8, Math.min(3, parseFloat(e.target.value) || 1.25)) })}
-          style={{height:28,borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,...numInput,width:52}}/>
+          style={{height:28,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,...numInput,width:52}}/>
         <input type="number" step={0.1} min={-2} max={10} value={selected.letterSpacing ?? 0} title="Letter spacing"
           onChange={e => updateEl(selectedId, { letterSpacing: Math.max(-2, Math.min(10, parseFloat(e.target.value) || 0)) })}
-          style={{height:28,borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,...numInput,width:52}}/>
+          style={{height:28,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,...numInput,width:52}}/>
       </div>
 
       {/* ── Row 2: [Color] | [B] [I] [U] [S] | [spacing ▾] ── */}
-      <div style={{display:"flex",alignItems:"center",gap:2,background:T.s2,borderRadius:8,padding:2,border:`1px solid ${T.border}`}}>
+      <div style={{display:"flex",alignItems:"center",gap:2,background:T.s2,borderRadius:6,padding:2,border:`1px solid ${T.border}`}}>
         {/* Color */}
         <div style={{position:"relative"}} ref={colorRef}>
           <button title="Text color" onClick={() => setColorOpen(v => !v)}
             style={{...tb(false),position:"relative"}}>
-            <span style={{display:"block",width:17,height:17,borderRadius:5,background:colorPreview,border:"1px solid rgba(9,9,11,0.22)",boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.5)"}}/>
+            <span style={{display:"block",width:17,height:17,borderRadius:6,background:colorPreview,border:"1px solid rgba(9,9,11,0.22)",boxShadow:"inset 0 0 0 1px rgba(255,255,255,0.5)"}}/>
           </button>
           {colorOpen && (
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",left:0,zIndex:50,
-              background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
+              background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,
               boxShadow:"0 12px 32px rgba(9,9,11,0.1)",padding:8,width:180,
             }}>
               {/* Solid swatches */}
@@ -242,7 +242,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
                 <input type="text" value={selected.gradient ? "" : selected.color}
                   placeholder="#hex"
                   onChange={e => updateEl(selectedId, { color: e.target.value, gradient: null })}
-                  style={{flex:1,minWidth:0,fontSize:10,fontFamily:"'JetBrains Mono',monospace",padding:"4px 6px",border:`1px solid ${T.border}`,borderRadius:5,background:T.s2,color:T.text,outline:"none"}}/>
+                  style={{flex:1,minWidth:0,fontSize:10,fontFamily:"'JetBrains Mono',monospace",padding:"4px 6px",border:`1px solid ${T.border}`,borderRadius:6,background:T.s2,color:T.text,outline:"none"}}/>
               </div>
 
               {/* Gradient presets */}
@@ -315,7 +315,7 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
           {spacingOpen && (
             <div style={{
               position:"absolute",top:"calc(100% + 4px)",right:0,zIndex:50,
-              background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,
+              background:T.surface,border:`1px solid ${T.border}`,borderRadius:12,
               boxShadow:"0 12px 32px rgba(9,9,11,0.1)",padding:10,width:170,
               display:"flex",flexDirection:"column",gap:8,
             }}>
@@ -1515,7 +1515,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               {sideTab==="ai"?"Hide AI":"AI Refine"}
             </button>
             {postState!=="done"&&(
-              <div style={{display:"flex",gap:2,background:T.s2,borderRadius:8,padding:2,border:`1px solid ${T.border}`}} title="Auto publishes via the API. Manual lets you post by hand (the only way to add a tappable Story link sticker).">
+              <div style={{display:"flex",gap:2,background:T.s2,borderRadius:6,padding:2,border:`1px solid ${T.border}`}} title="Auto publishes via the API. Manual lets you post by hand (the only way to add a tappable Story link sticker).">
                 {["auto","manual"].map(m=>(
                   <button key={m} onClick={()=>setMode(m)}
                     style={{padding:"4px 10px",border:"none",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600,textTransform:"capitalize",background:publishMode===m?T.ink:"transparent",color:publishMode===m?T.surface:T.textSub}}>{m}</button>
@@ -1528,7 +1528,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               :publishMode==="manual"
                 ?<>
                   <input value={storyLink} onChange={e=>setLink(e.target.value)} placeholder="https://link-for-sticker" title="Link to add as a Story sticker"
-                    style={{width:190,height:32,padding:"0 10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.surface,fontSize:12,color:T.text,outline:"none"}}/>
+                    style={{width:190,height:32,padding:"0 10px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface,fontSize:12,color:T.text,outline:"none"}}/>
                   <button className="btn btn-primary btn-sm" onClick={manualPublish} title="Download the story image and copy the link, then post it by hand"><Download size={14} style={{marginRight:4}}/> Download + copy link</button>
                 </>
                 :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title={pages.length>1?`Download all ${pages.length} canvases as separate PNGs`:"Download the canvas as PNG"}><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title={pages.length>1?`Flatten all ${pages.length} canvases and attach them so they auto-publish as a ${pages.length}-frame story`:"Flatten the story and attach it so it auto-publishes at its scheduled time"}>{postState==="posting"?(pages.length>1?`Rendering ${pages.length} frames…`:"Rendering…"):(pages.length>1?`Render ${pages.length} frames & save`:"Render & save")}</button></>}
@@ -1560,7 +1560,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 onClick={() => setSideTab(prev => prev === tab.id ? null : tab.id)}
                 style={{
                   width:40,height:40,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                  gap:1,border:"none",borderRadius:8,cursor:"pointer",transition:"all 0.1s",
+                  gap:1,border:"none",borderRadius:6,cursor:"pointer",transition:"all 0.1s",
                   background:sideTab===tab.id ? T.s3 : "transparent",
                   color:sideTab===tab.id ? T.ink : T.textDim,
                 }}>
@@ -1576,7 +1576,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   onClick={() => setSideTab(prev => prev === "props" ? null : "props")}
                   style={{
                     width:40,height:40,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                    gap:1,border:"none",borderRadius:8,cursor:"pointer",transition:"all 0.1s",
+                    gap:1,border:"none",borderRadius:6,cursor:"pointer",transition:"all 0.1s",
                     background:sideTab==="props" ? T.s3 : "transparent",
                     color:sideTab==="props" ? T.ink : T.textDim,
                   }}>
@@ -1615,7 +1615,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 {sideTab === "elements" && (
                   <>
                     <button onClick={addText} draggable onDragStart={(e)=>handleToolDragStart(e,"text")}
-                      style={{width:"100%",padding:"10px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:600,color:T.text,transition:"border-color 0.1s"}}
+                      style={{width:"100%",padding:"10px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:600,color:T.text,transition:"border-color 0.1s"}}
                       onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
                       onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
                       <Type size={16}/> Add text box
@@ -1630,7 +1630,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                         ["star","Star","",<svg key="s" width="18" height="18" viewBox="0 0 18 18"><path d="M9 2.8 L10.9 6.9 L15.4 7.4 L12 10.4 L13 14.9 L9 12.5 L5 14.9 L6 10.4 L2.6 7.4 L7.1 6.9 Z" fill="none" stroke="currentColor" strokeWidth="1.1"/></svg>],
                       ].map(([shape, label, kbd, icon]) => (
                         <button key={shape} onClick={()=>addShape(shape)} title={kbd ? `${label} (${kbd})` : label}
-                          style={{padding:"10px 4px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontSize:10,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                          style={{padding:"10px 4px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontSize:10,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
                           onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
                           onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
                           {icon} {label}
@@ -1639,20 +1639,20 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
                       <button onClick={()=>imgFileRef.current?.click()} draggable onDragStart={(e)=>handleToolDragStart(e,"image")}
-                        style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                        style={{padding:"12px 8px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
                         onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
                         onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
                         <ImageIcon size={20}/> Image / GIF
                       </button>
                       <button onClick={()=>vidFileRef.current?.click()} draggable onDragStart={(e)=>handleToolDragStart(e,"video")}
-                        style={{padding:"12px 8px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                        style={{padding:"12px 8px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
                         onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
                         onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
                         <Film size={20}/> Video
                       </button>
                     </div>
                     <button onClick={()=>bgFileRef.current?.click()}
-                      style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                      style={{width:"100%",padding:"8px 12px",borderRadius:6,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
                       onMouseEnter={e=>e.currentTarget.style.borderColor=T.ink}
                       onMouseLeave={e=>e.currentTarget.style.borderColor=T.border2}>
                       <Wallpaper size={14}/> {elements.find(e=>e.id==="bg")?.url ? "Replace background" : "Set background"}
@@ -1675,7 +1675,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                           pushElements(els => [...els, el]); setSelectedIds(new Set([el.id])); setSideTab("props");
                         }}
                         style={{
-                          width:"100%",padding:"12px 14px",borderRadius:10,border:`1px solid ${T.border}`,
+                          width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${T.border}`,
                           background:T.s2,cursor:"pointer",textAlign:"left",transition:"border-color 0.1s",
                           fontFamily:`'${preset.fontFamily}',sans-serif`,fontSize:Math.min(preset.fontSize, 18),
                           fontWeight:preset.fontWeight,color:T.text,letterSpacing:preset.letterSpacing||0,
@@ -1799,9 +1799,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                       <span>{aiLoading?"Analyzing...":"Layout Suggestions"}</span>
                       {!aiLoading&&<button style={{marginLeft:"auto",background:"transparent",border:"none",color:"#7C3AED",cursor:"pointer",fontSize:11,fontWeight:600,padding:0}} onClick={runAICopilot}><RotateCcw size={12}/></button>}
                     </div>
-                    {aiLoading&&<div style={{height:4,background:"#EDE9FE",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:"60%",background:"#7C3AED",borderRadius:99}}/></div>}
+                    {aiLoading&&<div style={{height:4,background:"#EDE9FE",borderRadius:999,overflow:"hidden"}}><div style={{height:"100%",width:"60%",background:"#7C3AED",borderRadius:999}}/></div>}
                     {aiTips.length > 0 ? aiTips.map((tip,i)=><div key={i} className="ai-suggestion"><b>{i+1}.</b> {tip}</div>)
-                      : !aiLoading && <button onClick={runAICopilot} style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",fontSize:11,fontWeight:600,color:T.textSub}}>
+                      : !aiLoading && <button onClick={runAICopilot} style={{width:"100%",padding:"10px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",fontSize:11,fontWeight:600,color:T.textSub}}>
                         <AIMark size={12} style={{marginRight:4}}/> Analyze layout
                       </button>
                     }
@@ -2267,18 +2267,18 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         {(activeUploads.length > 0 || uploadError) && (
           <div style={{position:"fixed",bottom:20,right:20,display:"flex",flexDirection:"column",gap:8,zIndex:60,maxWidth:320}}>
             {activeUploads.map((u) => (
-              <div key={u.id} style={{background:"#ffffff",border:"1px solid #e4e4e7",borderRadius:10,padding:"10px 12px",boxShadow:"0 8px 24px rgba(9,9,11,0.12)"}}>
+              <div key={u.id} style={{background:"#ffffff",border:"1px solid #e4e4e7",borderRadius:12,padding:"10px 12px",boxShadow:"0 8px 24px rgba(9,9,11,0.12)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:6}}>
                   <div style={{fontSize:13,color:"#09090b",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.name}</div>
                   <div style={{fontSize:12,color:"#71717a",fontVariantNumeric:"tabular-nums"}}>{Math.round(u.progress*100)}%</div>
                 </div>
-                <div style={{height:4,background:"#e4e4e7",borderRadius:99,overflow:"hidden"}}>
+                <div style={{height:4,background:"#e4e4e7",borderRadius:999,overflow:"hidden"}}>
                   <div style={{height:"100%",width:`${Math.round(u.progress*100)}%`,background:"#09090b",transition:"width 140ms ease"}}/>
                 </div>
               </div>
             ))}
             {uploadError && (
-              <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 12px",fontSize:13,color:"#dc2626",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+              <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:12,padding:"10px 12px",fontSize:13,color:"#dc2626",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
                 <span>{uploadError}</span>
                 <button onClick={() => setUploadError("")} style={{background:"transparent",border:"none",color:"#dc2626",cursor:"pointer",fontSize:14,lineHeight:1,padding:0}}>×</button>
               </div>

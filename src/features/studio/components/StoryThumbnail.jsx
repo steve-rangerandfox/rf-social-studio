@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { ShapeSVG } from "./CanvasElement.jsx";
 
 // Canvas design space: 290x515. Thumbnail uses percentage positioning so it
 // scales correctly regardless of the thumbnail's rendered size.
@@ -29,6 +30,19 @@ export function StoryThumbnail({ elements, onClick }) {
         {bgEl?.url && bgEl.mediaType !== 'video' && <img src={bgEl.url} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} alt=""/>}
         {bgEl?.url && isVid  && <video ref={videoRef} src={bgEl.url} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} loop muted playsInline/>}
         {bgEl?.url && <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,.28) 100%)',pointerEvents:'none'}}/>}
+        {elements.filter(e => !e.locked && e.type === 'shape').map(el => (
+          <div key={el.id} style={{
+            position:'absolute',
+            left: `${(el.x / CW) * 100}%`,
+            top: `${(el.y / CH) * 100}%`,
+            width: ((el.width || 110) * (el.scale || 1) / CW * 100) + '%',
+            height: ((el.height || 110) * (el.scale || 1) / CH * 100) + '%',
+            transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+            pointerEvents:'none',
+          }}>
+            <ShapeSVG shape={el.shape} fill={el.fill || '#FFFFFF'} stroke={el.stroke} strokeWidth={el.strokeWidth || 0} strokeCap={el.strokeCap} strokeAlign={el.strokeAlign} opacity={el.opacity} clipId={'tclip-' + el.id} />
+          </div>
+        ))}
         {elements.filter(e => !e.locked && e.type === 'text').map(el => (
           <div key={el.id} className="thumb-el" style={{
             left: `${(el.x / CW) * 100}%`,

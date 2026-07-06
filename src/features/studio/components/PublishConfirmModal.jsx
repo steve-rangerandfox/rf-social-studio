@@ -51,7 +51,7 @@ export function PublishConfirmModal({ row, platform, mediaUrls, onConfirm, onCan
               alignItems: "center",
               gap: 8,
               padding: "8px 12px",
-              borderRadius: 8,
+              borderRadius:6,
               background: T.s2,
             }}
           >
@@ -77,7 +77,7 @@ export function PublishConfirmModal({ row, platform, mediaUrls, onConfirm, onCan
                   lineHeight: 1.5,
                   color: T.text,
                   padding: "8px 12px",
-                  borderRadius: 8,
+                  borderRadius:6,
                   border: `1px solid ${T.border}`,
                   background: T.surface,
                   whiteSpace: "pre-wrap",
@@ -133,7 +133,7 @@ export function PublishConfirmModal({ row, platform, mediaUrls, onConfirm, onCan
                 flexDirection: "column",
                 gap: 4,
                 padding: "8px 12px",
-                borderRadius: 8,
+                borderRadius:6,
                 border: `1px solid ${T.border}`,
                 background: T.surface,
               }}
@@ -170,7 +170,7 @@ export function PublishConfirmModal({ row, platform, mediaUrls, onConfirm, onCan
                 alignItems: "center",
                 gap: 8,
                 padding: "8px 12px",
-                borderRadius: 8,
+                borderRadius:6,
                 background: "rgba(220,38,38,0.06)",
                 border: `1px solid rgba(220,38,38,0.15)`,
               }}

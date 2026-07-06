@@ -127,11 +127,11 @@ export function AssetLibrary({ onClose, onSelect }) {
         </div>
 
         {activeUploads.length > 0 && (
-          <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:10,padding:"8px 10px",background:"#fafafa",border:"1px solid #e4e4e7",borderRadius:8}}>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:10,padding:"8px 10px",background:"#fafafa",border:"1px solid #e4e4e7",borderRadius:6}}>
             {activeUploads.map((u) => (
               <div key={u.id} style={{display:"flex",alignItems:"center",gap:10}}>
                 <div style={{flex:1,fontSize:13,color:"#09090b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{u.name}</div>
-                <div style={{flex:1,height:4,background:"#e4e4e7",borderRadius:99,overflow:"hidden"}}>
+                <div style={{flex:1,height:4,background:"#e4e4e7",borderRadius:999,overflow:"hidden"}}>
                   <div style={{height:"100%",width:`${Math.round(u.progress*100)}%`,background:"#09090b",transition:"width 140ms ease"}}/>
                 </div>
                 <div style={{fontSize:12,color:"#71717a",fontVariantNumeric:"tabular-nums",width:34,textAlign:"right"}}>{Math.round(u.progress*100)}%</div>
@@ -140,7 +140,7 @@ export function AssetLibrary({ onClose, onSelect }) {
           </div>
         )}
         {uploadError && (
-          <div style={{marginTop:10,padding:"8px 10px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,fontSize:13,color:"#dc2626"}}>
+          <div style={{marginTop:10,padding:"8px 10px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:6,fontSize:13,color:"#dc2626"}}>
             {uploadError}
           </div>
         )}

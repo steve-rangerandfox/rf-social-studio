@@ -48,12 +48,12 @@ export function AICaptionAssist({ platform, note, onAccept, variant = "panel" })
           placeholder="Describe what to write…"
           style={{
             flex:1,background:"rgba(255,255,255,0.72)",border:`1px solid ${T.border}`,
-            borderRadius:8,fontSize:11,padding:"7px 10px",outline:"none",color:T.text,
+            borderRadius:6,fontSize:11,padding:"7px 10px",outline:"none",color:T.text,
           }}/>
         <button onClick={generate} disabled={loading || !prompt.trim()}
           style={{
             background:loading ? T.s3 : T.ink,color:loading ? T.textDim : T.surface,
-            border:"none",borderRadius:8,padding:"7px 10px",fontSize:10,fontWeight:700,
+            border:"none",borderRadius:6,padding:"7px 10px",fontSize:10,fontWeight:700,
             cursor:loading ? "default" : "pointer",flexShrink:0,letterSpacing:"0.02em",
           }}>
           {loading ? "Writing..." : "Generate"}
