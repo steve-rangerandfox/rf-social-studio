@@ -347,7 +347,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
         </div>
       )}
       {data.type === 'shape' ? (
-        <ShapeSVG shape={data.shape} fill={data.fill || '#FFFFFF'} stroke={data.stroke} strokeWidth={data.strokeWidth || 0} opacity={data.opacity} />
+        <ShapeSVG shape={data.shape} fill={data.fill || '#FFFFFF'} stroke={data.stroke} strokeWidth={data.strokeWidth || 0} strokeCap={data.strokeCap} strokeAlign={data.strokeAlign} opacity={data.opacity} clipId={'sclip-' + data.id} />
       ) : data.type === 'text' ? (
         <div
           ref={editRef}
@@ -474,18 +474,35 @@ export function starPoints() {
 // Vector shapes drawn as fills in unit space and stretched to the element's
 // box (preserveAspectRatio none) — no strokes, so non-uniform resize never
 // distorts line weights. "line" is simply a thin filled box.
-export function ShapeSVG({ shape, fill, stroke, strokeWidth, opacity }) {
+export function ShapeSVG({ shape, fill, stroke, strokeWidth, strokeCap, strokeAlign, opacity, clipId }) {
   const common = { width: "100%", height: "100%", viewBox: "0 0 100 100", preserveAspectRatio: "none", style: { display: "block", opacity: opacity ?? 1, pointerEvents: "none", overflow: "visible" } };
-  const sp = strokeWidth > 0 ? { stroke: stroke || "#09090b", strokeWidth, vectorEffect: "non-scaling-stroke" } : {};
-  if (shape === "ellipse") return <svg {...common}><ellipse cx="50" cy="50" rx="50" ry="50" fill={fill} {...sp} /></svg>;
-  if (shape === "polygon") return <svg {...common}><polygon points="50,0 100,100 0,100" fill={fill} {...sp} /></svg>;
-  if (shape === "star") return <svg {...common}><polygon points={starPoints()} fill={fill} {...sp} /></svg>;
-  if (shape === "arrow") return (
+  const sw = strokeWidth > 0 ? strokeWidth : 0;
+  const cap = strokeCap === "round" ? "round" : "butt";
+  const join = strokeCap === "round" ? "round" : "miter";
+  const sc = stroke || "#FFFFFF";
+  // A line IS a stroke: no fill, minimum 1px, drawn across the box middle.
+  if (shape === "line") {
+    return <svg {...common}><line x1="0" y1="50" x2="100" y2="50" stroke={sc} strokeWidth={Math.max(sw, 1)} strokeLinecap={cap} vectorEffect="non-scaling-stroke" /></svg>;
+  }
+  const geom = (props) =>
+    shape === "ellipse" ? <ellipse cx="50" cy="50" rx="50" ry="50" {...props} /> :
+    shape === "polygon" ? <polygon points="50,0 100,100 0,100" {...props} /> :
+    shape === "star" ? <polygon points={starPoints()} {...props} /> :
+    shape === "arrow" ? <path d="M0,38 H74 V8 L100,50 L74,92 V62 H0 Z" {...props} /> :
+    <rect width="100" height="100" {...props} />;
+  const sp = { fill: "none", stroke: sc, strokeLinecap: cap, strokeLinejoin: join, vectorEffect: "non-scaling-stroke" };
+  const align = strokeAlign || "center";
+  // No native SVG stroke-align: outside = 2x stroke painted UNDER the fill;
+  // inside = 2x stroke clipped to the shape, over it; center = normal stroke.
+  return (
     <svg {...common}>
-      <rect x="0" y="38" width="74" height="24" fill={fill} {...sp} />
-      <polygon points="70,8 100,50 70,92" fill={fill} {...sp} />
+      {sw > 0 && align === "outside" && geom({ ...sp, strokeWidth: sw * 2 })}
+      {geom({ fill })}
+      {sw > 0 && align === "center" && geom({ ...sp, strokeWidth: sw })}
+      {sw > 0 && align === "inside" && (<>
+        <clipPath id={clipId}>{geom({})}</clipPath>
+        <g clipPath={"url(#" + clipId + ")"}>{geom({ ...sp, strokeWidth: sw * 2 })}</g>
+      </>)}
     </svg>
   );
-  // rect + line share geometry — a line is a thin filled box
-  return <svg {...common}><rect width="100" height="100" fill={fill} {...sp} /></svg>;
 }

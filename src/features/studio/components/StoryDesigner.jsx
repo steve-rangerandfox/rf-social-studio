@@ -780,12 +780,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   };
   // Vector shapes (Figma-style): centered on the canvas, selected on insert.
   const addShape = (shape) => {
-    const dims = shape === 'line' ? { width: 140, height: 4 }
+    const dims = shape === 'line' ? { width: 140, height: 12 }
       : shape === 'arrow' ? { width: 140, height: 16 }
       : { width: 110, height: 110 };
     const id = uid();
     pushElements(els => [...els, {
-      id, type: 'shape', shape, fill: '#FFFFFF', scale: 1,
+      id, type: 'shape', shape, fill: '#FFFFFF', stroke: '#FFFFFF', strokeWidth: 1, strokeCap: 'butt', strokeAlign: 'center', scale: 1,
       x: Math.round(preset.w / 2 - dims.width / 2),
       y: Math.round(preset.h / 2 - dims.height / 2),
       ...dims,
@@ -1174,6 +1174,14 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
       ctx.translate(-w / 2, -h / 2);
       ctx.globalAlpha = el.opacity ?? 1;
+      ctx.lineCap = el.strokeCap === "round" ? "round" : "butt";
+      ctx.lineJoin = el.strokeCap === "round" ? "round" : "miter";
+      if (el.shape === "line") {
+        ctx.strokeStyle = el.stroke || "#FFFFFF";
+        ctx.lineWidth = Math.max((el.strokeWidth || 1) * SCALE, SCALE);
+        ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+        ctx.restore(); continue;
+      }
       ctx.fillStyle = el.fill || "#FFFFFF";
       ctx.beginPath();
       if (el.shape === "ellipse") ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
@@ -1827,7 +1835,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                         <div className="inspector-group-title" style={{marginTop:8}}>Stroke</div>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
                           <input type="color" value={selected.stroke||'#09090b'}
-                            onChange={e=>updateEl(selectedId,{stroke:e.target.value, strokeWidth: selected.strokeWidth || 2})}
+                            onChange={e=>updateEl(selectedId,{stroke:e.target.value, strokeWidth: selected.strokeWidth || 1})}
                             style={{width:24,height:24,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Stroke color"/>
                           <input type="number" min={0} max={20} step={1} value={selected.strokeWidth||0} title="Stroke width (0 = none)"
                             onChange={e=>updateEl(selectedId,{strokeWidth: Math.max(0, Math.min(20, parseInt(e.target.value)||0))})}
