@@ -194,6 +194,23 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
       </div>
       {fontError && <div style={{fontSize:10,color:T.red,lineHeight:1.4}}>{fontError}</div>}
 
+      {/* ── Weight · line height · letter spacing (Figma typography row) ── */}
+      <div style={{display:"flex",gap:4}}>
+        <select value={selected.fontWeight || 600} onChange={e => updateEl(selectedId, { fontWeight: parseInt(e.target.value) })}
+          title="Font weight"
+          style={{flex:1,minWidth:0,height:28,borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,fontSize:11,fontWeight:600,color:T.text,padding:"0 6px",outline:"none"}}>
+          {[[300,"Light"],[400,"Regular"],[500,"Medium"],[600,"Semibold"],[700,"Bold"],[800,"Extrabold"]].map(([w,l]) => (
+            <option key={w} value={w}>{l} · {w}</option>
+          ))}
+        </select>
+        <input type="number" step={0.05} min={0.8} max={3} value={selected.lineHeight ?? 1.25} title="Line height"
+          onChange={e => updateEl(selectedId, { lineHeight: Math.max(0.8, Math.min(3, parseFloat(e.target.value) || 1.25)) })}
+          style={{height:28,borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,...numInput,width:52}}/>
+        <input type="number" step={0.1} min={-2} max={10} value={selected.letterSpacing ?? 0} title="Letter spacing"
+          onChange={e => updateEl(selectedId, { letterSpacing: Math.max(-2, Math.min(10, parseFloat(e.target.value) || 0)) })}
+          style={{height:28,borderRadius:8,border:`1px solid ${T.border}`,background:T.s2,...numInput,width:52}}/>
+      </div>
+
       {/* ── Row 2: [Color] | [B] [I] [U] [S] | [spacing ▾] ── */}
       <div style={{display:"flex",alignItems:"center",gap:2,background:T.s2,borderRadius:8,padding:2,border:`1px solid ${T.border}`}}>
         {/* Color */}
@@ -1806,18 +1823,27 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                           ))}
                         </div>
                       </div>
-                      {/* Text Outline */}
-                      <div className="inspector-group">
-                        <div className="inspector-group-title">Outline</div>
-                        <div className="sd-outline-row">
-                          <label style={{fontSize:11,color:T.textSub,fontWeight:600}}>Outline</label>
-                          <input type="checkbox" checked={!!selected.outline} onChange={(e) => updateEl(selectedId, { outline: e.target.checked ? 1 : 0 })} />
-                          {selected.outline > 0 && (
-                            <>
-                              <input type="range" className="s-slider" min="0.5" max="3" step="0.5" value={selected.outline || 1} onChange={(e) => updateEl(selectedId, { outline: Number(e.target.value) })} style={{flex:1}} />
-                              <input type="color" value={selected.outlineColor || "#000000"} onChange={(e) => updateEl(selectedId, { outlineColor: e.target.value })} style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} />
-                            </>
-                          )}
+                      {/* Fill + Stroke, adjacent (Figma-style) */}
+                      <div className="inspector-group" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                        <div>
+                          <div className="inspector-group-title">Fill</div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <input type="color" value={selected.gradient ? "#ffffff" : (selected.color || "#ffffff")}
+                              onChange={(e) => updateEl(selectedId, { color: e.target.value, gradient: null })}
+                              style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Fill color"/>
+                            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.textSub}}>{selected.gradient ? "Gradient" : (selected.color || "#ffffff").toUpperCase()}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="inspector-group-title">Stroke</div>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <input type="color" value={selected.outlineColor || "#000000"}
+                              onChange={(e) => updateEl(selectedId, { outlineColor: e.target.value, outline: selected.outline || 1 })}
+                              style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Stroke color"/>
+                            <input type="number" min={0} max={3} step={0.5} value={selected.outline || 0} title="Stroke weight (0 = none)"
+                              onChange={(e) => updateEl(selectedId, { outline: Math.max(0, Math.min(3, parseFloat(e.target.value) || 0)) })}
+                              style={{width:44,height:26,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,textAlign:"center",fontSize:11,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,outline:"none"}}/>
+                          </div>
                         </div>
                       </div>
                       </>
