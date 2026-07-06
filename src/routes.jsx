@@ -33,3 +33,6 @@ export const ReviewPage = lazy(() =>
 export const CarouselSplitter = lazy(() =>
   import("./components/CarouselSplitter.jsx").then((m) => ({ default: m.CarouselSplitter })),
 );
+export const GuidePage = lazy(() =>
+  import("./components/GuidePage.jsx").then((m) => ({ default: m.GuidePage })),
+);

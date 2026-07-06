@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { Seo } from "./Seo.jsx";
 
 // Free tool: seamless carousel splitter. Public, no login — upload one
 // image, split it into 2-10 seamless Instagram carousel panels, download
@@ -31,11 +33,6 @@ export function CarouselSplitter() {
   const [dragOver, setDragOver] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const fileRef = useRef(null);
-
-  useEffect(() => {
-    document.title = "Free Seamless Carousel Splitter — Relay";
-    return () => { document.title = "Relay — Calm operations for a sharper content system."; };
-  }, []);
 
   const load = (file) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -76,6 +73,21 @@ export function CarouselSplitter() {
   return (
     <div className="spl-root">
       <style>{SPLITTER_CSS}</style>
+      <Seo
+        title="Free Seamless Carousel Splitter for Instagram — Relay"
+        description="Split one image into 2-6 seamless Instagram carousel panels, free and in your browser. Exact 1080px slices, numbered in swipe order — no upload, no watermark."
+        path="/tools/carousel-splitter"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "HowTo",
+          name: "How to split an image into a seamless Instagram carousel",
+          step: [
+            { "@type": "HowToStep", name: "Upload", text: "Drop a wide, high-resolution image into the splitter." },
+            { "@type": "HowToStep", name: "Choose panels", text: "Pick 2-6 panels and 4:5 portrait or 1:1 square output." },
+            { "@type": "HowToStep", name: "Download and post", text: "Download the numbered 1080px slices and upload them to Instagram in order, without re-cropping." },
+          ],
+        }}
+      />
       <header className="spl-head">
         <a className="spl-brand" href="/">Relay</a>
         <a className="spl-cta-link" href="/app">Open the studio →</a>
@@ -166,6 +178,13 @@ export function CarouselSplitter() {
           </ol>
         </section>
 
+        <nav className="spl-guides">
+          <span className="spl-control-label">Go deeper</span>
+          <Link className="spl-guide-link" to="/guides/seamless-carousel-instagram">Seamless carousel guide</Link>
+          <Link className="spl-guide-link" to="/guides/instagram-carousel-size">Carousel sizes</Link>
+          <Link className="spl-guide-link" to="/guides/instagram-story-dimensions">Story dimensions</Link>
+        </nav>
+
         <footer className="spl-foot">
           Built by <a href="/" className="spl-foot-link">Relay</a> — plan, design, and publish in one studio.
         </footer>
@@ -215,7 +234,9 @@ const SPLITTER_CSS = `
 .spl-upsell .spl-btn{margin-top:6px}
 .spl-how{margin-top:44px}
 .spl-steps{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.55;color:#52525b;max-width:60ch}
-.spl-foot{margin-top:52px;font-size:12px;color:#a1a1aa}
+.spl-guides{display:flex;gap:14px;align-items:baseline;margin-top:44px;flex-wrap:wrap}
+.spl-guide-link{font-size:13px;font-weight:600;color:#09090b}
+.spl-foot{margin-top:28px;font-size:12px;color:#a1a1aa}
 .spl-foot-link{color:#71717a;font-weight:600;text-decoration:none}
 @media (max-width:560px){.spl-controls{gap:12px}.spl-swap{margin-left:0}}
 `;

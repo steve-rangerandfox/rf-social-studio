@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "./landing.css";
 import { Kicker, HeroArt, ChaosArt, CarouselArt, StoryArt } from "./LandingArt.jsx";
+import { Seo } from "./Seo.jsx";
 import { Keyboard, CalendarIcon, Stack, Globe, CheckCircle, Person } from "./icons/index.jsx";
 
 // Public landing — Relay editorial marketing site, ported from the
@@ -353,6 +354,7 @@ function Footer() {
             <a href="#detail">Details</a>
             <Link to="/pricing">Pricing</Link>
             <Link to="/tools/carousel-splitter">Free carousel splitter</Link>
+            <Link to="/guides/seamless-carousel-instagram">Guides</Link>
             <Link to="/about">About</Link>
             <Link to="/privacy">Privacy</Link>
             <Link to="/terms">Terms</Link>
@@ -375,6 +377,21 @@ export function Landing() {
   useReveal();
   return (
     <div className="lp-root">
+      <Seo
+        title="Relay — Design seamless carousels and stories. Publish on schedule."
+        description="The design-first social studio: seamless Instagram carousels, multi-frame stories on artboards, client approvals from a link, and scheduled publishing to Instagram and LinkedIn."
+        path="/"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "Relay",
+          applicationCategory: "BusinessApplication",
+          operatingSystem: "Web",
+          description: "Design-first social media studio for carousels, stories, scheduling, and client approvals.",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD", description: "Free tier; paid plans with 14-day trial." },
+          publisher: { "@type": "Organization", name: "Ranger & Fox" },
+        }}
+      />
       <div className="lp-grain" />
       <Nav />
       <Hero />
