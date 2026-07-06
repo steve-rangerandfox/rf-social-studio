@@ -1890,7 +1890,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                             <CanvasElement key={el.id} data={el} isSelected={false}
                               onSelect={()=>{}} onUpdate={()=>{}} zoom={zoom} canvasW={preset.w} canvasH={preset.h}/>
                           ))}
-                          <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",zIndex:50}}>R&F</div>
                         </div>
                       </div>
                     </div>
@@ -1963,7 +1962,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     <div style={{position:'absolute',left:'10%',top:'10%',right:'10%',bottom:'10%',border:'1px dashed rgba(255,122,0,0.3)',borderRadius:4}}/>
                   </div>
                 )}
-                <div style={{position:"absolute",bottom:14,right:14,fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,0.2)",letterSpacing:2.5,textTransform:"uppercase",pointerEvents:"none",zIndex:50}}>R&F</div>
               </div>
             </div>
               </div>

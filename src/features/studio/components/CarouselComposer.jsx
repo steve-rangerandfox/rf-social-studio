@@ -246,7 +246,7 @@ export function CarouselComposer({ row, onClose }) {
             <button className="cc2-board-add" onClick={add} disabled={slides.length >= 10} title="Add slide">+</button>
           </div>
           <div className="cc2-stage-foot">
-            Slide {cur + 1} of {slides.length} · {platform === "instagram" ? "Instagram · 1080×1080" : "LinkedIn · 1200×960"}
+            Slide {cur + 1} of {slides.length} · {platform === "instagram" ? "Instagram · renders 1080×1080" : "LinkedIn · preview ratio only"}
           </div>
         </div>
 

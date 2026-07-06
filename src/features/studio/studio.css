@@ -1795,7 +1795,6 @@ input,textarea,select,button{font-family:inherit}
 .ig-cell-canvas-inner{position:absolute;top:0;left:0;width:290px;height:515px;transform-origin:top left}
 .ig-cell-bg{position:absolute;inset:0}
 .ig-cell-gradient{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0) 45%,rgba(0,0,0,0.25) 100%)}
-.ig-cell-watermark{position:absolute;bottom:10px;right:10px;font-size:5px;color:rgba(255,255,255,0.18);letter-spacing:2px;text-transform:uppercase}
 .ig-cell-post-bg{position:absolute;inset:0;display:flex;flex-direction:column;padding:11px 10px 9px}
 .ig-cell-post-gradient{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.25) 0%,rgba(0,0,0,0) 40%,rgba(0,0,0,0.7) 100%)}
 .ig-cell-post-content{position:relative;z-index:1;margin-top:auto}

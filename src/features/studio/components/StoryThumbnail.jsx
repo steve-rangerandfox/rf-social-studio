@@ -65,7 +65,6 @@ export function StoryThumbnail({ elements, onClick }) {
         {!bgEl?.url && <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
           <span style={{fontSize:18,opacity:.2,color:'#fff'}}></span>
         </div>}
-        <div style={{position:'absolute',bottom:6,right:6,fontFamily:"'JetBrains Mono',monospace",fontSize:5.5,color:'rgba(255,255,255,.2)',letterSpacing:2,textTransform:'uppercase',pointerEvents:'none'}}>R&F</div>
         <div className="story-thumb-overlay">
           <button className="story-thumb-btn">Open Designer</button>
         </div>
