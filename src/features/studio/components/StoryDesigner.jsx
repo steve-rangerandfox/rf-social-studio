@@ -50,7 +50,7 @@ const CANVAS_PRESETS = [
   { key: "ig_post", label: "IG Post", w: 290, h: 290, exportW: 1080, exportH: 1080, ratio: "1:1" },
   { key: "ig_reel", label: "IG Reel", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
   { key: "tiktok", label: "TikTok", w: 290, h: 515, exportW: 1080, exportH: 1920, ratio: "9:16" },
-  { key: "linkedin", label: "LinkedIn Post", w: 290, h: 290, exportW: 1200, exportH: 1200, ratio: "1:1" },
+  { key: "linkedin", label: "LinkedIn Post", w: 290, h: 362, exportW: 1080, exportH: 1350, ratio: "4:5" },
   { key: "linkedin_link", label: "LinkedIn Link", w: 290, h: 152, exportW: 1200, exportH: 628, ratio: "1.91:1" },
   { key: "youtube", label: "YouTube", w: 290, h: 163, exportW: 1280, exportH: 720, ratio: "16:9" },
 ];
@@ -1355,12 +1355,26 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); duplicateSelected(); return; }
       if (mod && (e.key === 'c' || e.key === 'C') && !inField && selectedIds.size > 0) { e.preventDefault(); copySelected(); return; }
-      if (mod && (e.key === 'v' || e.key === 'V') && !inField) { e.preventDefault(); pasteClipboard(); return; }
       if ((e.key==='Backspace'||e.key==='Delete') && selectedIds.size > 0 && !inField) deleteSelected();
       if (e.key==='Escape') { setSelectedIds(new Set()); setCtxMenu(null); }
     };
-    window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h);
-  }, [selectedIds,elements,editingId]);
+    // Paste rides the real clipboard event (not a Ctrl+V keydown) so an image
+    // copied from another site or the desktop pastes straight onto the canvas
+    // through the normal upload pipeline; with no media in the OS clipboard it
+    // falls back to the internal element clipboard.
+    const onPaste = (e) => {
+      if (editingId) return;
+      const el = document.activeElement;
+      if (el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable) return;
+      const files = Array.from(e.clipboardData?.files || []);
+      const media = files.find(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
+      if (media) { e.preventDefault(); addMedia(media); return; }
+      if (designerClipboard.length) { e.preventDefault(); pasteClipboard(); }
+    };
+    window.addEventListener('keydown',h);
+    window.addEventListener('paste', onPaste);
+    return ()=>{ window.removeEventListener('keydown',h); window.removeEventListener('paste', onPaste); };
+  }, [selectedIds,elements,editingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const layersRev = [...elements].reverse();
 
