@@ -380,6 +380,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
             lineHeight: data.lineHeight || 1.25,
             textAlign: data.textAlign || 'left',
             whiteSpace: 'pre-wrap',
+            textTransform: data.uppercase ? 'uppercase' : undefined,
             width: data.boxWidth || 190,
             textShadow: data.shadow ? '0 2px 12px rgba(0,0,0,0.8)' : undefined,
             WebkitTextStroke: data.outline ? `${data.outline}px ${data.outlineColor || "#000"}` : undefined,
@@ -389,7 +390,10 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
             cursor: isEditing ? 'text' : 'move',
           }}
         >
-          {data.content}
+          {isEditing || !data.listStyle
+            ? data.content
+            : String(data.content || '').split('\n').map((ln, i) =>
+                (data.listStyle === 'number' ? `${i + 1}. ` : '\u2022 ') + ln).join('\n')}
         </div>
       ) : isVideo ? (
         <div className="video-el">
