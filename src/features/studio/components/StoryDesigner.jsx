@@ -40,7 +40,7 @@ import { StoryDesignerTour } from "./StoryDesignerTour.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { useStudio } from "../StudioContext.jsx";
 import { generateStoryTips } from "../../../lib/api-client.js";
-import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
+import { uploadAssetWithProgress, checkFileSize, fetchAssets, saveAsset } from "../../../lib/supabase.js";
 
 // Session-local clipboard for copy/paste of canvas elements (persists across
 // opening/closing the designer; not a React ref, so it stays out of render).
@@ -55,6 +55,18 @@ const CANVAS_PRESETS = [
   { key: "linkedin_link", label: "LinkedIn Link", w: 290, h: 152, exportW: 1200, exportH: 628, ratio: "1.91:1" },
   { key: "youtube", label: "YouTube", w: 290, h: 163, exportW: 1280, exportH: 720, ratio: "16:9" },
 ];
+
+// Which canvas preset a publishing outlet designs against. A post's outlet
+// list (row.platforms) maps through this to decide which presets the
+// designer's size dropdown offers.
+const PLATFORM_TO_PRESET = {
+  ig_story: "ig_story",
+  ig_post: "ig_post",
+  ig_reel: "ig_reel",
+  tiktok: "tiktok",
+  linkedin: "linkedin",
+  facebook: "ig_post",
+};
 
 const BRAND_FONTS = [
   { name:"Bricolage Grotesque", label:"Bricolage",  group:"brand" },
@@ -557,14 +569,15 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // page shows is derived from its position among the pages that share the id,
   // so add / delete / reorder re-spread the image automatically.
   const spanFileRef = useRef(null);
-  const spanInfoFor = (pageIdx) => {
-    const sid = pages[pageIdx]?.elements.find(e => e.locked)?.bgSpanId;
+  const spanInfoForEls = (pageEls, pageIdx) => {
+    const sid = pageEls[pageIdx]?.find(e => e.locked)?.bgSpanId;
     if (!sid) return null;
     const members = [];
-    pages.forEach((p, i) => { if (p.elements.find(e => e.locked)?.bgSpanId === sid) members.push(i); });
+    pageEls.forEach((els, i) => { if (els.find(e => e.locked)?.bgSpanId === sid) members.push(i); });
     if (members.length < 2) return null;
     return { total: members.length, index: members.indexOf(pageIdx) };
   };
+  const spanInfoFor = (pageIdx) => spanInfoForEls(pages.map(p => p.elements), pageIdx);
   const spanImageAcross = async (file) => {
     if (!file) return;
     try { checkFileSize(file); } catch (err) { setUploadError(err.message); return; }
@@ -611,7 +624,13 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // Persist every page; keep storyElements = page 0 for scheduler/export.
   useEffect(() => {
     if (!onUpdate) return;
-    const patch = { storyPages: pages.map(p => p.elements), storyElements: pages[0]?.elements || [] };
+    layoutsRef.current[canvasPreset] = pages.map(p => p.elements);
+    const patch = {
+      storyPages: pages.map(p => p.elements),
+      storyElements: pages[0]?.elements || [],
+      storyLayouts: { ...layoutsRef.current },
+      storyPreset: canvasPreset,
+    };
     if (firstSaveRef.current) {
       // Initial mount — don't wipe frames just because the designer opened.
       firstSaveRef.current = false;
@@ -633,7 +652,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   const [zoom,        setZoom]        = useState(1.8);
   const [activeUploads, setActiveUploads] = useState([]);
   const [uploadError, setUploadError] = useState("");
-  const [canvasPreset, setCanvasPreset] = useState("ig_story");
+  const [canvasPreset, setCanvasPreset] = useState(() =>
+    row?.storyPreset || PLATFORM_TO_PRESET[row?.platform] || "ig_story");
+  // Per-outlet arrangements: presetKey → array of page element-arrays. The
+  // design is shared; each outlet remembers how it was hand-arranged after
+  // the automatic reflow.
+  const layoutsRef = useRef({ ...(row?.storyLayouts || {}) });
   const [postState,   setPostState]   = useState("idle");
   const [aiLoading,   setAiLoading]   = useState(false);
   const [aiTips,      setAiTips]      = useState([]);
@@ -663,6 +687,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   };
   // Sidebar tab: null = collapsed, 'elements' | 'text' | 'uploads' | 'templates' | 'layers' | 'ai'
   const [sideTab, setSideTab] = useState('elements');
+  // Uploads library (media_assets table): null until first opened.
+  const [libAssets, setLibAssets] = useState(null);
+  const [libQuery, setLibQuery] = useState("");
+  const [libFilter, setLibFilter] = useState("image");
   const bgFileRef  = useRef(null);
   const imgFileRef = useRef(null);
   const vidFileRef = useRef(null);
@@ -721,17 +749,26 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   const preset = CANVAS_PRESETS.find(p => p.key === canvasPreset) || CANVAS_PRESETS[0];
   const selected  = selectedId ? elements.find(el => el.id === selectedId) : null;
 
-  // Switching canvas preset rescales every page's elements into the new
-  // dimensions — positions per-axis (nothing can end up clipped off-canvas),
-  // type and media by the geometric mean of the two ratios so scale stays
-  // proportionate in both directions. Backgrounds cover-fit on their own.
-  const handlePresetChange = (key) => {
-    const next = CANVAS_PRESETS.find(p => p.key === key);
-    if (!next || next.key === preset.key) return;
-    const wR = next.w / preset.w;
-    const hR = next.h / preset.h;
+  // The size dropdown offers only the post's outlets (mapped to presets).
+  // A post with no outlet list — or one opened outside the post flow —
+  // still gets the full preset menu.
+  const rowPlatforms = Array.isArray(row?.platforms) && row.platforms.length
+    ? row.platforms
+    : (row?.platform ? [row.platform] : []);
+  const outletPresetKeys = [...new Set(rowPlatforms.map(p => PLATFORM_TO_PRESET[p]).filter(Boolean))];
+  const presetOptions = outletPresetKeys.length
+    ? CANVAS_PRESETS.filter(p => outletPresetKeys.includes(p.key) || p.key === canvasPreset)
+    : CANVAS_PRESETS;
+
+  // Reflow one page's elements from one canvas size into another — positions
+  // per-axis (nothing can end up clipped off-canvas), type and media by the
+  // geometric mean of the two ratios so scale stays proportionate in both
+  // directions. Backgrounds cover-fit on their own.
+  const rescaleElements = (els, from, to) => {
+    const wR = to.w / from.w;
+    const hR = to.h / from.h;
     const sR = Math.sqrt(wR * hR);
-    const rescale = (els) => els.map(e => {
+    return els.map(e => {
       if (e.locked) return e;
       const out = { ...e, x: Math.round(e.x * wR), y: Math.round(e.y * hR) };
       if (out.boxWidth) out.boxWidth = Math.max(20, Math.round(out.boxWidth * wR));
@@ -741,8 +778,26 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       if (out.height) out.height = Math.max(8, Math.round(out.height * sR));
       return out;
     });
-    const rescaledActive = rescale(pages[activePageIdxRef.current]?.elements || []);
-    setPages(prev => prev.map(pg => ({ ...pg, elements: rescale(pg.elements) })));
+  };
+
+  // Switching outlet: remember the outgoing arrangement, restore the target
+  // outlet's own arrangement if it has one, otherwise reflow the shared
+  // design into the new dimensions.
+  const handlePresetChange = (key) => {
+    const next = CANVAS_PRESETS.find(p => p.key === key);
+    if (!next || next.key === preset.key) return;
+    layoutsRef.current[preset.key] = pages.map(p => p.elements);
+    const saved = layoutsRef.current[next.key];
+    if (Array.isArray(saved) && saved.length) {
+      const restored = saved.map(els => ({ id: uid(), elements: els }));
+      setPages(restored);
+      setActivePageIdx(0);
+      setCanvasPreset(key);
+      resetPageEditState(restored[0].elements);
+      return;
+    }
+    const rescaledActive = rescaleElements(pages[activePageIdxRef.current]?.elements || [], preset, next);
+    setPages(prev => prev.map(pg => ({ ...pg, elements: rescaleElements(pg.elements, preset, next) })));
     setCanvasPreset(key);
     resetPageEditState(rescaledActive);
   };
@@ -760,10 +815,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
   };
 
-  // Auto-open properties panel when selecting a single unlocked element
+  // Clicking the background opens the Background panel. Unlocked elements
+  // edit through the contextual top bar; the full inspector stays a click
+  // away behind the top bar's "⋯" button.
   useEffect(() => {
-    if (selected && !selected.locked) setSideTab("props");
-  }, [selectedId]);
+    if (selected?.locked) setSideTab("props");
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
   const deleteEl  = (id) => { pushElements(els => els.filter(e => e.id !== id)); setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; }); };
@@ -866,6 +923,35 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
   const canvasRef = useRef(null);
 
+  // Load the shared asset library the first time the Uploads tab opens.
+  useEffect(() => {
+    if (sideTab !== "uploads" || libAssets !== null) return;
+    let cancelled = false;
+    fetchAssets()
+      .then(rows => { if (!cancelled) setLibAssets(rows || []); })
+      .catch(() => { if (!cancelled) setLibAssets([]); });
+    return () => { cancelled = true; };
+  }, [sideTab, libAssets]);
+
+  // Place an already-hosted library asset on the canvas — no re-upload.
+  const addMediaFromUrl = (asset) => {
+    const id = uid();
+    const isVid = asset.type === "video";
+    const isGif = /\.gif($|\?)/i.test(asset.url || "") || /\.gif$/i.test(asset.name || "");
+    const base = {
+      id, type: "image", url: asset.url, x: 56, y: 140, scale: 1, locked: false,
+      mediaType: isVid ? "video" : isGif ? "gif" : "image",
+      loop: true, muted: true, autoPlay: true,
+      trimLabel: (asset.name || "").split(".").pop()?.toUpperCase() || "",
+    };
+    const place = (w, h) => { pushElements(els => [...els, { ...base, width: w, height: h }]); setSelectedIds(new Set([id])); };
+    if (isVid) { place(160, 284); return; }
+    const img = new window.Image();
+    img.onload = () => { const fitted = fitMediaBox(img.naturalWidth, img.naturalHeight); place(fitted.width, fitted.height); };
+    img.onerror = () => place(160, 160);
+    img.src = asset.url;
+  };
+
   const addText = (dropX, dropY) => {
     const el = { id:uid(), type:"text", content:"New text", x: dropX ?? 40, y: dropY ?? 180, fontSize:18, fontFamily:"Bricolage Grotesque", color:"#FFFFFF", letterSpacing:0, fontWeight:600, shadow:false };
     pushElements(els => [...els, el]); setSelectedIds(new Set([el.id]));
@@ -936,6 +1022,11 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       pushElements((els) => els.map((el) => el.id === elementId ? { ...el, url: publicUrl, _uploading: false } : el));
       URL.revokeObjectURL(previewUrl);
       setActiveUploads((prev) => prev.filter((u) => u.id !== elementId));
+      // Register in the shared asset library so it shows up in Uploads
+      // (and in the Assets view) from now on. Best-effort.
+      saveAsset({ name: file.name, url: publicUrl, type: isVid ? "video" : "image", size_bytes: file.size })
+        .then((saved) => setLibAssets((a) => (Array.isArray(a) ? [saved, ...a] : a)))
+        .catch(() => {});
     } catch (err) {
       setUploadError(err?.message || "Upload failed");
       pushElements((els) => els.filter((el) => el.id !== elementId));
@@ -1082,10 +1173,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   //    the real publish path, which needs a hosted image URL). Defaults to the
   //    active page; pass explicit elements + span info to flatten any page
   //    (used when rendering every canvas of a multi-frame story). ──
-  const renderCanvas = async (els = elements, spanInfo = spanInfoFor(activePageIdxRef.current)) => {
-    const EXPORT_W = preset.exportW;
-    const EXPORT_H = preset.exportH;
-    const SCALE = EXPORT_W / preset.w;
+  const renderCanvas = async (els = elements, spanInfo = spanInfoFor(activePageIdxRef.current), rPreset = preset) => {
+    const EXPORT_W = rPreset.exportW;
+    const EXPORT_H = rPreset.exportH;
+    const SCALE = EXPORT_W / rPreset.w;
 
     const canvas = document.createElement("canvas");
     canvas.width = EXPORT_W;
@@ -1289,8 +1380,8 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
   };
 
-  const renderToBlob = async (els, spanInfo) => {
-    const canvas = await renderCanvas(els, spanInfo);
+  const renderToBlob = async (els, spanInfo, rPreset) => {
+    const canvas = await renderCanvas(els, spanInfo, rPreset);
     return await new Promise((resolve, reject) =>
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Render failed"))), "image/png"));
   };
@@ -1349,9 +1440,21 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     setUploadError("");
     setPostState("posting");
     try {
+      // Frames publish at the PRIMARY outlet's dimensions, whatever size the
+      // designer happens to be viewing: use that outlet's own arrangement if
+      // one was saved, else reflow the current design into it.
+      const primaryKey = PLATFORM_TO_PRESET[row?.platform] || preset.key;
+      const rPreset = CANVAS_PRESETS.find(p => p.key === primaryKey) || preset;
+      let framePages = pages.map(p => p.elements);
+      if (rPreset.key !== preset.key) {
+        const saved = layoutsRef.current[rPreset.key];
+        framePages = Array.isArray(saved) && saved.length
+          ? saved
+          : framePages.map(els => rescaleElements(els, preset, rPreset));
+      }
       const frames = [];
-      for (let i = 0; i < pages.length; i++) {
-        const els = pages[i].elements;
+      for (let i = 0; i < framePages.length; i++) {
+        const els = framePages[i];
         const bg = els.find(e => e.locked);
         // Overlays (text or a placed image) can't be composited onto a video
         // via the Graph API, so a canvas only publishes as a real video frame
@@ -1362,7 +1465,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         if (bg?.mediaType === "video" && bg.url && !bg.url.startsWith("blob:") && !hasOverlay) {
           frames.push({ url: bg.url, kind: "video" });
         } else {
-          const blob = await renderToBlob(els, spanInfoFor(i));
+          const blob = await renderToBlob(els, spanInfoForEls(framePages, i), rPreset);
           const file = new File([blob], `story-${row?.id || "draft"}-${i + 1}.png`, { type: "image/png" });
           frames.push({ url: await uploadAssetWithProgress(file, () => {}), kind: "image" });
         }
@@ -1373,7 +1476,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       // grid / publish-confirm previews (which use <img>) aren't broken.
       let thumbnailUrl = frames.find(f => f.kind === "image")?.url;
       if (!thumbnailUrl) {
-        const posterBlob = await renderToBlob(pages[0].elements, spanInfoFor(0));
+        const posterBlob = await renderToBlob(framePages[0], spanInfoForEls(framePages, 0), rPreset);
         const posterFile = new File([posterBlob], `story-${row?.id || "draft"}-poster.png`, { type: "image/png" });
         thumbnailUrl = await uploadAssetWithProgress(posterFile, () => {});
       }
@@ -1533,23 +1636,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 <span style={{fontSize:8,fontWeight:600,letterSpacing:"0.02em",lineHeight:1}}>{tab.label}</span>
               </button>
             ))}
-            {/* Properties auto-tab (shows when element selected) */}
-            {selected && !selected.locked && (
-              <>
-                <div style={{width:24,height:1,background:T.border,margin:"4px 0"}}/>
-                <button title="Properties"
-                  onClick={() => setSideTab(prev => prev === "props" ? null : "props")}
-                  style={{
-                    width:40,height:40,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                    gap:1,border:"none",borderRadius:6,cursor:"pointer",transition:"all 0.1s",
-                    background:sideTab==="props" ? T.s3 : "transparent",
-                    color:sideTab==="props" ? T.ink : T.textDim,
-                  }}>
-                  <Sliders size={23}/>
-                  <span style={{fontSize:8,fontWeight:600,letterSpacing:"0.02em",lineHeight:1}}>Props</span>
-                </button>
-              </>
-            )}
           </div>
 
           {/* ── PALETTE PANEL (collapsible) ── */}
@@ -1656,22 +1742,64 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   </>
                 )}
 
-                {/* ── UPLOADS tab ── */}
+                {/* ── UPLOADS tab — search, dropzone, persistent library ── */}
                 {sideTab === "uploads" && (
                   <>
+                    <input
+                      className="sd-lib-search"
+                      placeholder="Search uploads…"
+                      value={libQuery}
+                      onChange={e => setLibQuery(e.target.value)}
+                      aria-label="Search uploaded assets"
+                    />
                     <div
                       onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = T.ink; }}
                       onDragLeave={e => { e.currentTarget.style.borderColor = T.border2; }}
                       onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = T.border2; const f = e.dataTransfer?.files?.[0]; if (f) addMedia(f); }}
                       onClick={() => imgFileRef.current?.click()}
                       style={{
-                        padding:"32px 16px",borderRadius:12,border:`2px dashed ${T.border2}`,
-                        background:"transparent",cursor:"pointer",textAlign:"center",transition:"border-color 0.15s",
+                        padding:"20px 14px",borderRadius:12,border:`2px dashed ${T.border2}`,
+                        background:"transparent",cursor:"pointer",textAlign:"center",transition:"border-color 0.15s",flexShrink:0,
                       }}>
-                      <Upload size={24} style={{color:T.textDim,margin:"0 auto 8px"}}/>
-                      <div style={{fontSize:13,fontWeight:600,color:T.textSub}}>Drop files here</div>
-                      <div style={{fontSize:10,color:T.textDim,marginTop:4,fontFamily:"'JetBrains Mono',monospace"}}>JPG · PNG · GIF · MP4 · MOV</div>
+                      <Upload size={20} style={{color:T.textDim,margin:"0 auto 6px"}}/>
+                      <div style={{fontSize:12,fontWeight:600,color:T.textSub}}>Drop files here</div>
+                      <div style={{fontSize:9,color:T.textDim,marginTop:3,fontFamily:"'JetBrains Mono',monospace"}}>JPG · PNG · GIF · MP4 · MOV</div>
                     </div>
+                    <div className="sd-lib-tabs" role="tablist" aria-label="Asset type">
+                      {[["image","Images"],["video","Videos"]].map(([k,l]) => (
+                        <button key={k} role="tab" aria-selected={libFilter===k}
+                          className={"sd-lib-tab"+(libFilter===k?" on":"")}
+                          onClick={()=>setLibFilter(k)}>{l}</button>
+                      ))}
+                    </div>
+                    {libAssets === null && (
+                      <div style={{fontSize:11,color:T.textDim,padding:"6px 0"}}>Loading library…</div>
+                    )}
+                    {Array.isArray(libAssets) && (() => {
+                      const q = libQuery.trim().toLowerCase();
+                      const visible = libAssets.filter(a =>
+                        (a.type || "image") === libFilter &&
+                        (!q || (a.name || "").toLowerCase().includes(q)));
+                      if (!visible.length) return (
+                        <div style={{fontSize:11,color:T.textDim,lineHeight:1.5,padding:"6px 0"}}>
+                          {q ? "Nothing matches that search." : `No ${libFilter === "video" ? "videos" : "images"} yet — drop a file above and it lands here for every post.`}
+                        </div>
+                      );
+                      return (
+                        <div className="sd-lib-grid">
+                          {visible.map(a => (
+                            <button key={a.id || a.url} className="sd-lib-thumb" title={`${a.name || "Asset"} — click to add`}
+                              onClick={() => addMediaFromUrl(a)}>
+                              {a.type === "video"
+                                ? <video src={a.url} muted loop playsInline preload="metadata"
+                                    onMouseEnter={e=>e.currentTarget.play().catch(()=>{})}
+                                    onMouseLeave={e=>e.currentTarget.pause()}/>
+                                : <img src={a.url} alt={a.name || ""} loading="lazy"/>}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
 
@@ -2140,11 +2268,28 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                       )}
                     </div>
                   </>)}
+                  {/* Shared cluster — every element type: opacity, full
+                      inspector ("⋯", the props panel's new front door), delete. */}
+                  {selected.type!=='image' && <span className="sd-tb-div"/>}
+                  <div className="sd-tb-wrap">
+                    <button className="sd-tb-btn" onClick={()=>setTopPop(topPop==='opacity'?null:'opacity')} title="Opacity">
+                      <svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.2"/><path d="M8 2 A6 6 0 0 1 8 14 Z" fill="currentColor"/></svg>
+                    </button>
+                    {topPop==='opacity' && (
+                      <div className="sd-pop" style={{width:170}}>
+                        <div className="sd-pop-label">Opacity — {Math.round((selected.opacity??1)*100)}%</div>
+                        <input type="range" className="s-slider" min={0} max={100} step={1} value={Math.round((selected.opacity??1)*100)} onChange={e=>updateEl(selectedId,{opacity:Number(e.target.value)/100})}/>
+                      </div>
+                    )}
+                  </div>
+                  <button className="sd-tb-btn" onClick={()=>setSideTab(s=>s==='props'?null:'props')} title="More settings" aria-label="More settings" style={{fontSize:15,fontWeight:700,letterSpacing:.5,paddingBottom:5}}>⋯</button>
+                  <button className="sd-tb-btn" onClick={()=>deleteEl(selectedId)} title="Delete element" aria-label="Delete element"><Trash2 size={13}/></button>
                 </div>
               )}
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <select className="sd-preset-select" value={canvasPreset} onChange={(e) => handlePresetChange(e.target.value)} aria-label="Canvas size preset">
-                  {CANVAS_PRESETS.map(p => (
+                <select className="sd-preset-select" value={canvasPreset} onChange={(e) => handlePresetChange(e.target.value)} aria-label="Canvas size preset"
+                  title={outletPresetKeys.length ? "Sizes follow this post's outlets — add outlets on the post window" : undefined}>
+                  {presetOptions.map(p => (
                     <option key={p.key} value={p.key}>{p.label} ({p.ratio})</option>
                   ))}
                 </select>
