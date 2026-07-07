@@ -15,6 +15,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, STATUS_ORDER } from "./StatusMachine.js";
+import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 import { AlertTriangle, CalendarIcon as Calendar, Check, CheckCircle as CheckCircle2, Close as X, Play, Plus, Share as Share2, Upload } from "../../../components/icons/index.jsx";
 import { CrossPostModal } from "./CrossPostModal.jsx";
 
@@ -38,6 +39,7 @@ export function DetailPanel() {
   const [mediaTypes, setMediaTypes] = useState([]);
   const [mediaWarnings, setMediaWarnings] = useState([]);
   const [mediaDragOver, setMediaDragOver] = useState(false);
+  const [mediaUploading, setMediaUploading] = useState(false);
   const [showLIPreview, setShowLIPreview] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
@@ -251,6 +253,25 @@ export function DetailPanel() {
     return warnings;
   };
 
+  // Upload attached media to storage and persist it on the row — the local
+  // blob URL is only the instant preview; the row's mediaUrl is what the
+  // scheduler publishes and what the panel shows on reopen.
+  const uploadRowMedia = async (file, isVideo) => {
+    try { checkFileSize(file); } catch (err) { setMediaWarnings((w) => [...w, err.message]); return; }
+    setMediaUploading(true);
+    try {
+      const url = await uploadAssetWithProgress(file, () => {});
+      onChange({
+        mediaUrl: url,
+        mediaKind: isVideo ? "video" : "image",
+        ...(isVideo ? {} : { thumbnailUrl: url }),
+      });
+    } catch (err) {
+      setMediaWarnings((w) => [...w, err?.message || "Upload failed — re-attach the file before publishing"]);
+    }
+    setMediaUploading(false);
+  };
+
   // Shared by the file input AND drag-and-drop onto the media section.
   const handleReelFiles = (picked) => {
     if (!picked.length) return;
@@ -263,6 +284,7 @@ export function DetailPanel() {
     vid.preload = "metadata";
     vid.onloadedmetadata = () => { onChange({ reelDuration: Math.round(vid.duration) }); URL.revokeObjectURL(vid.src); };
     vid.src = url;
+    uploadRowMedia(f, true);
   };
 
   const handleMediaFiles = (picked) => {
@@ -276,8 +298,11 @@ export function DetailPanel() {
     } else {
       const f = picked[0];
       if (f.type.startsWith("image/") || f.type.startsWith("video/")) {
+        const isVideo = f.type.startsWith("video/");
         setMediaUrls([URL.createObjectURL(f)]);
+        setMediaTypes([isVideo ? "video" : "image"]);
         setMediaWarnings(validateMedia(f));
+        uploadRowMedia(f, isVideo);
       }
     }
   };
@@ -465,7 +490,7 @@ export function DetailPanel() {
                   <div className="stage-thumb">
                     <video src={mediaUrls[0]} className="dp-video-round" />
                     <div className="stage-thumb-overlay">
-                      <button className="stage-thumb-btn" onClick={() => { setMediaUrls([]); onChange({ reelDuration: null }); }}>Remove</button>
+                      <button className="stage-thumb-btn" onClick={() => { setMediaUrls([]); onChange({ reelDuration: null, mediaUrl: null, mediaKind: null }); }}>Remove</button>
                     </div>
                     {row.reelDuration != null && (
                       <div className="dp-duration-badge">
@@ -489,8 +514,8 @@ export function DetailPanel() {
               <div className={"dp-media-section" + (mediaDragOver ? " drag" : "")} {...dropProps(handleMediaFiles)}>
                 <input ref={mediaRef} type="file" accept="image/*,video/*,image/gif" multiple={isLI} className="dp-file-hidden"
                   onChange={(e) => { handleMediaFiles(Array.from(e.target.files || [])); e.target.value = ""; }} />
-                {mediaUrls.length > 0 ? (
-                  isLI ? (
+                {(mediaUrls.length > 0 || row.mediaUrl) ? (
+                  isLI && mediaUrls.length > 0 ? (
                     <div>
                       <div className="dp-media-grid-info">
                         <span className="dp-media-grid-count">{mediaUrls.length}/{maxFiles} files</span>
@@ -516,12 +541,28 @@ export function DetailPanel() {
                       </div>
                     </div>
                   ) : (
-                    <div className="stage-thumb">
-                      <img src={mediaUrls[0]} alt="" />
-                      <div className="stage-thumb-overlay">
-                        <button className="stage-thumb-btn" onClick={() => setMediaUrls([])}>Remove</button>
-                      </div>
-                    </div>
+                    (() => {
+                      // Prefer the fresh local preview; fall back to what's
+                      // saved on the row so reopening the post shows its media.
+                      const displayUrl = mediaUrls[0] || row.mediaUrl;
+                      const displayIsVideo = mediaUrls[0]
+                        ? mediaTypes[0] === "video"
+                        : row.mediaKind === "video" || /\.(mp4|mov|webm)(\?|$)/i.test(row.mediaUrl || "");
+                      return (
+                        <div className="stage-thumb">
+                          {displayIsVideo
+                            ? <video src={displayUrl} muted playsInline controls className="dp-thumb-video" />
+                            : <img src={displayUrl} alt="" />}
+                          {mediaUploading && <div className="dp-thumb-uploading">Uploading…</div>}
+                          <div className="stage-thumb-overlay">
+                            <button className="stage-thumb-btn" onClick={() => {
+                              setMediaUrls([]); setMediaTypes([]);
+                              onChange({ mediaUrl: null, thumbnailUrl: null, mediaKind: null });
+                            }}>Remove</button>
+                          </div>
+                        </div>
+                      );
+                    })()
                   )
                 ) : (
                   <div className="stage-post-placeholder" onClick={() => mediaRef.current?.click()}>
