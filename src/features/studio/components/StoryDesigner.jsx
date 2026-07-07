@@ -68,17 +68,29 @@ const PLATFORM_TO_PRESET = {
   facebook: "ig_post",
 };
 
+// `weights` lists the cuts each family ACTUALLY ships with (per the
+// @font-face / Google / Fontshare imports) — the UI only offers these, so
+// no synthesized faux weights. Plaak Ney is a single Heavy cut; custom
+// uploads are one file = one cut (see CUSTOM_FONT_WEIGHTS).
 const BRAND_FONTS = [
-  { name:"Bricolage Grotesque", label:"Bricolage",  group:"brand" },
-  { name:"JetBrains Mono",      label:"Mono",       group:"brand" },
-  { name:"Switzer",             label:"Switzer",    group:"brand" },
-  { name:"Plaak Ney",           label:"Plaak",      group:"brand" },
+  { name:"Bricolage Grotesque", label:"Bricolage",  group:"brand", weights:[[500,"Medium"],[600,"Semibold"],[700,"Bold"],[800,"Extrabold"]] },
+  { name:"JetBrains Mono",      label:"Mono",       group:"brand", weights:[[400,"Regular"],[500,"Medium"],[600,"Semibold"]] },
+  { name:"Switzer",             label:"Switzer",    group:"brand", weights:[[300,"Light"],[400,"Regular"],[500,"Medium"],[600,"Semibold"],[700,"Bold"]] },
+  { name:"Plaak Ney",           label:"Plaak",      group:"brand", weights:[[900,"Heavy"]] },
 ];
 const SYS_FONTS   = [
-  { name:"Georgia",      label:"Georgia",      group:"system" },
-  { name:"Arial",        label:"Arial",        group:"system" },
+  { name:"Georgia",      label:"Georgia",      group:"system", weights:[[400,"Regular"],[700,"Bold"]] },
+  { name:"Arial",        label:"Arial",        group:"system", weights:[[400,"Regular"],[700,"Bold"]] },
 ];
 const ALL_FONTS = [...BRAND_FONTS, ...SYS_FONTS];
+const CUSTOM_FONT_WEIGHTS = [[400,"Regular"]];
+const fontWeightsOf = (fo) => fo?.weights || CUSTOM_FONT_WEIGHTS;
+// Nearest available cut when switching families (e.g. Bold 700 text moved
+// to Plaak lands on Heavy 900, not a synthesized 700).
+const snapWeight = (fo, w) => {
+  const ws = fontWeightsOf(fo).map(([x]) => x);
+  return ws.reduce((best, x) => (Math.abs(x - (w || 400)) < Math.abs(best - (w || 400)) ? x : best), ws[0]);
+};
 
 // ─── TEXT INSPECTOR (Canva/Photoshop-style compact panel) ────────
 const ALL_FONTS_GROUPED = () => {
@@ -207,12 +219,13 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
       </div>
       {fontError && <div style={{fontSize:10,color:T.red,lineHeight:1.4}}>{fontError}</div>}
 
-      {/* ── Weight · line height · letter spacing (Figma typography row) ── */}
+      {/* ── Weight · line height · letter spacing (Figma typography row) ──
+             Only the cuts this family actually ships with. ── */}
       <div style={{display:"flex",gap:4}}>
-        <select value={selected.fontWeight || 600} onChange={e => updateEl(selectedId, { fontWeight: parseInt(e.target.value) })}
+        <select value={snapWeight(currentFont, selected.fontWeight || 400)} onChange={e => updateEl(selectedId, { fontWeight: parseInt(e.target.value) })}
           title="Font weight"
           style={{flex:1,minWidth:0,height:28,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,fontSize:11,fontWeight:600,color:T.text,padding:"0 6px",outline:"none"}}>
-          {[[300,"Light"],[400,"Regular"],[500,"Medium"],[600,"Semibold"],[700,"Bold"],[800,"Extrabold"]].map(([w,l]) => (
+          {fontWeightsOf(currentFont).map(([w,l]) => (
             <option key={w} value={w}>{l} · {w}</option>
           ))}
         </select>
@@ -295,11 +308,20 @@ function TextInspector({ selected, selectedId, updateEl, customFonts, removeCust
 
         <div style={{width:1,height:18,background:T.border,flexShrink:0}}/>
 
-        {/* Bold */}
-        <button title="Bold" onClick={() => updateEl(selectedId, { fontWeight: selected.fontWeight >= 700 ? 400 : 700 })}
-          style={tb(selected.fontWeight >= 700)}>
-          <Bold size={14}/>
-        </button>
+        {/* Bold — only when this family ships a real ≥700 cut */}
+        {(() => {
+          const ws = fontWeightsOf(currentFont).map(([w]) => w);
+          const boldW = ws.find(w => w >= 700);
+          const regW = snapWeight(currentFont, 400);
+          const isBold = (selected.fontWeight || 400) >= 700;
+          return (
+            <button title={boldW || isBold ? "Bold" : "This font has no bold cut"} disabled={!boldW && !isBold}
+              onClick={() => updateEl(selectedId, { fontWeight: isBold ? regW : boldW })}
+              style={{...tb(isBold), opacity: !boldW && !isBold ? 0.3 : 1}}>
+              <Bold size={14}/>
+            </button>
+          );
+        })()}
         {/* Italic */}
         <button title="Italic" onClick={() => updateEl(selectedId, { italic: !selected.italic })}
           style={tb(selected.italic)}>
@@ -753,6 +775,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
   const preset = CANVAS_PRESETS.find(p => p.key === canvasPreset) || CANVAS_PRESETS[0];
   const selected  = selectedId ? elements.find(el => el.id === selectedId) : null;
+  const selectedFontDef = selected?.type === "text"
+    ? [...ALL_FONTS, ...customFonts].find(f => f.name === selected.fontFamily)
+    : null;
 
   // The size dropdown offers only the post's outlets (mapped to presets).
   // A post with no outlet list — or one opened outside the post flow —
@@ -1713,7 +1738,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                                 onClick={()=>setFontOpenName(isOpen?null:fo.name)}>
                                 <ChevronDown size={11} style={{transform:isOpen?"none":"rotate(-90deg)",transition:"transform .15s"}}/>
                               </button>
-                              <button className="sd-font-name" onClick={()=>{updateEl(selectedId,{fontFamily:fo.name}); setFontOpenName(fo.name);}}>
+                              <button className="sd-font-name" onClick={()=>{updateEl(selectedId,{fontFamily:fo.name,fontWeight:snapWeight(fo,selected.fontWeight)}); setFontOpenName(fo.name);}}>
                                 <span className="sd-font-label" style={{fontFamily:`'${fo.name}',sans-serif`}}>{fo.label}</span>
                                 <span className="sd-font-sample" style={{fontFamily:`'${fo.name}',sans-serif`}}>AaBbCc</span>
                               </button>
@@ -1721,7 +1746,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                             </div>
                             {isOpen && (
                               <div className="sd-font-weights">
-                                {[[300,"Light"],[400,"Regular"],[500,"Medium"],[600,"Semibold"],[700,"Bold"],[800,"Extrabold"]].map(([w,l])=>{
+                                {fontWeightsOf(fo).map(([w,l])=>{
                                   const active = isCur && (selected.fontWeight||400)===w;
                                   return (
                                     <button key={w} className={"sd-font-weight"+(active?" on":"")}
@@ -2225,7 +2250,17 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                       )}
                     </div>
                     <span className="sd-tb-div"/>
-                    <button className={"sd-tb-btn"+((selected.fontWeight||400)>=700?" on":"")} onClick={()=>updateEl(selectedId,{fontWeight:(selected.fontWeight||400)>=700?400:700})} title="Bold"><Bold size={13}/></button>
+                    {(() => {
+                      const ws = fontWeightsOf(selectedFontDef).map(([w]) => w);
+                      const boldW = ws.find(w => w >= 700);
+                      const isBold = (selected.fontWeight||400) >= 700;
+                      return (
+                        <button className={"sd-tb-btn"+(isBold?" on":"")} disabled={!boldW && !isBold}
+                          style={!boldW && !isBold ? {opacity:.3} : undefined}
+                          onClick={()=>updateEl(selectedId,{fontWeight:isBold?snapWeight(selectedFontDef,400):boldW})}
+                          title={boldW || isBold ? "Bold" : "This font has no bold cut"}><Bold size={13}/></button>
+                      );
+                    })()}
                     <button className={"sd-tb-btn"+(selected.italic?" on":"")} onClick={()=>updateEl(selectedId,{italic:!selected.italic})} title="Italic"><Italic size={13}/></button>
                     <button className={"sd-tb-btn"+(selected.underline?" on":"")} onClick={()=>updateEl(selectedId,{underline:!selected.underline})} title="Underline"><Underline size={13}/></button>
                     <button className={"sd-tb-btn"+(selected.strikethrough?" on":"")} onClick={()=>updateEl(selectedId,{strikethrough:!selected.strikethrough})} title="Strikethrough"><Strikethrough size={13}/></button>
