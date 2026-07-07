@@ -690,6 +690,8 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   };
   // Sidebar tab: null = collapsed, 'elements' | 'text' | 'uploads' | 'templates' | 'layers' | 'ai'
   const [sideTab, setSideTab] = useState('elements');
+  // Fonts panel: which font's weight sub-list is expanded.
+  const [fontOpenName, setFontOpenName] = useState(null);
   // Uploads library (media_assets table): null until first opened.
   const [libAssets, setLibAssets] = useState(null);
   const [libQuery, setLibQuery] = useState("");
@@ -925,6 +927,11 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   }, [selectedIds, elements, editingId]);
 
   const canvasRef = useRef(null);
+
+  // Opening the Fonts panel starts with the current font's weights expanded.
+  useEffect(() => {
+    if (sideTab === "fonts") setFontOpenName(selected?.fontFamily || null);
+  }, [sideTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load the shared asset library the first time the Uploads tab opens.
   useEffect(() => {
@@ -1688,26 +1695,43 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   </>
                 )}
 
-                {/* ── FONTS panel (opened from the top bar's font button) ── */}
+                {/* ── FONTS panel (opened from the top bar's font button) —
+                       Canva-style list: chevron expands a weight sub-list,
+                       each weight drawn in its own weight. ── */}
                 {sideTab === "fonts" && (
-                  <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                  <div style={{display:"flex",flexDirection:"column"}}>
                     {!selected || selected.type!=='text' ? (
                       <div style={{fontSize:11,color:T.textDim,padding:"8px 0",lineHeight:1.5}}>Select a text element to change its font.</div>
                     ) : (
                       [...BRAND_FONTS, ...SYS_FONTS, ...customFonts].map(fo => {
                         const isCur = selected.fontFamily === fo.name;
+                        const isOpen = fontOpenName === fo.name;
                         return (
                           <div key={fo.name || fo.id}>
-                            <button onClick={()=>updateEl(selectedId,{fontFamily:fo.name})}
-                              style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",border:"none",borderRadius:6,background:isCur?T.s3:"transparent",cursor:"pointer",fontSize:14,color:T.text,fontFamily:`'${fo.name}',sans-serif`,fontWeight:isCur?700:500,textAlign:"left"}}>
-                              {fo.label} {isCur && <Check size={11} style={{opacity:.5}}/>}
-                            </button>
-                            {isCur && (
-                              <div style={{display:"flex",flexWrap:"wrap",gap:3,padding:"4px 10px 8px"}}>
-                                {[[300,"Light"],[400,"Regular"],[500,"Medium"],[600,"Semibold"],[700,"Bold"],[800,"Extrabold"]].map(([w,l])=>(
-                                  <button key={w} onClick={()=>updateEl(selectedId,{fontWeight:w})}
-                                    style={{padding:"3px 8px",borderRadius:999,border:`1px solid ${(selected.fontWeight||400)===w?T.ink:T.border}`,background:(selected.fontWeight||400)===w?T.ink:"transparent",color:(selected.fontWeight||400)===w?T.surface:T.textSub,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:`'${fo.name}',sans-serif`}}>{l}</button>
-                                ))}
+                            <div className={"sd-font-row"+(isCur?" on":"")}>
+                              <button className="sd-font-caret" aria-expanded={isOpen} aria-label={`${isOpen?"Collapse":"Expand"} ${fo.label} weights`}
+                                onClick={()=>setFontOpenName(isOpen?null:fo.name)}>
+                                <ChevronDown size={11} style={{transform:isOpen?"none":"rotate(-90deg)",transition:"transform .15s"}}/>
+                              </button>
+                              <button className="sd-font-name" onClick={()=>{updateEl(selectedId,{fontFamily:fo.name}); setFontOpenName(fo.name);}}>
+                                <span className="sd-font-label" style={{fontFamily:`'${fo.name}',sans-serif`}}>{fo.label}</span>
+                                <span className="sd-font-sample" style={{fontFamily:`'${fo.name}',sans-serif`}}>AaBbCc</span>
+                              </button>
+                              {isCur && <Check size={11} style={{opacity:.5,flexShrink:0}}/>}
+                            </div>
+                            {isOpen && (
+                              <div className="sd-font-weights">
+                                {[[300,"Light"],[400,"Regular"],[500,"Medium"],[600,"Semibold"],[700,"Bold"],[800,"Extrabold"]].map(([w,l])=>{
+                                  const active = isCur && (selected.fontWeight||400)===w;
+                                  return (
+                                    <button key={w} className={"sd-font-weight"+(active?" on":"")}
+                                      style={{fontFamily:`'${fo.name}',sans-serif`,fontWeight:w}}
+                                      onClick={()=>updateEl(selectedId,{fontFamily:fo.name,fontWeight:w})}>
+                                      {l}
+                                      {active && <Check size={10} style={{opacity:.5,marginLeft:"auto"}}/>}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
