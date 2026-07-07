@@ -2,8 +2,10 @@
 //
 // Three tiers, flat pricing — see /pricing for the public copy.
 //   free        — view + manual draft, no AI, 1 connection.
-//   essentials  — $5/mo, AI captions + variants, 3 connections, 1 user.
-//   team        — $10/mo per user, AI strategy + variants, all connections,
+//   essentials  — sold as "Solo", $24/mo: unlimited posts, AI captions +
+//                 variants, 3 connections, 1 user.
+//   team        — sold as "Studio", $59/mo flat: AI strategy, approvals +
+//                 client links, all connections,
 //                 3 users.
 //
 // Status drives access alongside plan: 'trialing' and 'active' grant
@@ -29,8 +31,8 @@ export const PLANS = {
   },
   essentials: {
     id: "essentials",
-    label: "Essentials",
-    priceMonthly: 5,
+    label: "Solo",
+    priceMonthly: 24,
     features: {
       aiCaptions: true,
       aiVariants: true,
@@ -38,16 +40,16 @@ export const PLANS = {
       learnFromUrl: true,
     },
     limits: {
-      scheduledPosts: 100,
+      scheduledPosts: Infinity,
       connections: 3,
       seats: 1,
     },
   },
   team: {
     id: "team",
-    label: "Team",
-    priceMonthly: 10,
-    perSeat: true,
+    label: "Studio",
+    priceMonthly: 59,
+    perSeat: false,
     features: {
       aiCaptions: true,
       aiVariants: true,

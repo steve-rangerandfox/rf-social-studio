@@ -8,6 +8,7 @@ import {
   createTeamMember,
 } from "../shared.js";
 import { useStudio } from "../StudioContext.jsx";
+import { track } from "@vercel/analytics";
 import {
   fetchBilling,
   learnBrandFromUrl,
@@ -31,6 +32,7 @@ function ReviewLinkCard() {
     setBusy(true);
     try {
       const { token } = await manageReviewLink("enable");
+      track("review_link_created");
       setLocal({ token });
       try { await navigator.clipboard.writeText(`${window.location.origin}/review?t=${token}`); showToast("Review link copied — send it to your client.", T.mint); }
       catch { showToast("Review link created.", T.mint); }

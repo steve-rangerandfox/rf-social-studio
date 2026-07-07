@@ -1,4 +1,5 @@
 import "./studio.css";
+import { track } from "@vercel/analytics";
 import React, { useCallback, useEffect, useState, lazy, Suspense } from "react";
 
 import { StudioProvider, useStudio } from "./StudioContext.jsx";
@@ -313,7 +314,7 @@ function StudioShell() {
                 ...current,
                 instagram: { ...current.instagram, account: cfg },
               }),
-              () => createAuditEntry("instagram.connected", currentUser, `Connected Instagram as @${cfg.username}`),
+              () => { track("instagram_connected"); return createAuditEntry("instagram.connected", currentUser, `Connected Instagram as @${cfg.username}`); },
             );
             showToast(`Connected as @${cfg.username}`, T.mint);
           }}
