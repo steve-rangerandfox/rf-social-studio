@@ -844,16 +844,19 @@ input,textarea,select,button{font-family:inherit}
 .element-selected .el-outline{opacity:1;border-color:var(--t-ink);border-style:solid}
 .element-editing .el-outline{border-color:rgba(0,165,114,0.8);border-style:solid;box-shadow:0 0 0 2px rgba(0,165,114,0.15)}
 .element-editing{cursor:text !important}
-.handle{position:absolute;width:12px;height:12px;background:var(--t-surface);border:1.5px solid var(--t-ink);border-radius:50%;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,0.15)}
-.handle::before{content:'';position:absolute;inset:-6px;border-radius:50%} /* 24px invisible hit area */
-.handle-nw{top:-6px;left:-6px;cursor:nwse-resize}
-.handle-ne{top:-6px;right:-6px;cursor:nesw-resize}
-.handle-sw{bottom:-6px;left:-6px;cursor:nesw-resize}
-.handle-se{bottom:-6px;right:-6px;cursor:nwse-resize}
-.handle-n{top:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}
-.handle-s{bottom:-6px;left:50%;transform:translateX(-50%);cursor:ns-resize}
-.handle-e{right:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}
-.handle-w{left:-6px;top:50%;transform:translateY(-50%);cursor:ew-resize}
+/* Transform handles — divided by the canvas zoom (--sd-zoom, set on
+   .canvas-wrap) so they render a constant ~9px on screen at any zoom
+   instead of ballooning with the scaled canvas and hiding the artwork. */
+.handle{position:absolute;width:calc(9px/var(--sd-zoom,1));height:calc(9px/var(--sd-zoom,1));background:var(--t-surface);border:calc(1.25px/var(--sd-zoom,1)) solid var(--t-ink);border-radius:50%;z-index:20;box-shadow:0 1px 4px rgba(0,0,0,0.18)}
+.handle::before{content:'';position:absolute;inset:calc(-8px/var(--sd-zoom,1));border-radius:50%} /* ~25px invisible hit area on screen */
+.handle-nw{top:calc(-5px/var(--sd-zoom,1));left:calc(-5px/var(--sd-zoom,1));cursor:nwse-resize}
+.handle-ne{top:calc(-5px/var(--sd-zoom,1));right:calc(-5px/var(--sd-zoom,1));cursor:nesw-resize}
+.handle-sw{bottom:calc(-5px/var(--sd-zoom,1));left:calc(-5px/var(--sd-zoom,1));cursor:nesw-resize}
+.handle-se{bottom:calc(-5px/var(--sd-zoom,1));right:calc(-5px/var(--sd-zoom,1));cursor:nwse-resize}
+.handle-n{top:calc(-5px/var(--sd-zoom,1));left:50%;transform:translateX(-50%);cursor:ns-resize}
+.handle-s{bottom:calc(-5px/var(--sd-zoom,1));left:50%;transform:translateX(-50%);cursor:ns-resize}
+.handle-e{right:calc(-5px/var(--sd-zoom,1));top:50%;transform:translateY(-50%);cursor:ew-resize}
+.handle-w{left:calc(-5px/var(--sd-zoom,1));top:50%;transform:translateY(-50%);cursor:ew-resize}
 .s-slider{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--t-s3);outline:none;cursor:pointer;margin:4px 0 8px}
 .s-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--t-ink);cursor:pointer;border:2px solid var(--t-surface);box-shadow:0 1px 4px rgba(9,9,11,0.25)}
 .layers-stack{display:flex;flex-direction:column;gap:2px;max-height:130px;overflow-y:auto}
@@ -1838,9 +1841,9 @@ input,textarea,select,button{font-family:inherit}
 .tmpl-del-btn:hover{color:var(--t-red)}
 
 /* ─── Rotation Handle ──────────────────────────────────────────── */
-.handle-rotate{position:absolute;top:-34px;left:50%;transform:translateX(-50%);width:12px;height:12px;background:var(--t-surface);border:1.5px solid var(--t-ink);border-radius:50%;cursor:grab;z-index:20;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.handle-rotate{position:absolute;top:calc(-28px/var(--sd-zoom,1));left:50%;transform:translateX(-50%);width:calc(9px/var(--sd-zoom,1));height:calc(9px/var(--sd-zoom,1));background:var(--t-surface);border:calc(1.25px/var(--sd-zoom,1)) solid var(--t-ink);border-radius:50%;cursor:grab;z-index:20;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
 .handle-rotate:active{cursor:grabbing}
-.handle-rotate-line{position:absolute;top:-22px;left:50%;transform:translateX(-50%);width:1px;height:22px;background:var(--t-ink);opacity:0.3;pointer-events:none}
+.handle-rotate-line{position:absolute;top:calc(-19px/var(--sd-zoom,1));left:50%;transform:translateX(-50%);width:1px;height:calc(19px/var(--sd-zoom,1));background:var(--t-ink);opacity:0.3;pointer-events:none}
 .rotation-tooltip{position:absolute;top:-52px;left:50%;transform:translateX(-50%);background:var(--t-ink);color:var(--t-surface);font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap;pointer-events:none}
 
 /* ─── Alignment Toolbar ────────────────────────────────────────── */
