@@ -277,9 +277,10 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
     document.addEventListener('pointerup', onUp);
   };
 
-  // BG layer (locked image or video)
+  // BG layer (locked image or video, or a solid background color)
   if (data.locked) {
     const isVid = data.mediaType === 'video';
+    const bgFill = !data.url && data.fill ? <div style={{position:'absolute',inset:0,background:data.fill}}/> : null;
     // Panorama span: when this background is one slice of an image fitted
     // across N canvases, render the image N canvases wide and shift it so
     // only this page's slice shows.
@@ -288,6 +289,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
       : undefined;
     return (
       <>
+        {bgFill}
         {data.url && data.mediaType !== 'video' && <img src={data.url} className="canvas-img" style={spanStyle} alt="" draggable="false" onError={e=>{e.target.style.display='none';}}/>}
         {data.url && isVid && (
           <video ref={videoRef} src={data.url} className="canvas-img"
@@ -347,7 +349,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
         </div>
       )}
       {data.type === 'shape' ? (
-        <ShapeSVG shape={data.shape} fill={data.fill || '#FFFFFF'} stroke={data.stroke} strokeWidth={data.strokeWidth || 0} strokeCap={data.strokeCap} strokeAlign={data.strokeAlign} opacity={data.opacity} clipId={'sclip-' + data.id} />
+        <ShapeSVG shape={data.shape} fill={data.fill || '#FFFFFF'} stroke={data.stroke} strokeWidth={data.strokeWidth || 0} strokeCap={data.strokeCap} strokeAlign={data.strokeAlign} strokeStyle={data.strokeStyle} opacity={data.opacity} clipId={'sclip-' + data.id} />
       ) : data.type === 'text' ? (
         <div
           ref={editRef}
@@ -474,15 +476,17 @@ export function starPoints() {
 // Vector shapes drawn as fills in unit space and stretched to the element's
 // box (preserveAspectRatio none) — no strokes, so non-uniform resize never
 // distorts line weights. "line" is simply a thin filled box.
-export function ShapeSVG({ shape, fill, stroke, strokeWidth, strokeCap, strokeAlign, opacity, clipId }) {
+export function ShapeSVG({ shape, fill, stroke, strokeWidth, strokeCap, strokeAlign, strokeStyle, opacity, clipId }) {
   const common = { width: "100%", height: "100%", viewBox: "0 0 100 100", preserveAspectRatio: "none", style: { display: "block", opacity: opacity ?? 1, pointerEvents: "none", overflow: "visible" } };
   const sw = strokeWidth > 0 ? strokeWidth : 0;
-  const cap = strokeCap === "round" ? "round" : "butt";
+  const cap = (strokeCap === "round" || strokeStyle === "dot") ? "round" : "butt";
+  const su = Math.max(strokeWidth || 1, 1);
+  const dash = strokeStyle === "dash" ? `${su*3} ${su*2}` : strokeStyle === "minidash" ? `${su*1.5} ${su*1.5}` : strokeStyle === "dot" ? `0.01 ${su*2.2}` : undefined;
   const join = strokeCap === "round" ? "round" : "miter";
   const sc = stroke || "#FFFFFF";
   // A line IS a stroke: no fill, minimum 1px, drawn across the box middle.
   if (shape === "line") {
-    return <svg {...common}><line x1="0" y1="50" x2="100" y2="50" stroke={sc} strokeWidth={Math.max(sw, 1)} strokeLinecap={cap} vectorEffect="non-scaling-stroke" /></svg>;
+    return <svg {...common}><line x1="0" y1="50" x2="100" y2="50" stroke={sc} strokeWidth={Math.max(sw, 1)} strokeLinecap={cap} strokeDasharray={dash} vectorEffect="non-scaling-stroke" /></svg>;
   }
   const geom = (props) =>
     shape === "ellipse" ? <ellipse cx="50" cy="50" rx="50" ry="50" {...props} /> :
@@ -490,7 +494,7 @@ export function ShapeSVG({ shape, fill, stroke, strokeWidth, strokeCap, strokeAl
     shape === "star" ? <polygon points={starPoints()} {...props} /> :
     shape === "arrow" ? <path d="M0,38 H74 V8 L100,50 L74,92 V62 H0 Z" {...props} /> :
     <rect width="100" height="100" {...props} />;
-  const sp = { fill: "none", stroke: sc, strokeLinecap: cap, strokeLinejoin: join, vectorEffect: "non-scaling-stroke" };
+  const sp = { fill: "none", stroke: sc, strokeLinecap: cap, strokeLinejoin: join, strokeDasharray: dash, vectorEffect: "non-scaling-stroke" };
   const align = strokeAlign || "center";
   // No native SVG stroke-align: outside = 2x stroke painted UNDER the fill;
   // inside = 2x stroke clipped to the shape, over it; center = normal stroke.

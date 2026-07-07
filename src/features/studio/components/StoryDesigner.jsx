@@ -1101,11 +1101,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
   };
 
-  const handleToolDragStart = (e, type) => {
-    e.dataTransfer.setData("application/rf-tool-type", type);
-    e.dataTransfer.effectAllowed = "copy";
-  };
-
   // ── Render the story to a flattened canvas (shared by PNG export +
   //    the real publish path, which needs a hosted image URL). Defaults to the
   //    active page; pass explicit elements + span info to flatten any page
@@ -1161,7 +1156,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         if (video.videoWidth) ctx.drawImage(video, 0, 0, EXPORT_W, EXPORT_H);
       } catch { /* keep the dark fallback */ }
     } else {
-      ctx.fillStyle = "#080A0E";
+      ctx.fillStyle = bgEl?.fill || "#080A0E";
       ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
     }
 
@@ -1174,8 +1169,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
       ctx.translate(-w / 2, -h / 2);
       ctx.globalAlpha = el.opacity ?? 1;
-      ctx.lineCap = el.strokeCap === "round" ? "round" : "butt";
+      ctx.lineCap = (el.strokeCap === "round" || el.strokeStyle === "dot") ? "round" : "butt";
       ctx.lineJoin = el.strokeCap === "round" ? "round" : "miter";
+      const dashUnit = Math.max((el.strokeWidth || 1), 1) * SCALE;
+      ctx.setLineDash(el.strokeStyle === "dash" ? [dashUnit*3, dashUnit*2]
+        : el.strokeStyle === "minidash" ? [dashUnit*1.5, dashUnit*1.5]
+        : el.strokeStyle === "dot" ? [0.01, dashUnit*2.2] : []);
       if (el.shape === "line") {
         ctx.strokeStyle = el.stroke || "#FFFFFF";
         ctx.lineWidth = Math.max((el.strokeWidth || 1) * SCALE, SCALE);
@@ -1614,12 +1613,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 {/* ── ELEMENTS tab ── */}
                 {sideTab === "elements" && (
                   <>
-                    <button onClick={addText} draggable onDragStart={(e)=>handleToolDragStart(e,"text")}
-                      style={{width:"100%",padding:"10px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:600,color:T.text,transition:"border-color 0.1s"}}
-                      onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
-                      onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
-                      <Type size={16}/> Add text box
-                    </button>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:4}}>
                       {[
                         ["rect","Rectangle","R",<svg key="r" width="18" height="18" viewBox="0 0 18 18"><rect x="2.5" y="4" width="13" height="10" fill="none" stroke="currentColor" strokeWidth="1.1"/></svg>],
@@ -1637,26 +1630,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                         </button>
                       ))}
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
-                      <button onClick={()=>imgFileRef.current?.click()} draggable onDragStart={(e)=>handleToolDragStart(e,"image")}
-                        style={{padding:"12px 8px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
-                        onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
-                        onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
-                        <ImageIcon size={20}/> Image / GIF
-                      </button>
-                      <button onClick={()=>vidFileRef.current?.click()} draggable onDragStart={(e)=>handleToolDragStart(e,"video")}
-                        style={{padding:"12px 8px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
-                        onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
-                        onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
-                        <Film size={20}/> Video
-                      </button>
-                    </div>
-                    <button onClick={()=>bgFileRef.current?.click()}
-                      style={{width:"100%",padding:"8px 12px",borderRadius:6,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
-                      onMouseEnter={e=>e.currentTarget.style.borderColor=T.ink}
-                      onMouseLeave={e=>e.currentTarget.style.borderColor=T.border2}>
-                      <Wallpaper size={14}/> {elements.find(e=>e.id==="bg")?.url ? "Replace background" : "Set background"}
-                    </button>
                   </>
                 )}
 
@@ -1854,10 +1827,18 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                           <input type="color" value={selected.stroke||'#FFFFFF'}
                             onChange={e=>updateEl(selectedId,{stroke:e.target.value, strokeWidth: selected.strokeWidth || 1})}
                             style={{width:24,height:24,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Stroke color"/>
-                          <input type="number" min={selected.shape==='line'?1:0} max={20} step={1} value={selected.strokeWidth||(selected.shape==='line'?1:0)} title={selected.shape==='line'?"Stroke width":"Stroke width (0 = none)"}
-                            onChange={e=>updateEl(selectedId,{strokeWidth: Math.max(selected.shape==='line'?1:0, Math.min(20, parseInt(e.target.value)||0))})}
-                            style={{width:44,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,textAlign:"center",fontSize:11,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,outline:"none"}}/>
-                          <span style={{fontSize:10,color:T.textDim}}>px</span>
+                          <input type="range" min={selected.shape==='line'?1:0} max={20} step={1} value={selected.strokeWidth||(selected.shape==='line'?1:0)} title="Stroke weight"
+                            onChange={e=>updateEl(selectedId,{strokeWidth: parseInt(e.target.value)})}
+                            className="s-slider" style={{width:70}}/>
+                          <span style={{fontSize:10,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,width:26,textAlign:"right"}}>{selected.strokeWidth||(selected.shape==='line'?1:0)}px</span>
+                          <div style={{display:"flex",gap:2,background:T.s2,border:`1px solid ${T.border}`,borderRadius:6,padding:2}} title="Stroke style">
+                            {[["solid","0"],["dash","7 5"],["minidash","3 3"],["dot","0.5 4"]].map(([st,da]) => (
+                              <button key={st} onClick={()=>updateEl(selectedId,{strokeStyle:st})} title={st}
+                                style={{width:26,height:18,display:"flex",alignItems:"center",justifyContent:"center",border:"none",borderRadius:4,cursor:"pointer",background:(selected.strokeStyle||"solid")===st?T.ink:"transparent",padding:0}}>
+                                <svg width="18" height="4" viewBox="0 0 18 4"><line x1="1" y1="2" x2="17" y2="2" stroke={(selected.strokeStyle||"solid")===st?T.surface:T.textSub} strokeWidth="1.6" strokeDasharray={da==="0"?undefined:da} strokeLinecap={st==="dot"?"round":"butt"}/></svg>
+                              </button>
+                            ))}
+                          </div>
                           {/* Cap ends: butt or rounded */}
                           <div style={{display:"flex",gap:2,background:T.s2,border:`1px solid ${T.border}`,borderRadius:6,padding:2}} title="Stroke ends">
                             {[["butt","Butt end"],["round","Rounded end"]].map(([c,label]) => (
@@ -2038,8 +2019,27 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   </>
                 )}
                 {sideTab === "props" && (!selected || selected.locked) && (
-                  <div style={{fontSize:11,color:T.textDim,padding:"8px 0",lineHeight:1.5}}>
-                    {selectedId ? "Background layer is locked." : "Select an element on the canvas to see its properties."}
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    <div className="inspector-group-title">Background</div>
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                      {["#080A0E","#09090b","#FFFFFF","#F4F4F5","#FF5A1F","#0A66C2","#10B981","#7C3AED","#BE185D"].map(c => (
+                        <button key={c} onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,fill:c,url:null,mediaType:'image'}:e))} title={c}
+                          style={{width:22,height:22,borderRadius:6,border:(elements.find(e=>e.locked)?.fill||"#080A0E")===c?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:c,cursor:"pointer",padding:0}}/>
+                      ))}
+                      <input type="color" value={elements.find(e=>e.locked)?.fill||"#080A0E"}
+                        onChange={e=>{const v=e.target.value;pushElements(els=>els.map(el=>el.locked?{...el,fill:v,url:null,mediaType:'image'}:el));}}
+                        style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom background color"/>
+                    </div>
+                    <button onClick={()=>bgFileRef.current?.click()}
+                      style={{width:"100%",padding:"8px 12px",borderRadius:6,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub}}>
+                      <Wallpaper size={14}/> {elements.find(e=>e.id==="bg")?.url ? "Replace background image" : "Set background image"}
+                    </button>
+                    {elements.find(e=>e.locked)?.url && (
+                      <button onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,url:null,bgSpanId:undefined}:e))}
+                        style={{width:"100%",padding:"7px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:"transparent",cursor:"pointer",fontSize:11,fontWeight:600,color:T.textSub}}>
+                        Remove background image
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2064,12 +2064,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 <button className="zoom-btn" onClick={redo} disabled={historyIndex>=history.length-1} title="Redo (Ctrl+Shift+Z)" aria-label="Redo (Ctrl+Shift+Z)" style={{opacity:historyIndex>=history.length-1?0.35:1}}><Redo2 size={12}/></button>
                 <span style={{width:1,height:14,background:"var(--t-border)",margin:"0 2px"}}/>
                 <button className={"zoom-btn"+(showGuides?" snap-active":"")} onClick={()=>setShowGuides(g=>!g)} title="Toggle guide overlay" aria-label="Toggle grid overlay" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}><Grid3x3 size={12}/></button>
-                <button className={"zoom-btn"+(snapOn?" snap-active":"")} onClick={()=>setSnapOn(s=>!s)} title="Toggle snap alignment" aria-label="Toggle snap to guides" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}>{'\u229E'} Snap</button>
+                <button className={"zoom-btn"+(snapOn?" snap-active":"")} onClick={()=>setSnapOn(s=>!s)} title="Snap to guides" aria-label="Toggle snap to guides"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M4.5 13.5 V7 A3.5 3.5 0 0 1 11.5 7 V13.5" /><path d="M4.5 10.5 H7.2 M8.8 10.5 H11.5" /></svg></button>
                 <span style={{width:1,height:14,background:"var(--t-border)",margin:"0 2px"}}/>
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.max(0.4,parseFloat((z-0.1).toFixed(1))))} title="Zoom out" aria-label="Zoom out"><Minus size={12}/></button>
-                <span className="zoom-label">{Math.round(zoom*100)}%</span>
+                <button className="zoom-label" onClick={()=>setZoom(1)} title="Reset to 100%" style={{border:"none",background:"transparent",cursor:"pointer",padding:0}}>{Math.round(zoom*100)}%</button>
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.min(2.0,parseFloat((z+0.1).toFixed(1))))} title="Zoom in" aria-label="Zoom in"><Plus size={12}/></button>
-                <button className="zoom-btn" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 4px"}} onClick={()=>setZoom(1.8)} title="Reset zoom" aria-label="Reset zoom">180%</button>
+                
               </div>
             </div>
             {selectedIds.size > 0 && (
