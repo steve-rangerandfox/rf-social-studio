@@ -626,11 +626,19 @@ export function StudioProvider({ children }) {
     setSelectedRowId(newRow.id);
   }, [currentUser, updateDocument, studioDoc.rows.length]);
 
-  const createPostDraft = ({ title, dateValue, timeValue, platform }) => {
+  const createPostDraft = ({ title, caption, dateValue, timeValue, platform, platforms, mediaUrl, thumbnailUrl, createAnother }) => {
     const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
     const [hour, minute] = timeValue.split(":").map(Number);
     const iso = ptPickerToISO(targetYear, targetMonth - 1, day, hour, minute);
-    const newRow = createNewRow({ scheduledAt: iso, note: title, platform: platform || "ig_post" }, currentUser, studioDoc.rows.length);
+    const newRow = createNewRow({
+      scheduledAt: iso,
+      note: title,
+      platform: platform || "ig_post",
+      ...(Array.isArray(platforms) && platforms.length ? { platforms } : {}),
+      ...(caption ? { caption } : {}),
+      ...(mediaUrl ? { mediaUrl } : {}),
+      ...(thumbnailUrl ? { thumbnailUrl } : {}),
+    }, currentUser, studioDoc.rows.length);
     updateDocument(
       (current) => ({
         ...current,
@@ -638,6 +646,7 @@ export function StudioProvider({ children }) {
       }),
       () => createAuditEntry("post.created", currentUser, "Created a new post draft", { scheduledAt: iso, title, platform }),
     );
+    if (createAnother) return; // keep the Create Post window open for the next one
     setAddPostDraft(null);
     // Drop straight into the editor — a fresh post shouldn't need a second click.
     setSelectedRowId(newRow.id);
