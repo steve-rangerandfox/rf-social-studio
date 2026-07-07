@@ -12,6 +12,7 @@ import { Keyboard, CalendarIcon, Stack, Globe, CheckCircle, Person } from "./ico
 // server/entitlements.js — NOT the prototype's $79/$149 placeholders.
 
 const PRIMARY_CTA = "Start a 14-day trial";
+const DEMO_URL = import.meta.env.VITE_DEMO_URL || "mailto:steve@rangerandfox.tv?subject=Relay%20demo";
 
 // Reveal-on-scroll, with a safety net so nothing stays hidden.
 function useReveal() {
@@ -250,16 +251,16 @@ const TIERS = [
     cta: { label: "Sign in to start", to: "/app" }, pro: false, primary: false,
   },
   {
-    name: "Essentials", tag: "Most popular", amt: "$5", unit: "/ month",
-    pitch: "AI captions, cross-post variants, and brand learning from a URL.",
-    feats: ["Up to 100 scheduled posts", "3 connected accounts", "AI captions + variants", "Brand learning from website", "14-day free trial — no card"],
+    name: "Solo", tag: "Most popular", amt: "$24", unit: "/ month",
+    pitch: "The full design-first studio for one brand — design it, schedule it, it publishes itself.",
+    feats: ["Unlimited scheduled posts", "Seamless carousels + multi-frame stories", "AI captions + variants", "Brand learning from website", "14-day free trial — no card"],
     cta: { label: PRIMARY_CTA, to: "/app?upgrade=essentials" }, pro: true, primary: true,
   },
   {
-    name: "Team", tag: "For studios", amt: "$10", unit: "/ seat / month",
-    pitch: "Monthly strategy generation, unlimited posts, and seats for the studio.",
-    feats: ["Unlimited scheduled posts", "All connections, all platforms", "AI monthly strategy generator", "Approval flow + comments", "14-day free trial — no card"],
-    cta: { label: PRIMARY_CTA, to: "/app?upgrade=team" }, pro: false, primary: false,
+    name: "Studio", tag: "For client work", amt: "$59", unit: "/ month",
+    pitch: "Client approval links, monthly strategy, and seats for the studio.",
+    feats: ["Everything in Solo", "Client approval links — no client logins", "AI monthly strategy generator", "Up to 3 seats included", "14-day free trial — no card"],
+    cta: { label: PRIMARY_CTA, to: "/app?upgrade=team" }, pro: false, primary: false, demo: true,
   },
 ];
 
@@ -285,6 +286,7 @@ function Pricing() {
               <Link to={t.cta.to} className={"lp-btn lp-price-cta " + (t.primary ? "lp-btn-primary" : "lp-btn-ghost")}>
                 {t.cta.label}
               </Link>
+              {t.demo && <a className="lp-demo-link" href={DEMO_URL}>Running client accounts? Book a demo →</a>}
             </div>
           ))}
         </div>

@@ -144,7 +144,7 @@ export function Repeat(props) { return <LoopIcon {...radixProps(props)} />; }
 
 // Undo / redo — Radix has no curved undo arrows; bespoke, weight-matched.
 export function Undo(props) {
-  const p = asProps(props);
+  const p = { ...asProps(props), strokeLinecap: "round", strokeLinejoin: "round" };
   return (
     <svg {...p}>
       <path d="M2.5 6.5 L5 4 L7.5 6.5" />
@@ -154,7 +154,7 @@ export function Undo(props) {
 }
 
 export function Redo(props) {
-  const p = asProps(props);
+  const p = { ...asProps(props), strokeLinecap: "round", strokeLinejoin: "round" };
   return (
     <svg {...p}>
       <path d="M13.5 6.5 L11 4 L8.5 6.5" />

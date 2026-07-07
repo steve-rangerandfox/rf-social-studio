@@ -46,6 +46,8 @@ const PRICING_STYLES = `
   margin:0;
 }
 
+.pricing-demo-link{display:block;margin-top:10px;font-size:12px;font-weight:600;color:var(--text-sub,#52525b);text-decoration:none}
+.pricing-demo-link:hover{color:var(--ink,#09090b)}
 .pricing-price{
   display:flex;
   align-items:baseline;
@@ -221,6 +223,8 @@ const PRICING_STYLES = `
 }
 `;
 
+const DEMO_URL = import.meta.env.VITE_DEMO_URL || "mailto:steve@rangerandfox.tv?subject=Relay%20demo";
+
 const TIERS = [
   {
     id: "free",
@@ -241,13 +245,13 @@ const TIERS = [
   },
   {
     id: "essentials",
-    name: "Essentials",
+    name: "Solo",
     tag: "Most popular",
-    price: "$5",
+    price: "$24",
     unit: "/month",
-    pitch: "Everything in Free, plus AI captions, variants for every platform, and brand learning from a single URL.",
+    pitch: "The full design-first studio for one brand: unlimited posts, seamless carousels and multi-frame stories, AI captions, auto-publishing.",
     features: [
-      { on: true, text: "Up to 100 scheduled posts" },
+      { on: true, text: "Unlimited scheduled posts" },
       { on: true, text: "3 connected accounts" },
       { on: true, text: "AI captions + cross-post variants" },
       { on: true, text: "Brand learning from website" },
@@ -258,17 +262,18 @@ const TIERS = [
   },
   {
     id: "team",
-    name: "Team",
-    tag: "For studios",
-    price: "$10",
-    unit: "/seat / month",
-    pitch: "Everything in Essentials, plus monthly strategy generation, unlimited posts, and seats for the rest of the studio.",
+    name: "Studio",
+    tag: "For client work",
+    price: "$59",
+    unit: "/month",
+    pitch: "Everything in Solo, plus client approval links, monthly strategy generation, and seats for the rest of the studio.",
+    demo: true,
     features: [
       { on: true, text: "Unlimited scheduled posts" },
       { on: true, text: "All connections, all platforms" },
       { on: true, text: "AI monthly strategy generator" },
       { on: true, text: "Up to 3 seats included" },
-      { on: true, text: "Approval flow + comments" },
+      { on: true, text: "Client approval links (no login)" },
     ],
     cta: { label: "Start 14-day trial", href: "/app?upgrade=team" },
     primary: false,
@@ -277,11 +282,11 @@ const TIERS = [
 
 const COMPARISON = [
   { feature: "Free tier", us: "Yes \u2014 5 posts", buffer: "Limited \u2014 10 posts, 3 channels" },
-  { feature: "AI captions on entry tier", us: "Included at $5/mo", buffer: "$6/mo Essentials add-on" },
+  { feature: "Seamless carousel design + publish", us: "Built in", buffer: "External tool + manual upload" },
   { feature: "Cross-post variants", us: "One click, all platforms", buffer: "Per-post manual" },
-  { feature: "AI monthly strategy", us: "Built into Team tier", buffer: "Not offered" },
+  { feature: "AI monthly strategy", us: "Built into Studio tier", buffer: "Not offered" },
   { feature: "Story design canvas", us: "Built-in (9:16)", buffer: "External tool" },
-  { feature: "Per-seat pricing", us: "$10 / seat (Team only)", buffer: "$6 / channel" },
+  { feature: "Client approval links", us: "Included in Studio", buffer: "Not offered" },
   { feature: "Trial card required", us: "No", buffer: "Yes" },
 ];
 
@@ -296,7 +301,7 @@ export function Pricing() {
 
       <p>
         One workspace for planning, designing, and publishing across Instagram,
-        LinkedIn, TikTok, and Facebook. No per-post fees, no surprise charges.
+        LinkedIn, and beyond. No per-post fees, no surprise charges.
       </p>
 
       <div className="pricing-grid">
@@ -317,6 +322,9 @@ export function Pricing() {
             <div className={`pricing-cta${tier.primary ? " is-primary" : ""}`}>
               <a href={tier.cta.href}>{tier.cta.label}</a>
             </div>
+            {tier.demo && (
+              <a className="pricing-demo-link" href={DEMO_URL}>Running client accounts? Book a 20-min demo →</a>
+            )}
           </article>
         ))}
       </div>

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Seo } from "./Seo.jsx";
+import { track } from "@vercel/analytics";
 
 // Free tool: seamless carousel splitter. Public, no login — upload one
 // image, split it into 2-10 seamless Instagram carousel panels, download
@@ -46,6 +47,7 @@ export function CarouselSplitter() {
   const download = async () => {
     if (!img || downloading) return;
     setDownloading(true);
+    track("splitter_download", { panels });
     try {
       for (let i = 0; i < panels; i++) {
         const canvas = document.createElement("canvas");

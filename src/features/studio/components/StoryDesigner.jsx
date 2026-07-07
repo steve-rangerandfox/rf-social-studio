@@ -621,7 +621,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       renderedRef.current = false;
       Object.assign(patch, { storyFrames: null, storyFrameUrls: null, storyFramesPosted: 0, storyFrameIds: null, mediaUrl: null, thumbnailUrl: null });
       if (postState === "done") setPostState("idle");
-      setManualDone(false);
+      
     }
     onUpdate(patch);
   }, [pages, onUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -635,11 +635,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   const [uploadError, setUploadError] = useState("");
   const [canvasPreset, setCanvasPreset] = useState("ig_story");
   const [postState,   setPostState]   = useState("idle");
-  const [publishMode, setPublishMode] = useState(row?.publishMode === "manual" ? "manual" : "auto");
-  const [storyLink,   setStoryLink]   = useState(row?.storyLink || "");
-  const [manualDone,  setManualDone]  = useState(false);
-  const [manualCopied,setManualCopied]= useState(false);
-  const [manualError, setManualError] = useState("");
   const [aiLoading,   setAiLoading]   = useState(false);
   const [aiTips,      setAiTips]      = useState([]);
   const [templates,   setTemplates]   = useState(() => loadSavedTemplates());
@@ -831,24 +826,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   };
 
   // ── Alignment functions ──
-  const alignSelected = (direction) => {
-    const ids = [...selectedIds];
-    if (ids.length === 0) return;
-    setElements(els => els.map(el => {
-      if (!ids.includes(el.id) || el.locked) return el;
-      const w = el.type === 'text' ? (el.boxWidth || 190) : ((el.width || 140) * (el.scale || 1));
-      const h = el.type === 'text' ? 40 : ((el.height || 140) * (el.scale || 1));
-      switch (direction) {
-        case 'left':     return { ...el, x: 0 };
-        case 'center-h': return { ...el, x: (CANVAS_W - w) / 2 };
-        case 'right':    return { ...el, x: CANVAS_W - w };
-        case 'top':      return { ...el, y: 0 };
-        case 'center-v': return { ...el, y: (CANVAS_H - h) / 2 };
-        case 'bottom':   return { ...el, y: CANVAS_H - h };
-        default: return el;
-      }
-    }));
-  };
 
   // Multi-drag: store start positions for all selected elements
   const dragStartRef = useRef({});
@@ -1101,11 +1078,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
   };
 
-  const handleToolDragStart = (e, type) => {
-    e.dataTransfer.setData("application/rf-tool-type", type);
-    e.dataTransfer.effectAllowed = "copy";
-  };
-
   // ── Render the story to a flattened canvas (shared by PNG export +
   //    the real publish path, which needs a hosted image URL). Defaults to the
   //    active page; pass explicit elements + span info to flatten any page
@@ -1161,7 +1133,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         if (video.videoWidth) ctx.drawImage(video, 0, 0, EXPORT_W, EXPORT_H);
       } catch { /* keep the dark fallback */ }
     } else {
-      ctx.fillStyle = "#080A0E";
+      ctx.fillStyle = bgEl?.fill || "#080A0E";
       ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
     }
 
@@ -1174,8 +1146,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       if (el.rotation) ctx.rotate((el.rotation * Math.PI) / 180);
       ctx.translate(-w / 2, -h / 2);
       ctx.globalAlpha = el.opacity ?? 1;
-      ctx.lineCap = el.strokeCap === "round" ? "round" : "butt";
+      ctx.lineCap = (el.strokeCap === "round" || el.strokeStyle === "dot") ? "round" : "butt";
       ctx.lineJoin = el.strokeCap === "round" ? "round" : "miter";
+      const dashUnit = Math.max((el.strokeWidth || 1), 1) * SCALE;
+      ctx.setLineDash(el.strokeStyle === "dash" ? [dashUnit*3, dashUnit*2]
+        : el.strokeStyle === "minidash" ? [dashUnit*1.5, dashUnit*1.5]
+        : el.strokeStyle === "dot" ? [0.01, dashUnit*2.2] : []);
       if (el.shape === "line") {
         ctx.strokeStyle = el.stroke || "#FFFFFF";
         ctx.lineWidth = Math.max((el.strokeWidth || 1) * SCALE, SCALE);
@@ -1247,9 +1223,16 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         ctx.shadowBlur = 12 * SCALE;
       }
 
-      // Word wrap
+      // Word wrap (uppercase + list markers applied first; justify falls
+      // back to left in the flattened render)
       const maxWidth = (el.boxWidth || 190) * SCALE;
-      const words = (el.content || "").split(" ");
+      let source = el.content || "";
+      if (el.uppercase) source = source.toUpperCase();
+      if (el.listStyle) source = source.split("\n").map((ln, i) => (el.listStyle === "number" ? `${i + 1}. ` : "\u2022 ") + ln).join("\n");
+      const align = el.textAlign === "center" ? "center" : el.textAlign === "right" ? "right" : "left";
+      ctx.textAlign = align;
+      const anchorX = align === "center" ? x + maxWidth / 2 : align === "right" ? x + maxWidth : x;
+      const words = source.split(" ");
       let line = "";
       let lineY = y;
       const lineHeight = fontSize * (el.lineHeight || 1.25);
@@ -1257,14 +1240,15 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       for (const word of words) {
         const test = line + (line ? " " : "") + word;
         if (ctx.measureText(test).width > maxWidth && line) {
-          ctx.fillText(line, x, lineY);
+          ctx.fillText(line, anchorX, lineY);
           line = word;
           lineY += lineHeight;
         } else {
           line = test;
         }
       }
-      ctx.fillText(line, x, lineY);
+      ctx.fillText(line, anchorX, lineY);
+      ctx.textAlign = "left";
       ctx.restore();
     }
 
@@ -1362,7 +1346,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // No fake "live", no approval bypass — the normal schedule/approval flow
   // still governs when it actually posts.
   const doPost = async () => {
-    setManualError("");
+    setUploadError("");
     setPostState("posting");
     try {
       const frames = [];
@@ -1404,32 +1388,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       setPostState("done");
     } catch {
       setPostState("idle");
-      setManualError("Couldn't render & upload the story — a cross-site background can block it. Try re-uploading the background.");
+      setUploadError("Couldn't render & upload the story — a cross-site background can block it. Try re-uploading the background.");
     }
   };
 
-  const resetManual = () => { setManualDone(false); setManualError(""); };
-  const setMode = (m) => { setPublishMode(m); resetManual(); onUpdate?.({ publishMode: m }); };
-  const setLink = (v) => { setStoryLink(v); resetManual(); onUpdate?.({ storyLink: v }); };
-  // Manual publish: export the story image + copy the link so the user can
-  // post it by hand and add a real (tappable) Link sticker in Instagram —
-  // the Graph API can't attach link stickers.
-  const manualPublish = async () => {
-    setManualError("");
-    try {
-      await exportAsPng(); // can throw (tainted canvas from a cross-origin background)
-    } catch {
-      setManualDone(false);
-      setManualError("Couldn't export the image — a background from another site can block download. Try re-uploading it.");
-      return;
-    }
-    let copied = false;
-    if (storyLink && navigator.clipboard) {
-      try { await navigator.clipboard.writeText(storyLink); copied = true; } catch { copied = false; }
-    }
-    setManualCopied(copied);
-    setManualDone(true);
-  };
 
   // Undo/Redo keyboard shortcuts. Ctrl+Z restores a just-deleted canvas when
   // that deletion is the most recent action; otherwise it's element undo.
@@ -1498,6 +1460,32 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     return ()=>{ window.removeEventListener('keydown',h); window.removeEventListener('paste', onPaste); };
   }, [selectedIds,elements,editingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Closing saves invisibly: if the design changed since the last flatten
+  // (renderedRef is cleared by the auto-save invalidation), render + attach
+  // the frames before closing — no button, it just happens.
+  const closeAndSave = async () => {
+    if (postState === "posting") return;
+    const hasFrames = renderedRef.current || !!row?.storyFrames;
+    if (!hasFrames) {
+      try { await doPost(); } catch { /* close anyway — the publish gate catches unrendered rows */ }
+    }
+    onClose();
+  };
+
+  // Contextual top-bar popover (fill | stroke | tcolor | spacing)
+  const [topPop, setTopPop] = useState(null);
+  useEffect(() => { setTopPop(null); }, [selectedId]);
+  const cycleAlign = () => {
+    const order = ["left","center","right","justify"];
+    const cur = selected?.textAlign || "left";
+    updateEl(selectedId, { textAlign: order[(order.indexOf(cur)+1)%order.length] });
+  };
+  const cycleList = () => {
+    const order = [null,"bullet","number"];
+    const cur = selected?.listStyle || null;
+    updateEl(selectedId, { listStyle: order[(order.indexOf(cur)+1)%order.length] });
+  };
+
   const layersRev = [...elements].reverse();
 
   return (
@@ -1506,33 +1494,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         <div className="m-head" style={{flexShrink:0}}>
           <div><div className="m-title">Story Designer</div><div className="m-sub">{row?.note}</div></div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Rendering&hellip;</span></div>}
-            {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">{pages.length>1?`Saved ${pages.length} frames`:"Saved"} &mdash; auto-publishes on schedule</span></div>}
-            {manualError&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.red,maxWidth:260,lineHeight:1.3}}>{manualError}</span>}
-            {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:260,lineHeight:1.3}}>{pages.length>1?`${pages.length} frames downloaded`:"Image downloaded"}{storyLink?(manualCopied?" + link copied":" (copy the link manually)"):""} — add the Link sticker in Instagram.</span>}
-            <button className="btn btn-ghost btn-sm"
-              onClick={()=>{const opening=sideTab!=="ai";setSideTab(opening?"ai":null);if(opening&&aiTips.length===0)runAICopilot();}}>
-              {sideTab==="ai"?"Hide AI":"AI Refine"}
-            </button>
-            {postState!=="done"&&(
-              <div style={{display:"flex",gap:2,background:T.s2,borderRadius:6,padding:2,border:`1px solid ${T.border}`}} title="Auto publishes via the API. Manual lets you post by hand (the only way to add a tappable Story link sticker).">
-                {["auto","manual"].map(m=>(
-                  <button key={m} onClick={()=>setMode(m)}
-                    style={{padding:"4px 10px",border:"none",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600,textTransform:"capitalize",background:publishMode===m?T.ink:"transparent",color:publishMode===m?T.surface:T.textSub}}>{m}</button>
-                ))}
-              </div>
-            )}
-            {postState!=="done"&&<button className="btn btn-ghost btn-sm" onClick={onClose}>Discard</button>}
-            {postState==="done"
-              ?<button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
-              :publishMode==="manual"
-                ?<>
-                  <input value={storyLink} onChange={e=>setLink(e.target.value)} placeholder="https://link-for-sticker" title="Link to add as a Story sticker"
-                    style={{width:190,height:32,padding:"0 10px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface,fontSize:12,color:T.text,outline:"none"}}/>
-                  <button className="btn btn-primary btn-sm" onClick={manualPublish} title="Download the story image and copy the link, then post it by hand"><Download size={14} style={{marginRight:4}}/> Download + copy link</button>
-                </>
-                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title={pages.length>1?`Download all ${pages.length} canvases as separate PNGs`:"Download the canvas as PNG"}><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title={pages.length>1?`Flatten all ${pages.length} canvases and attach them so they auto-publish as a ${pages.length}-frame story`:"Flatten the story and attach it so it auto-publishes at its scheduled time"}>{postState==="posting"?(pages.length>1?`Rendering ${pages.length} frames…`:"Rendering…"):(pages.length>1?`Render ${pages.length} frames & save`:"Render & save")}</button></>}
-            <button className="m-x" onClick={onClose} aria-label="Close story designer"><X size={16}/></button>
+            {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Saving&hellip;</span></div>}
+            <button className="btn btn-ghost btn-sm" onClick={exportAsPng} title={pages.length>1?`Download all ${pages.length} canvases as PNGs`:"Download as PNG"}><Download size={14} style={{marginRight:4}}/> Download</button>
+            <button className="sd-board-tool danger" style={{width:30,height:30}} onClick={onClose} title="Discard changes and close" aria-label="Discard"><Trash2 size={13}/></button>
+            <button className="m-x" onClick={closeAndSave} disabled={postState==="posting"} aria-label="Save and close designer"><X size={16}/></button>
           </div>
         </div>
 
@@ -1552,8 +1517,8 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               { id:"elements", icon:<ImageIcon size={23}/>, label:"Elements" },
               { id:"text", icon:<Type size={23}/>, label:"Text" },
               { id:"uploads", icon:<Upload size={23}/>, label:"Uploads" },
-              { id:"templates", icon:<LayoutTemplate size={23}/>, label:"Templates" },
               { id:"layers", icon:<Layers size={23}/>, label:"Layers" },
+              { id:"templates", icon:<LayoutTemplate size={23}/>, label:"Templates" },
               { id:"ai", icon:<AIMark size={23}/>, label:"AI" },
             ].map(tab => (
               <button key={tab.id} title={tab.label}
@@ -1600,7 +1565,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 alignItems:"center",justifyContent:"space-between",flexShrink:0,
               }}>
                 <span style={{fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:T.text,fontFamily:"'JetBrains Mono',monospace"}}>
-                  {{elements:"Elements",text:"Text",uploads:"Uploads",templates:"Templates",layers:"Layers",ai:"AI Copilot",props:"Properties"}[sideTab]}
+                  {{elements:"Elements",text:"Text",uploads:"Uploads",templates:"Templates",layers:"Layers",ai:"AI Copilot",props:"Properties",fonts:"Fonts"}[sideTab]}
                 </span>
                 <button onClick={() => setSideTab(null)} title="Collapse" aria-label="Collapse panel"
                   style={{background:"transparent",border:"none",cursor:"pointer",color:T.textDim,padding:2,display:"flex"}}>
@@ -1614,12 +1579,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 {/* ── ELEMENTS tab ── */}
                 {sideTab === "elements" && (
                   <>
-                    <button onClick={addText} draggable onDragStart={(e)=>handleToolDragStart(e,"text")}
-                      style={{width:"100%",padding:"10px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:600,color:T.text,transition:"border-color 0.1s"}}
-                      onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
-                      onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
-                      <Type size={16}/> Add text box
-                    </button>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:4}}>
                       {[
                         ["rect","Rectangle","R",<svg key="r" width="18" height="18" viewBox="0 0 18 18"><rect x="2.5" y="4" width="13" height="10" fill="none" stroke="currentColor" strokeWidth="1.1"/></svg>],
@@ -1637,27 +1596,36 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                         </button>
                       ))}
                     </div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
-                      <button onClick={()=>imgFileRef.current?.click()} draggable onDragStart={(e)=>handleToolDragStart(e,"image")}
-                        style={{padding:"12px 8px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
-                        onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
-                        onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
-                        <ImageIcon size={20}/> Image / GIF
-                      </button>
-                      <button onClick={()=>vidFileRef.current?.click()} draggable onDragStart={(e)=>handleToolDragStart(e,"video")}
-                        style={{padding:"12px 8px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
-                        onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
-                        onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
-                        <Film size={20}/> Video
-                      </button>
-                    </div>
-                    <button onClick={()=>bgFileRef.current?.click()}
-                      style={{width:"100%",padding:"8px 12px",borderRadius:6,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
-                      onMouseEnter={e=>e.currentTarget.style.borderColor=T.ink}
-                      onMouseLeave={e=>e.currentTarget.style.borderColor=T.border2}>
-                      <Wallpaper size={14}/> {elements.find(e=>e.id==="bg")?.url ? "Replace background" : "Set background"}
-                    </button>
                   </>
+                )}
+
+                {/* ── FONTS panel (opened from the top bar's font button) ── */}
+                {sideTab === "fonts" && (
+                  <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                    {!selected || selected.type!=='text' ? (
+                      <div style={{fontSize:11,color:T.textDim,padding:"8px 0",lineHeight:1.5}}>Select a text element to change its font.</div>
+                    ) : (
+                      [...BRAND_FONTS, ...SYS_FONTS, ...customFonts].map(fo => {
+                        const isCur = selected.fontFamily === fo.name;
+                        return (
+                          <div key={fo.name || fo.id}>
+                            <button onClick={()=>updateEl(selectedId,{fontFamily:fo.name})}
+                              style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",border:"none",borderRadius:6,background:isCur?T.s3:"transparent",cursor:"pointer",fontSize:14,color:T.text,fontFamily:`'${fo.name}',sans-serif`,fontWeight:isCur?700:500,textAlign:"left"}}>
+                              {fo.label} {isCur && <Check size={11} style={{opacity:.5}}/>}
+                            </button>
+                            {isCur && (
+                              <div style={{display:"flex",flexWrap:"wrap",gap:3,padding:"4px 10px 8px"}}>
+                                {[[300,"Light"],[400,"Regular"],[500,"Medium"],[600,"Semibold"],[700,"Bold"],[800,"Extrabold"]].map(([w,l])=>(
+                                  <button key={w} onClick={()=>updateEl(selectedId,{fontWeight:w})}
+                                    style={{padding:"3px 8px",borderRadius:999,border:`1px solid ${(selected.fontWeight||400)===w?T.ink:T.border}`,background:(selected.fontWeight||400)===w?T.ink:"transparent",color:(selected.fontWeight||400)===w?T.surface:T.textSub,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:`'${fo.name}',sans-serif`}}>{l}</button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 )}
 
                 {/* ── TEXT tab ── */}
@@ -1854,10 +1822,18 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                           <input type="color" value={selected.stroke||'#FFFFFF'}
                             onChange={e=>updateEl(selectedId,{stroke:e.target.value, strokeWidth: selected.strokeWidth || 1})}
                             style={{width:24,height:24,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}} title="Stroke color"/>
-                          <input type="number" min={selected.shape==='line'?1:0} max={20} step={1} value={selected.strokeWidth||(selected.shape==='line'?1:0)} title={selected.shape==='line'?"Stroke width":"Stroke width (0 = none)"}
-                            onChange={e=>updateEl(selectedId,{strokeWidth: Math.max(selected.shape==='line'?1:0, Math.min(20, parseInt(e.target.value)||0))})}
-                            style={{width:44,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,textAlign:"center",fontSize:11,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,outline:"none"}}/>
-                          <span style={{fontSize:10,color:T.textDim}}>px</span>
+                          <input type="range" min={selected.shape==='line'?1:0} max={20} step={1} value={selected.strokeWidth||(selected.shape==='line'?1:0)} title="Stroke weight"
+                            onChange={e=>updateEl(selectedId,{strokeWidth: parseInt(e.target.value)})}
+                            className="s-slider" style={{width:70}}/>
+                          <span style={{fontSize:10,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:T.text,width:26,textAlign:"right"}}>{selected.strokeWidth||(selected.shape==='line'?1:0)}px</span>
+                          <div style={{display:"flex",gap:2,background:T.s2,border:`1px solid ${T.border}`,borderRadius:6,padding:2}} title="Stroke style">
+                            {[["solid","0"],["dash","7 5"],["minidash","3 3"],["dot","0.5 4"]].map(([st,da]) => (
+                              <button key={st} onClick={()=>updateEl(selectedId,{strokeStyle:st})} title={st}
+                                style={{width:26,height:18,display:"flex",alignItems:"center",justifyContent:"center",border:"none",borderRadius:4,cursor:"pointer",background:(selected.strokeStyle||"solid")===st?T.ink:"transparent",padding:0}}>
+                                <svg width="18" height="4" viewBox="0 0 18 4"><line x1="1" y1="2" x2="17" y2="2" stroke={(selected.strokeStyle||"solid")===st?T.surface:T.textSub} strokeWidth="1.6" strokeDasharray={da==="0"?undefined:da} strokeLinecap={st==="dot"?"round":"butt"}/></svg>
+                              </button>
+                            ))}
+                          </div>
                           {/* Cap ends: butt or rounded */}
                           <div style={{display:"flex",gap:2,background:T.s2,border:`1px solid ${T.border}`,borderRadius:6,padding:2}} title="Stroke ends">
                             {[["butt","Butt end"],["round","Rounded end"]].map(([c,label]) => (
@@ -2038,8 +2014,27 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   </>
                 )}
                 {sideTab === "props" && (!selected || selected.locked) && (
-                  <div style={{fontSize:11,color:T.textDim,padding:"8px 0",lineHeight:1.5}}>
-                    {selectedId ? "Background layer is locked." : "Select an element on the canvas to see its properties."}
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    <div className="inspector-group-title">Background</div>
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                      {["#080A0E","#09090b","#FFFFFF","#F4F4F5","#FF5A1F","#0A66C2","#10B981","#7C3AED","#BE185D"].map(c => (
+                        <button key={c} onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,fill:c,url:null,mediaType:'image'}:e))} title={c}
+                          style={{width:22,height:22,borderRadius:6,border:(elements.find(e=>e.locked)?.fill||"#080A0E")===c?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:c,cursor:"pointer",padding:0}}/>
+                      ))}
+                      <input type="color" value={elements.find(e=>e.locked)?.fill||"#080A0E"}
+                        onChange={e=>{const v=e.target.value;pushElements(els=>els.map(el=>el.locked?{...el,fill:v,url:null,mediaType:'image'}:el));}}
+                        style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom background color"/>
+                    </div>
+                    <button onClick={()=>bgFileRef.current?.click()}
+                      style={{width:"100%",padding:"8px 12px",borderRadius:6,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub}}>
+                      <Wallpaper size={14}/> {elements.find(e=>e.id==="bg")?.url ? "Replace background image" : "Set background image"}
+                    </button>
+                    {elements.find(e=>e.locked)?.url && (
+                      <button onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,url:null,bgSpanId:undefined}:e))}
+                        style={{width:"100%",padding:"7px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:"transparent",cursor:"pointer",fontSize:11,fontWeight:600,color:T.textSub}}>
+                        Remove background image
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2048,7 +2043,105 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
           {/* ── CANVAS AREA ── */}
           <div className="s-canvas-area">
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",position:"relative"}}>
+              {selected && !selected.locked && (
+                <div className="sd-topbar" onPointerDown={e=>e.stopPropagation()}>
+                  {topPop && <div className="sd-pop-backdrop" onClick={()=>setTopPop(null)}/>}
+                  {selected.type==='text' && (<>
+                    <button className="sd-tb-font" onClick={()=>setSideTab('fonts')} title="Change font" style={{fontFamily:`'${selected.fontFamily}',sans-serif`}}>
+                      {selected.fontFamily}
+                    </button>
+                    <div className="sd-tb-size">
+                      <button onClick={()=>updateEl(selectedId,{fontSize:Math.max(6,Math.round(selected.fontSize-1))})}><Minus size={10}/></button>
+                      <span>{Math.round(selected.fontSize)}</span>
+                      <button onClick={()=>updateEl(selectedId,{fontSize:Math.min(96,Math.round(selected.fontSize+1))})}><Plus size={10}/></button>
+                    </div>
+                    <div className="sd-tb-wrap">
+                      <button className="sd-tb-btn" onClick={()=>setTopPop(topPop==='tcolor'?null:'tcolor')} title="Text color">
+                        <span className="sd-tb-chip" style={{background:selected.gradient||selected.color||'#fff'}}/>
+                      </button>
+                      {topPop==='tcolor' && (
+                        <div className="sd-pop">
+                          <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center",width:150}}>
+                            {BRAND_COLORS.map(c=>(<button key={c} onClick={()=>updateEl(selectedId,{color:c,gradient:null})} style={{width:20,height:20,borderRadius:6,border:(selected.color===c&&!selected.gradient)?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:c,cursor:"pointer",padding:0}}/>))}
+                            <input type="color" value={selected.gradient?'#ffffff':(selected.color||'#ffffff')} onChange={e=>updateEl(selectedId,{color:e.target.value,gradient:null})} style={{width:22,height:22,border:"none",background:"transparent",cursor:"pointer",padding:0}}/>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <span className="sd-tb-div"/>
+                    <button className={"sd-tb-btn"+((selected.fontWeight||400)>=700?" on":"")} onClick={()=>updateEl(selectedId,{fontWeight:(selected.fontWeight||400)>=700?400:700})} title="Bold"><Bold size={13}/></button>
+                    <button className={"sd-tb-btn"+(selected.italic?" on":"")} onClick={()=>updateEl(selectedId,{italic:!selected.italic})} title="Italic"><Italic size={13}/></button>
+                    <button className={"sd-tb-btn"+(selected.underline?" on":"")} onClick={()=>updateEl(selectedId,{underline:!selected.underline})} title="Underline"><Underline size={13}/></button>
+                    <button className={"sd-tb-btn"+(selected.strikethrough?" on":"")} onClick={()=>updateEl(selectedId,{strikethrough:!selected.strikethrough})} title="Strikethrough"><Strikethrough size={13}/></button>
+                    <button className={"sd-tb-btn"+(selected.uppercase?" on":"")} onClick={()=>updateEl(selectedId,{uppercase:!selected.uppercase})} title="All caps" style={{fontSize:11,fontWeight:700}}>aA</button>
+                    <button className="sd-tb-btn" onClick={cycleAlign} title={`Alignment: ${selected.textAlign||'left'} (click to cycle)`}>
+                      {(selected.textAlign||'left')==='left'?<AlignLeft size={13}/>:(selected.textAlign==='center')?<AlignCenter size={13}/>:(selected.textAlign==='right')?<AlignRight size={13}/>:<svg width="13" height="13" viewBox="0 0 15 15" fill="currentColor"><path d="M1 3h13v1H1zM1 7h13v1H1zM1 11h13v1H1z"/></svg>}
+                    </button>
+                    <button className={"sd-tb-btn"+(selected.listStyle?" on":"")} onClick={cycleList} title={`List: ${selected.listStyle||'none'} (click to cycle)`}>
+                      {selected.listStyle==='number'
+                        ? <svg width="13" height="13" viewBox="0 0 15 15" fill="currentColor"><text x="0" y="5.5" fontSize="5.5" fontFamily="monospace">1.</text><text x="0" y="12.5" fontSize="5.5" fontFamily="monospace">2.</text><path d="M8 3.6h6v1H8zM8 10.6h6v1H8z"/></svg>
+                        : <svg width="13" height="13" viewBox="0 0 15 15" fill="currentColor"><circle cx="2.5" cy="4" r="1.4"/><circle cx="2.5" cy="11" r="1.4"/><path d="M6 3.5h8v1H6zM6 10.5h8v1H6z"/></svg>}
+                    </button>
+                    <span className="sd-tb-div"/>
+                    <div className="sd-tb-wrap">
+                      <button className="sd-tb-btn" onClick={()=>setTopPop(topPop==='spacing'?null:'spacing')} title="Letter & line spacing"><Sliders size={13}/></button>
+                      {topPop==='spacing' && (
+                        <div className="sd-pop" style={{width:190}}>
+                          <div className="sd-pop-label">Letter spacing — {(selected.letterSpacing??0).toFixed(1)}</div>
+                          <input type="range" className="s-slider" min={-2} max={10} step={0.1} value={selected.letterSpacing??0} onChange={e=>updateEl(selectedId,{letterSpacing:parseFloat(e.target.value)})}/>
+                          <div className="sd-pop-label" style={{marginTop:8}}>Line spacing — {(selected.lineHeight??1.25).toFixed(2)}</div>
+                          <input type="range" className="s-slider" min={0.8} max={3} step={0.05} value={selected.lineHeight??1.25} onChange={e=>updateEl(selectedId,{lineHeight:parseFloat(e.target.value)})}/>
+                        </div>
+                      )}
+                    </div>
+                  </>)}
+                  {selected.type==='shape' && (<>
+                    <div className="sd-tb-wrap">
+                      <button className="sd-tb-btn" onClick={()=>setTopPop(topPop==='fill'?null:'fill')} title="Fill color" disabled={selected.shape==='line'} style={selected.shape==='line'?{opacity:.3}:undefined}>
+                        <span className="sd-tb-chip" style={{background:selected.fill||'#fff'}}/>
+                      </button>
+                      {topPop==='fill' && (
+                        <div className="sd-pop">
+                          <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center",width:150}}>
+                            {BRAND_COLORS.map(c=>(<button key={c} onClick={()=>updateEl(selectedId,{fill:c})} style={{width:20,height:20,borderRadius:6,border:(selected.fill||'#FFFFFF')===c?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:c,cursor:"pointer",padding:0}}/>))}
+                            <input type="color" value={selected.fill||'#FFFFFF'} onChange={e=>updateEl(selectedId,{fill:e.target.value})} style={{width:22,height:22,border:"none",background:"transparent",cursor:"pointer",padding:0}}/>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="sd-tb-wrap">
+                      <button className="sd-tb-btn" onClick={()=>setTopPop(topPop==='stroke'?null:'stroke')} title="Stroke">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"><rect x="2.5" y="2.5" width="11" height="11" rx="2" strokeWidth="2"/></svg>
+                      </button>
+                      {topPop==='stroke' && (
+                        <div className="sd-pop" style={{width:200}}>
+                          <div className="sd-pop-label">Style</div>
+                          <div style={{display:"flex",gap:2,background:T.s2,border:`1px solid ${T.border}`,borderRadius:6,padding:2,width:"fit-content"}}>
+                            {[["solid","0"],["dash","7 5"],["minidash","3 3"],["dot","0.5 4"]].map(([st,da])=>(
+                              <button key={st} onClick={()=>updateEl(selectedId,{strokeStyle:st,strokeWidth:selected.strokeWidth||1})} title={st}
+                                style={{width:30,height:20,display:"flex",alignItems:"center",justifyContent:"center",border:"none",borderRadius:4,cursor:"pointer",background:(selected.strokeStyle||"solid")===st?T.ink:"transparent",padding:0}}>
+                                <svg width="22" height="4" viewBox="0 0 22 4"><line x1="1" y1="2" x2="21" y2="2" stroke={(selected.strokeStyle||"solid")===st?T.surface:T.textSub} strokeWidth="1.6" strokeDasharray={da==="0"?undefined:da} strokeLinecap={st==="dot"?"round":"butt"}/></svg>
+                              </button>
+                            ))}
+                          </div>
+                          <div className="sd-pop-label" style={{marginTop:8}}>Ends</div>
+                          <div style={{display:"flex",gap:2,background:T.s2,border:`1px solid ${T.border}`,borderRadius:6,padding:2,width:"fit-content"}}>
+                            {[["butt","Flat"],["round","Rounded"]].map(([c,label])=>(
+                              <button key={c} onClick={()=>updateEl(selectedId,{strokeCap:c})} title={label}
+                                style={{padding:"3px 10px",border:"none",borderRadius:4,cursor:"pointer",fontSize:10,fontWeight:600,background:(selected.strokeCap||"butt")===c?T.ink:"transparent",color:(selected.strokeCap||"butt")===c?T.surface:T.textSub}}>{label}</button>
+                            ))}
+                          </div>
+                          <div className="sd-pop-label" style={{marginTop:8}}>Weight — {selected.strokeWidth||(selected.shape==='line'?1:0)}px</div>
+                          <input type="range" className="s-slider" min={selected.shape==='line'?1:0} max={20} step={1} value={selected.strokeWidth||(selected.shape==='line'?1:0)} onChange={e=>updateEl(selectedId,{strokeWidth:parseInt(e.target.value)})}/>
+                          <div className="sd-pop-label" style={{marginTop:8}}>Color</div>
+                          <input type="color" value={selected.stroke||'#FFFFFF'} onChange={e=>updateEl(selectedId,{stroke:e.target.value,strokeWidth:selected.strokeWidth||1})} style={{width:26,height:26,border:`1px solid ${T.border}`,borderRadius:6,padding:0,cursor:"pointer"}}/>
+                        </div>
+                      )}
+                    </div>
+                  </>)}
+                </div>
+              )}
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <select className="sd-preset-select" value={canvasPreset} onChange={(e) => handlePresetChange(e.target.value)} aria-label="Canvas size preset">
                   {CANVAS_PRESETS.map(p => (
@@ -2064,40 +2157,14 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 <button className="zoom-btn" onClick={redo} disabled={historyIndex>=history.length-1} title="Redo (Ctrl+Shift+Z)" aria-label="Redo (Ctrl+Shift+Z)" style={{opacity:historyIndex>=history.length-1?0.35:1}}><Redo2 size={12}/></button>
                 <span style={{width:1,height:14,background:"var(--t-border)",margin:"0 2px"}}/>
                 <button className={"zoom-btn"+(showGuides?" snap-active":"")} onClick={()=>setShowGuides(g=>!g)} title="Toggle guide overlay" aria-label="Toggle grid overlay" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}><Grid3x3 size={12}/></button>
-                <button className={"zoom-btn"+(snapOn?" snap-active":"")} onClick={()=>setSnapOn(s=>!s)} title="Toggle snap alignment" aria-label="Toggle snap to guides" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 5px"}}>{'\u229E'} Snap</button>
+                <button className={"zoom-btn"+(snapOn?" snap-active":"")} onClick={()=>setSnapOn(s=>!s)} title="Snap to guides" aria-label="Toggle snap to guides"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M4.5 13.5 V7 A3.5 3.5 0 0 1 11.5 7 V13.5" /><path d="M4.5 10.5 H7.2 M8.8 10.5 H11.5" /></svg></button>
                 <span style={{width:1,height:14,background:"var(--t-border)",margin:"0 2px"}}/>
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.max(0.4,parseFloat((z-0.1).toFixed(1))))} title="Zoom out" aria-label="Zoom out"><Minus size={12}/></button>
-                <span className="zoom-label">{Math.round(zoom*100)}%</span>
+                <button className="zoom-label" onClick={()=>setZoom(1)} title="Reset to 100%" style={{border:"none",background:"transparent",cursor:"pointer",padding:0}}>{Math.round(zoom*100)}%</button>
                 <button className="zoom-btn" onClick={()=>setZoom(z=>Math.min(2.0,parseFloat((z+0.1).toFixed(1))))} title="Zoom in" aria-label="Zoom in"><Plus size={12}/></button>
-                <button className="zoom-btn" style={{fontSize:9,letterSpacing:.3,width:"auto",padding:"0 4px"}} onClick={()=>setZoom(1.8)} title="Reset zoom" aria-label="Reset zoom">180%</button>
+                
               </div>
             </div>
-            {selectedIds.size > 0 && (
-              <div className="sd-align-bar">
-                {selectedIds.size > 1 && (
-                  <span style={{fontSize:9,fontWeight:700,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",marginRight:4}}>{selectedIds.size} sel</span>
-                )}
-                <button onClick={() => alignSelected("left")} title="Align left" aria-label="Align left">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="1" x2="1" y2="13" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="3" y="8" width="5" height="3" rx="0.5" fill="currentColor"/></svg>
-                </button>
-                <button onClick={() => alignSelected("center-h")} title="Align center" aria-label="Align center horizontally">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="7" y1="1" x2="7" y2="13" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="4" y="8" width="6" height="3" rx="0.5" fill="currentColor"/></svg>
-                </button>
-                <button onClick={() => alignSelected("right")} title="Align right" aria-label="Align right">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="13" y1="1" x2="13" y2="13" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="8" height="3" rx="0.5" fill="currentColor"/><rect x="6" y="8" width="5" height="3" rx="0.5" fill="currentColor"/></svg>
-                </button>
-                <div className="sd-align-divider" />
-                <button onClick={() => alignSelected("top")} title="Align top" aria-label="Align top">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="1" x2="13" y2="1" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="3" width="3" height="5" rx="0.5" fill="currentColor"/></svg>
-                </button>
-                <button onClick={() => alignSelected("center-v")} title="Align middle" aria-label="Align center vertically">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="4" width="3" height="6" rx="0.5" fill="currentColor"/></svg>
-                </button>
-                <button onClick={() => alignSelected("bottom")} title="Align bottom" aria-label="Align bottom">
-                  <svg width="14" height="14" viewBox="0 0 14 14"><line x1="1" y1="13" x2="13" y2="13" stroke="currentColor" strokeWidth="1.1"/><rect x="3" y="3" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="8" y="6" width="3" height="5" rx="0.5" fill="currentColor"/></svg>
-                </button>
-              </div>
-            )}
             {/* ── ARTBOARD WORKSPACE — every canvas visible side by side
                    (Photoshop/Figma-style). The active board carries the full
                    editing machinery; clicking any other board activates it.

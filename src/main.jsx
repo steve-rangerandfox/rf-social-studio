@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ClerkProvider } from '@clerk/react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 import { LoadingShell } from './components/LoadingShell.jsx'
 import { ToasterProvider } from './components/Toaster.jsx'
@@ -71,5 +72,6 @@ createRoot(document.getElementById('root')).render(
         </Suspense>
       </BrowserRouter>
     </ToasterProvider>
+    <Analytics />
   </ErrorBoundary>
 )
