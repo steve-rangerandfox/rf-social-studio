@@ -376,6 +376,36 @@ export function appendAuditEntries(document, entries) {
   };
 }
 
+// Merge a fresh server document with the local working copy (used after a
+// version conflict and by the multi-device sync poll). Rows merge one by one
+// on their updatedAt stamp — the newer edit wins — so a caption being typed
+// locally survives a write that landed from another tab, device, or the
+// scheduler. Rows present on only one side are kept (creations sync both
+// ways; deletions are soft, so a deletedAt stamp travels as a normal row
+// update). Non-row fields prefer the local copy; the audit log takes the
+// longer of the two.
+export function mergeStudioDocuments(serverDoc, localDoc) {
+  const serverRows = Array.isArray(serverDoc?.rows) ? serverDoc.rows : [];
+  const localRows = Array.isArray(localDoc?.rows) ? localDoc.rows : [];
+  const serverById = new Map(serverRows.map((r) => [r.id, r]));
+  const seen = new Set();
+  const rows = localRows.map((localRow) => {
+    seen.add(localRow.id);
+    const serverRow = serverById.get(localRow.id);
+    if (!serverRow) return localRow;
+    const localAt = Date.parse(localRow.updatedAt || "") || 0;
+    const serverAt = Date.parse(serverRow.updatedAt || "") || 0;
+    return serverAt > localAt ? serverRow : localRow;
+  });
+  for (const serverRow of serverRows) {
+    if (!seen.has(serverRow.id)) rows.push(serverRow);
+  }
+  const auditLog = (serverDoc?.auditLog?.length || 0) > (localDoc?.auditLog?.length || 0)
+    ? serverDoc.auditLog
+    : localDoc?.auditLog;
+  return { ...serverDoc, ...localDoc, rows, ...(auditLog ? { auditLog } : {}) };
+}
+
 export function createNewRow(overrides, actor, order) {
   return normalizeRow(
     {
