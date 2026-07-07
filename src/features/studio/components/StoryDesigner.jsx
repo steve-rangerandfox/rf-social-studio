@@ -621,7 +621,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       renderedRef.current = false;
       Object.assign(patch, { storyFrames: null, storyFrameUrls: null, storyFramesPosted: 0, storyFrameIds: null, mediaUrl: null, thumbnailUrl: null });
       if (postState === "done") setPostState("idle");
-      setManualDone(false);
+      
     }
     onUpdate(patch);
   }, [pages, onUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -635,11 +635,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   const [uploadError, setUploadError] = useState("");
   const [canvasPreset, setCanvasPreset] = useState("ig_story");
   const [postState,   setPostState]   = useState("idle");
-  const [publishMode, setPublishMode] = useState(row?.publishMode === "manual" ? "manual" : "auto");
-  const [storyLink,   setStoryLink]   = useState(row?.storyLink || "");
-  const [manualDone,  setManualDone]  = useState(false);
-  const [manualCopied,setManualCopied]= useState(false);
-  const [manualError, setManualError] = useState("");
   const [aiLoading,   setAiLoading]   = useState(false);
   const [aiTips,      setAiTips]      = useState([]);
   const [templates,   setTemplates]   = useState(() => loadSavedTemplates());
@@ -1361,7 +1356,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // No fake "live", no approval bypass — the normal schedule/approval flow
   // still governs when it actually posts.
   const doPost = async () => {
-    setManualError("");
+    setUploadError("");
     setPostState("posting");
     try {
       const frames = [];
@@ -1403,32 +1398,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       setPostState("done");
     } catch {
       setPostState("idle");
-      setManualError("Couldn't render & upload the story — a cross-site background can block it. Try re-uploading the background.");
+      setUploadError("Couldn't render & upload the story — a cross-site background can block it. Try re-uploading the background.");
     }
   };
 
-  const resetManual = () => { setManualDone(false); setManualError(""); };
-  const setMode = (m) => { setPublishMode(m); resetManual(); onUpdate?.({ publishMode: m }); };
-  const setLink = (v) => { setStoryLink(v); resetManual(); onUpdate?.({ storyLink: v }); };
-  // Manual publish: export the story image + copy the link so the user can
-  // post it by hand and add a real (tappable) Link sticker in Instagram —
-  // the Graph API can't attach link stickers.
-  const manualPublish = async () => {
-    setManualError("");
-    try {
-      await exportAsPng(); // can throw (tainted canvas from a cross-origin background)
-    } catch {
-      setManualDone(false);
-      setManualError("Couldn't export the image — a background from another site can block download. Try re-uploading it.");
-      return;
-    }
-    let copied = false;
-    if (storyLink && navigator.clipboard) {
-      try { await navigator.clipboard.writeText(storyLink); copied = true; } catch { copied = false; }
-    }
-    setManualCopied(copied);
-    setManualDone(true);
-  };
 
   // Undo/Redo keyboard shortcuts. Ctrl+Z restores a just-deleted canvas when
   // that deletion is the most recent action; otherwise it's element undo.
@@ -1497,6 +1470,18 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     return ()=>{ window.removeEventListener('keydown',h); window.removeEventListener('paste', onPaste); };
   }, [selectedIds,elements,editingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Closing saves invisibly: if the design changed since the last flatten
+  // (renderedRef is cleared by the auto-save invalidation), render + attach
+  // the frames before closing — no button, it just happens.
+  const closeAndSave = async () => {
+    if (postState === "posting") return;
+    const hasFrames = renderedRef.current || !!row?.storyFrames;
+    if (!hasFrames) {
+      try { await doPost(); } catch { /* close anyway — the publish gate catches unrendered rows */ }
+    }
+    onClose();
+  };
+
   const layersRev = [...elements].reverse();
 
   return (
@@ -1505,33 +1490,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         <div className="m-head" style={{flexShrink:0}}>
           <div><div className="m-title">Story Designer</div><div className="m-sub">{row?.note}</div></div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Rendering&hellip;</span></div>}
-            {postState==="done"&&<div className="sr" style={{marginRight:4}}><div className="si"><Check size={12}/></div><span className="st2">{pages.length>1?`Saved ${pages.length} frames`:"Saved"} &mdash; auto-publishes on schedule</span></div>}
-            {manualError&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.red,maxWidth:260,lineHeight:1.3}}>{manualError}</span>}
-            {manualDone&&postState!=="done"&&<span style={{marginRight:4,fontSize:11,fontWeight:600,color:T.mint,maxWidth:260,lineHeight:1.3}}>{pages.length>1?`${pages.length} frames downloaded`:"Image downloaded"}{storyLink?(manualCopied?" + link copied":" (copy the link manually)"):""} — add the Link sticker in Instagram.</span>}
-            <button className="btn btn-ghost btn-sm"
-              onClick={()=>{const opening=sideTab!=="ai";setSideTab(opening?"ai":null);if(opening&&aiTips.length===0)runAICopilot();}}>
-              {sideTab==="ai"?"Hide AI":"AI Refine"}
-            </button>
-            {postState!=="done"&&(
-              <div style={{display:"flex",gap:2,background:T.s2,borderRadius:6,padding:2,border:`1px solid ${T.border}`}} title="Auto publishes via the API. Manual lets you post by hand (the only way to add a tappable Story link sticker).">
-                {["auto","manual"].map(m=>(
-                  <button key={m} onClick={()=>setMode(m)}
-                    style={{padding:"4px 10px",border:"none",borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:600,textTransform:"capitalize",background:publishMode===m?T.ink:"transparent",color:publishMode===m?T.surface:T.textSub}}>{m}</button>
-                ))}
-              </div>
-            )}
-            {postState!=="done"&&<button className="btn btn-ghost btn-sm" onClick={onClose}>Discard</button>}
-            {postState==="done"
-              ?<button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
-              :publishMode==="manual"
-                ?<>
-                  <input value={storyLink} onChange={e=>setLink(e.target.value)} placeholder="https://link-for-sticker" title="Link to add as a Story sticker"
-                    style={{width:190,height:32,padding:"0 10px",borderRadius:6,border:`1px solid ${T.border}`,background:T.surface,fontSize:12,color:T.text,outline:"none"}}/>
-                  <button className="btn btn-primary btn-sm" onClick={manualPublish} title="Download the story image and copy the link, then post it by hand"><Download size={14} style={{marginRight:4}}/> Download + copy link</button>
-                </>
-                :<><button className="btn btn-ghost btn-sm" onClick={exportAsPng} title={pages.length>1?`Download all ${pages.length} canvases as separate PNGs`:"Download the canvas as PNG"}><Download size={14} style={{marginRight:4}}/> PNG</button><button className="btn btn-primary btn-sm" onClick={doPost} disabled={postState==="posting"} title={pages.length>1?`Flatten all ${pages.length} canvases and attach them so they auto-publish as a ${pages.length}-frame story`:"Flatten the story and attach it so it auto-publishes at its scheduled time"}>{postState==="posting"?(pages.length>1?`Rendering ${pages.length} frames…`:"Rendering…"):(pages.length>1?`Render ${pages.length} frames & save`:"Render & save")}</button></>}
-            <button className="m-x" onClick={onClose} aria-label="Close story designer"><X size={16}/></button>
+            {postState==="posting"&&<div className="pr" style={{marginRight:4}}><div className="pd"/><span className="pt">Saving&hellip;</span></div>}
+            <button className="btn btn-ghost btn-sm" onClick={exportAsPng} title={pages.length>1?`Download all ${pages.length} canvases as PNGs`:"Download as PNG"}><Download size={14} style={{marginRight:4}}/> Download</button>
+            <button className="sd-board-tool danger" style={{width:30,height:30}} onClick={onClose} title="Discard changes and close" aria-label="Discard"><Trash2 size={13}/></button>
+            <button className="m-x" onClick={closeAndSave} disabled={postState==="posting"} aria-label="Save and close designer"><X size={16}/></button>
           </div>
         </div>
 
@@ -1551,8 +1513,8 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               { id:"elements", icon:<ImageIcon size={23}/>, label:"Elements" },
               { id:"text", icon:<Type size={23}/>, label:"Text" },
               { id:"uploads", icon:<Upload size={23}/>, label:"Uploads" },
-              { id:"templates", icon:<LayoutTemplate size={23}/>, label:"Templates" },
               { id:"layers", icon:<Layers size={23}/>, label:"Layers" },
+              { id:"templates", icon:<LayoutTemplate size={23}/>, label:"Templates" },
               { id:"ai", icon:<AIMark size={23}/>, label:"AI" },
             ].map(tab => (
               <button key={tab.id} title={tab.label}

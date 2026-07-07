@@ -289,7 +289,7 @@ function StudioShell() {
         <Suspense fallback={<LoadingShell variant="overlay" label="Loading designer" />}>
           <StoryDesigner
             row={story}
-            onClose={() => setStory(null)}
+            onClose={() => { const id = story?.id; setStory(null); if (id) setSelectedRowId(id); }}
             onSave={els => update(story.id, { storyElements: els })}
             onUpdate={patch => update(story.id, patch)}
           />
