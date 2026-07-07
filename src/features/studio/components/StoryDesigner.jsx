@@ -1646,29 +1646,30 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
           <input ref={bgFileRef} type="file" accept="image/*,video/*,image/gif" style={{display:"none"}} onChange={e=>{setBg(e.target.files?.[0]); e.target.value="";}}/>
           <input ref={spanFileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{spanImageAcross(e.target.files?.[0]); e.target.value="";}}/>
 
-          {/* ── ICON RAIL ── */}
+          {/* ── ICON RAIL — Canva-scale: ~26px glyphs, 10.5px labels,
+                 roomy 56px buttons on a 72px rail ── */}
           <div style={{
-            width:52,flexShrink:0,background:T.surface,borderRight:`1px solid ${T.border}`,
-            display:"flex",flexDirection:"column",alignItems:"center",padding:"8px 0",gap:2,
+            width:72,flexShrink:0,background:T.surface,borderRight:`1px solid ${T.border}`,
+            display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0",gap:6,
           }}>
             {[
-              { id:"elements", icon:<ImageIcon size={23}/>, label:"Elements" },
-              { id:"text", icon:<Type size={23}/>, label:"Text" },
-              { id:"uploads", icon:<Upload size={23}/>, label:"Uploads" },
-              { id:"layers", icon:<Layers size={23}/>, label:"Layers" },
-              { id:"templates", icon:<LayoutTemplate size={23}/>, label:"Templates" },
-              { id:"ai", icon:<AIMark size={23}/>, label:"AI" },
+              { id:"elements", icon:<ImageIcon size={26}/>, label:"Elements" },
+              { id:"text", icon:<Type size={26}/>, label:"Text" },
+              { id:"uploads", icon:<Upload size={26}/>, label:"Uploads" },
+              { id:"layers", icon:<Layers size={26}/>, label:"Layers" },
+              { id:"templates", icon:<LayoutTemplate size={26}/>, label:"Templates" },
+              { id:"ai", icon:<AIMark size={26}/>, label:"AI" },
             ].map(tab => (
               <button key={tab.id} title={tab.label}
                 onClick={() => setSideTab(prev => prev === tab.id ? null : tab.id)}
                 style={{
-                  width:40,height:40,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                  gap:1,border:"none",borderRadius:6,cursor:"pointer",transition:"all 0.1s",
+                  width:60,height:56,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                  gap:4,border:"none",borderRadius:6,cursor:"pointer",transition:"all 0.1s",
                   background:sideTab===tab.id ? T.s3 : "transparent",
                   color:sideTab===tab.id ? T.ink : T.textDim,
                 }}>
                 {tab.icon}
-                <span style={{fontSize:8,fontWeight:600,letterSpacing:"0.02em",lineHeight:1}}>{tab.label}</span>
+                <span style={{fontSize:10.5,fontWeight:600,letterSpacing:"0.01em",lineHeight:1}}>{tab.label}</span>
               </button>
             ))}
           </div>
