@@ -560,27 +560,34 @@ export function StudioProvider({ children }) {
     const targetMonth = dateObj.getMonth();
     const day = dateObj.getDate();
     const iso = ptPickerToISO(targetYear, targetMonth, day, 9, 0);
+    const newRow = createNewRow({ scheduledAt: iso, note: trimmed, platform: "ig_post" }, currentUser, studioDoc.rows.length);
     updateDocument(
       (current) => ({
         ...current,
-        rows: [...current.rows, createNewRow({ scheduledAt: iso, note: trimmed, platform: "ig_post" }, currentUser, current.rows.length)],
+        rows: [...current.rows, newRow],
       }),
       () => createAuditEntry("post.created", currentUser, "Created a post on a calendar day", { scheduledAt: iso, title: trimmed }),
     );
-  }, [currentUser, updateDocument]);
+    // Drop straight into the editor — a fresh post shouldn't need a second click.
+    setSelectedRowId(newRow.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, updateDocument, studioDoc.rows.length]);
 
   const createPostDraft = ({ title, dateValue, timeValue, platform }) => {
     const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
     const [hour, minute] = timeValue.split(":").map(Number);
     const iso = ptPickerToISO(targetYear, targetMonth - 1, day, hour, minute);
+    const newRow = createNewRow({ scheduledAt: iso, note: title, platform: platform || "ig_post" }, currentUser, studioDoc.rows.length);
     updateDocument(
       (current) => ({
         ...current,
-        rows: [...current.rows, createNewRow({ scheduledAt: iso, note: title, platform: platform || "ig_post" }, currentUser, current.rows.length)],
+        rows: [...current.rows, newRow],
       }),
       () => createAuditEntry("post.created", currentUser, "Created a new post draft", { scheduledAt: iso, title, platform }),
     );
     setAddPostDraft(null);
+    // Drop straight into the editor — a fresh post shouldn't need a second click.
+    setSelectedRowId(newRow.id);
   };
 
   const getNextAvailableWeekday = () => {

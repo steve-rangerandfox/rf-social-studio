@@ -15,7 +15,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, STATUS_ORDER } from "./StatusMachine.js";
-import { AlertTriangle, CalendarIcon as Calendar, Check, CheckCircle as CheckCircle2, ChevronDown, Close as X, Play, Plus, Share as Share2, Upload } from "../../../components/icons/index.jsx";
+import { AlertTriangle, CalendarIcon as Calendar, Check, CheckCircle as CheckCircle2, Close as X, Play, Plus, Share as Share2, Upload } from "../../../components/icons/index.jsx";
 import { CrossPostModal } from "./CrossPostModal.jsx";
 
 export function DetailPanel() {
@@ -37,6 +37,7 @@ export function DetailPanel() {
   const [mediaUrls, setMediaUrls] = useState([]);
   const [mediaTypes, setMediaTypes] = useState([]);
   const [mediaWarnings, setMediaWarnings] = useState([]);
+  const [mediaDragOver, setMediaDragOver] = useState(false);
   const [showLIPreview, setShowLIPreview] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
@@ -250,6 +251,43 @@ export function DetailPanel() {
     return warnings;
   };
 
+  // Shared by the file input AND drag-and-drop onto the media section.
+  const handleReelFiles = (picked) => {
+    if (!picked.length) return;
+    const f = picked[0];
+    if (!f.type.startsWith("video/")) return;
+    const url = URL.createObjectURL(f);
+    setMediaUrls([url]);
+    setMediaWarnings(validateMedia(f));
+    const vid = document.createElement("video");
+    vid.preload = "metadata";
+    vid.onloadedmetadata = () => { onChange({ reelDuration: Math.round(vid.duration) }); URL.revokeObjectURL(vid.src); };
+    vid.src = url;
+  };
+
+  const handleMediaFiles = (picked) => {
+    if (!picked.length) return;
+    if (isLI) {
+      const remaining = maxFiles - mediaUrls.length;
+      const urls = picked.slice(0, remaining).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/")).map((f) => ({ url: URL.createObjectURL(f), isVideo: f.type.startsWith("video/") }));
+      setMediaUrls((prev) => [...prev, ...urls.map((u) => u.url)]);
+      setMediaTypes((prev) => [...prev, ...urls.map((u) => (u.isVideo ? "video" : "image"))]);
+      setMediaWarnings(picked.slice(0, remaining).flatMap((f) => validateMedia(f)));
+    } else {
+      const f = picked[0];
+      if (f.type.startsWith("image/") || f.type.startsWith("video/")) {
+        setMediaUrls([URL.createObjectURL(f)]);
+        setMediaWarnings(validateMedia(f));
+      }
+    }
+  };
+
+  const dropProps = (handler) => ({
+    onDragOver: (e) => { e.preventDefault(); setMediaDragOver(true); },
+    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setMediaDragOver(false); },
+    onDrop: (e) => { e.preventDefault(); setMediaDragOver(false); handler(Array.from(e.dataTransfer?.files || [])); },
+  });
+
   return (
     <>
       <div className={`detail-panel-backdrop${isClosing ? " closing" : ""}`} onClick={handleClose} />
@@ -327,76 +365,74 @@ export function DetailPanel() {
           {/* Media upload (with platform dropdown on top) */}
           <section className="stage-section">
             <div className="stage-col-label"><span className="stage-col-num">01 /</span> Media{mediaRequired && <span className={"dp-required" + (mediaReady ? " met" : "")} title="Required to publish">*</span>}</div>
+            {/* Channels — every outlet is an equal icon: the main channel
+                first (click to change), added channels after it (hover ×
+                to remove), and a ⊕ to add another. One design, reflowed
+                per aspect in the designer. */}
             <div className="dp-platform-section">
-              <div className="dp-platform-anchor" ref={platformDropdownRef}>
-                <button
-                  className="dp-platform-trigger"
-                  onClick={() => setPlatformDropdownOpen((o) => !o)}
-                  aria-haspopup="listbox"
-                  aria-expanded={platformDropdownOpen}
-                >
-                  <PlatformIcon platform={row.platform} size={18} />
-                  <span className="dp-platform-trigger-label">{PLATFORMS[row.platform].short}</span>
-                  <ChevronDown size={12} className="dp-platform-trigger-chevron" />
-                </button>
-                {platformDropdownOpen && (
-                  <div className="dp-platform-popover" role="listbox">
-                    {Object.entries(PLATFORMS).map(([key, platform]) => (
-                      <button
-                        key={key}
-                        role="option"
-                        aria-selected={row.platform === key}
-                        className={`dp-platform-option${row.platform === key ? " active" : ""}`}
-                        onClick={() => {
-                          onChange({ platform: key, platforms: [key, ...(Array.isArray(row.platforms) ? row.platforms : []).filter((pl) => pl !== key)] });
-                          setPlatformDropdownOpen(false);
-                        }}
-                      >
-                        <PlatformIcon platform={key} size={16} />
-                        <span>{platform.short}</span>
-                        {row.platform === key && <Check size={12} className="dp-platform-check" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* Cross-post outlets: the same post fans out to these channels.
-                  The designer's size menu follows this list — one design,
-                  reflowed per aspect. */}
               {(() => {
                 const outlets = Array.isArray(row.platforms) && row.platforms.length ? row.platforms : [row.platform];
                 const extras = outlets.filter((k) => k !== row.platform && PLATFORMS[k]);
                 const addable = Object.keys(PLATFORMS).filter((k) => !outlets.includes(k));
                 return (
                   <div className="dp-outlets">
+                    <div className="dp-platform-anchor" ref={platformDropdownRef}>
+                      <button
+                        className="dp-outlet-ic dp-outlet-main"
+                        onClick={() => setPlatformDropdownOpen((o) => !o)}
+                        title={`${PLATFORMS[row.platform].label} — main channel, click to change`}
+                        aria-haspopup="listbox"
+                        aria-expanded={platformDropdownOpen}
+                      >
+                        <PlatformIcon platform={row.platform} size={16} />
+                      </button>
+                      {platformDropdownOpen && (
+                        <div className="dp-platform-popover" role="listbox">
+                          {Object.entries(PLATFORMS).map(([key, platform]) => (
+                            <button
+                              key={key}
+                              role="option"
+                              aria-selected={row.platform === key}
+                              className={`dp-platform-option${row.platform === key ? " active" : ""}`}
+                              onClick={() => {
+                                onChange({ platform: key, platforms: [key, ...(Array.isArray(row.platforms) ? row.platforms : []).filter((pl) => pl !== key)] });
+                                setPlatformDropdownOpen(false);
+                              }}
+                            >
+                              <PlatformIcon platform={key} size={16} />
+                              <span>{platform.short}</span>
+                              {row.platform === key && <Check size={12} className="dp-platform-check" />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     {extras.map((k) => (
-                      <span key={k} className="dp-outlet-chip" title={`Also posts to ${PLATFORMS[k].label}`}>
-                        <PlatformIcon platform={k} size={13} />
-                        {PLATFORMS[k].short}
-                        <button
-                          className="dp-outlet-rm"
-                          onClick={() => onChange({ platforms: outlets.filter((pl) => pl !== k) })}
-                          aria-label={`Remove ${PLATFORMS[k].label} outlet`}
-                          title="Remove outlet"
-                        >
-                          <X size={9} />
-                        </button>
-                      </span>
+                      <button
+                        key={k}
+                        className="dp-outlet-ic"
+                        onClick={() => onChange({ platforms: outlets.filter((pl) => pl !== k) })}
+                        title={`${PLATFORMS[k].label} — click to remove`}
+                        aria-label={`Remove ${PLATFORMS[k].label} outlet`}
+                      >
+                        <PlatformIcon platform={k} size={16} />
+                        <span className="dp-outlet-ic-x" aria-hidden="true"><X size={8} /></span>
+                      </button>
                     ))}
                     <div className="dp-outlet-anchor" ref={outletPickerRef}>
                       <button
                         className="dp-outlet-add"
                         onClick={() => setOutletPickerOpen((o) => !o)}
-                        title="Add a cross-post outlet"
+                        title="Add a channel"
+                        aria-label="Add a channel"
                         aria-haspopup="listbox"
                         aria-expanded={outletPickerOpen}
                       >
-                        <Plus size={12} />
-                        {extras.length === 0 && <span>Cross-post</span>}
+                        <Plus size={13} />
                       </button>
                       {outletPickerOpen && (
                         <div className="dp-platform-popover" role="listbox">
-                          {addable.length === 0 && <div className="dp-outlet-none">Every outlet is already on this post.</div>}
+                          {addable.length === 0 && <div className="dp-outlet-none">Every channel is already on this post.</div>}
                           {addable.map((k) => (
                             <button
                               key={k}
@@ -422,23 +458,9 @@ export function DetailPanel() {
             {row.platform === "ig_story" ? (
               <StoryThumbnail elements={storyElements} onClick={() => { setStory(row); setSelectedRowId(null); }} />
             ) : row.platform === "ig_reel" ? (
-              <div className="dp-media-section">
+              <div className={"dp-media-section" + (mediaDragOver ? " drag" : "")} {...dropProps(handleReelFiles)}>
                 <input ref={mediaRef} type="file" accept="video/*" className="dp-file-hidden"
-                  onChange={(e) => {
-                    const picked = Array.from(e.target.files || []);
-                    if (!picked.length) return;
-                    const f = picked[0];
-                    if (f.type.startsWith("video/")) {
-                      const url = URL.createObjectURL(f);
-                      setMediaUrls([url]);
-                      setMediaWarnings(validateMedia(f));
-                      const vid = document.createElement("video");
-                      vid.preload = "metadata";
-                      vid.onloadedmetadata = () => { onChange({ reelDuration: Math.round(vid.duration) }); URL.revokeObjectURL(vid.src); };
-                      vid.src = url;
-                    }
-                    e.target.value = "";
-                  }} />
+                  onChange={(e) => { handleReelFiles(Array.from(e.target.files || [])); e.target.value = ""; }} />
                 {mediaUrls.length > 0 ? (
                   <div className="stage-thumb">
                     <video src={mediaUrls[0]} className="dp-video-round" />
@@ -464,27 +486,9 @@ export function DetailPanel() {
                 </div>
               </div>
             ) : (
-              <div className="dp-media-section">
+              <div className={"dp-media-section" + (mediaDragOver ? " drag" : "")} {...dropProps(handleMediaFiles)}>
                 <input ref={mediaRef} type="file" accept="image/*,video/*,image/gif" multiple={isLI} className="dp-file-hidden"
-                  onChange={(e) => {
-                    const picked = Array.from(e.target.files || []);
-                    if (!picked.length) return;
-                    if (isLI) {
-                      const remaining = maxFiles - mediaUrls.length;
-                      const urls = picked.slice(0, remaining).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/")).map((f) => ({ url: URL.createObjectURL(f), isVideo: f.type.startsWith("video/") }));
-                      setMediaUrls((prev) => [...prev, ...urls.map((u) => u.url)]);
-                      setMediaTypes((prev) => [...prev, ...urls.map((u) => (u.isVideo ? "video" : "image"))]);
-                      const allWarnings = picked.slice(0, remaining).flatMap((f) => validateMedia(f));
-                      setMediaWarnings(allWarnings);
-                    } else {
-                      const f = picked[0];
-                      if (f.type.startsWith("image/") || f.type.startsWith("video/")) {
-                        setMediaUrls([URL.createObjectURL(f)]);
-                        setMediaWarnings(validateMedia(f));
-                      }
-                    }
-                    e.target.value = "";
-                  }} />
+                  onChange={(e) => { handleMediaFiles(Array.from(e.target.files || [])); e.target.value = ""; }} />
                 {mediaUrls.length > 0 ? (
                   isLI ? (
                     <div>
