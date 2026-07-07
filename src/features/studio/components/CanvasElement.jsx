@@ -96,6 +96,11 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
     top: data.y,
     zIndex: isSelected ? 10 : 2,
     opacity: data.opacity ?? 1,
+    // Selection chrome (outline + handles) renders at constant screen size:
+    // this divisor carries everything that scales the wrap — the canvas zoom
+    // AND the element's own transform scale (images/shapes scale the wrapper,
+    // so their chrome would balloon/shrink with the artwork otherwise).
+    "--sd-zoom": zoom * ((data.type === "image" || data.type === "shape") ? mediaScale : 1),
     transform: [
       (data.type === "image" || data.type === "shape") ? `scale(${mediaScale})` : null,
       rotation ? `rotate(${rotation}deg)` : null,
