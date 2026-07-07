@@ -1849,8 +1849,27 @@ input,textarea,select,button{font-family:inherit}
    appears/disappears. */
 
 /* ─── Story Designer Polish ────────────────────────────────────── */
-.sd-preset-select{background:var(--t-s3);border:1px solid var(--t-border);border-radius:var(--radius-sm);padding:4px 8px;font-size:var(--text-xs);color:var(--t-text-sub);cursor:pointer;outline:none}
-.sd-preset-select:focus{border-color:var(--t-border2)}
+/* Canvas-size dropdown — custom trigger + popover so the whole control
+   lives in the design system (no UA select chrome, no UA focus ring on
+   mouse clicks; keyboard focus keeps the global :focus-visible ring). */
+.sd-preset-wrap{position:relative}
+.sd-preset-trigger{display:flex;align-items:center;gap:7px;height:28px;padding:0 9px 0 11px;background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--radius-pill);cursor:pointer;box-shadow:var(--shadow-xs);transition:border-color .12s,box-shadow .12s}
+.sd-preset-trigger:hover{border-color:var(--t-border2);box-shadow:var(--shadow-sm)}
+.sd-preset-name{font:600 11.5px var(--font-body);color:var(--t-text);white-space:nowrap}
+.sd-preset-ratio{font:600 9px var(--font-mono);letter-spacing:.06em;color:var(--t-text-dim);background:var(--t-s2);border:1px solid var(--t-border);border-radius:var(--radius-pill);padding:1px 6px;line-height:1.5}
+.sd-preset-caret{color:var(--t-text-dim);transition:transform .15s var(--ease-editorial)}
+.sd-preset-trigger[aria-expanded="true"] .sd-preset-caret{transform:rotate(180deg)}
+.sd-preset-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:40;min-width:212px;background:var(--t-surface);border:1px solid var(--t-border);border-radius:var(--radius-md);box-shadow:var(--shadow-lg);padding:4px;animation:popIn 120ms var(--ease-editorial)}
+.sd-preset-option{width:100%;display:flex;align-items:center;gap:9px;padding:7px 9px;border:none;border-radius:var(--radius-sm);background:transparent;cursor:pointer;text-align:left;transition:background .1s}
+.sd-preset-option:hover{background:var(--t-s2)}
+.sd-preset-option.on{background:var(--t-s2)}
+.sd-preset-frame{display:block;height:14px;border:1.2px solid var(--t-text-dim);border-radius:2px;flex-shrink:0}
+.sd-preset-option.on .sd-preset-frame{border-color:var(--t-ink)}
+.sd-preset-opt-label{font:500 12px var(--font-body);color:var(--t-text);white-space:nowrap}
+.sd-preset-option.on .sd-preset-opt-label{font-weight:700}
+.sd-preset-opt-ratio{margin-left:auto;font:600 9.5px var(--font-mono);color:var(--t-text-dim)}
+.sd-preset-check{color:var(--t-ink);flex-shrink:0}
+.sd-preset-foot{margin:2px 2px 0;padding:6px 9px 4px;border-top:1px solid var(--t-border);font:500 10px var(--font-body);color:var(--t-text-dim)}
 
 .sd-filter-presets{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .sd-filter-preset{padding:4px 8px;border-radius:var(--radius-sm);border:1px solid var(--t-border);background:var(--t-s2);font-size:var(--text-xs);color:var(--t-text-sub);cursor:pointer;transition:all 0.1s}

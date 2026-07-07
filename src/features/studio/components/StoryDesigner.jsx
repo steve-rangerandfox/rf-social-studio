@@ -520,6 +520,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
   // ── Page (artboard) management ──
   const [pageMenuOpen, setPageMenuOpen] = useState(false);
+  // Canvas-size dropdown (custom popover — the native select can't match
+  // the design system and drags the UA focus ring with it).
+  const [presetMenuOpen, setPresetMenuOpen] = useState(false);
   const resetPageEditState = (els) => { setHistory([els]); setHistoryIndex(0); setSelectedIds(new Set()); setEditingId(null); };
   const switchPage = (idx) => {
     if (idx === activePageIdx || idx < 0 || idx >= pages.length) return;
@@ -2287,12 +2290,35 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 </div>
               )}
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <select className="sd-preset-select" value={canvasPreset} onChange={(e) => handlePresetChange(e.target.value)} aria-label="Canvas size preset"
-                  title={outletPresetKeys.length ? "Sizes follow this post's outlets — add outlets on the post window" : undefined}>
-                  {presetOptions.map(p => (
-                    <option key={p.key} value={p.key}>{p.label} ({p.ratio})</option>
-                  ))}
-                </select>
+                <div className="sd-preset-wrap">
+                  <button className="sd-preset-trigger" onClick={() => setPresetMenuOpen(o => !o)}
+                    aria-haspopup="listbox" aria-expanded={presetMenuOpen} aria-label="Canvas size preset"
+                    title={outletPresetKeys.length ? "Sizes follow this post's outlets — add outlets on the post window" : "Canvas size"}>
+                    <span className="sd-preset-name">{preset.label}</span>
+                    <span className="sd-preset-ratio">{preset.ratio}</span>
+                    <ChevronDown size={11} className="sd-preset-caret"/>
+                  </button>
+                  {presetMenuOpen && (
+                    <>
+                      <div className="sd-pop-backdrop" onClick={() => setPresetMenuOpen(false)}/>
+                      <div className="sd-preset-menu" role="listbox" aria-label="Canvas size options">
+                        {presetOptions.map(p => (
+                          <button key={p.key} role="option" aria-selected={p.key === canvasPreset}
+                            className={"sd-preset-option" + (p.key === canvasPreset ? " on" : "")}
+                            onClick={() => { handlePresetChange(p.key); setPresetMenuOpen(false); }}>
+                            <span className="sd-preset-frame" style={{aspectRatio: `${p.exportW} / ${p.exportH}`}}/>
+                            <span className="sd-preset-opt-label">{p.label}</span>
+                            <span className="sd-preset-opt-ratio">{p.ratio}</span>
+                            {p.key === canvasPreset && <Check size={11} className="sd-preset-check"/>}
+                          </button>
+                        ))}
+                        {outletPresetKeys.length > 0 && (
+                          <div className="sd-preset-foot">Sizes follow this post&rsquo;s outlets</div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
                 <span style={{fontSize:9,color:"rgba(255,255,255,0.45)",fontFamily:"'JetBrains Mono',monospace",letterSpacing:1.2,textTransform:"uppercase"}}>
                   {preset.exportW} × {preset.exportH} · {preset.ratio}
                 </span>
