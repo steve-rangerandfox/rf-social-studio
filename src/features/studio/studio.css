@@ -843,14 +843,14 @@ input,textarea,select,button{font-family:inherit}
    All chrome geometry divides by --sd-zoom (canvas zoom × element scale, set
    per element-wrap) so it holds a constant 1px line on screen everywhere. */
 .element-wrap:hover .el-outline{opacity:1}
-.el-outline{position:absolute;inset:calc(-2px/var(--sd-zoom,1));border:calc(1px/var(--sd-zoom,1)) dashed rgba(255,90,31,0.5);border-radius:2px;pointer-events:none;opacity:0;transition:opacity 0.1s}
+.el-outline{position:absolute;inset:calc(-2px/var(--sd-zoom,1));border:calc(1px/var(--sd-zoom,1)) dashed rgba(255,90,31,0.5);border-radius:calc(2px/var(--sd-zoom,1));pointer-events:none;opacity:0;transition:opacity 0.1s}
 .element-selected .el-outline{opacity:1;border-color:var(--accent);border-style:solid}
 .element-editing .el-outline{border-color:var(--accent);border-style:solid;box-shadow:0 0 0 calc(2px/var(--sd-zoom,1)) rgba(255,90,31,0.15)}
 .element-editing{cursor:text !important}
 /* Transform handles — divided by the canvas zoom (--sd-zoom, set on
    .canvas-wrap) so they render a constant ~9px on screen at any zoom
    instead of ballooning with the scaled canvas and hiding the artwork. */
-.handle{position:absolute;width:calc(7px/var(--sd-zoom,1));height:calc(7px/var(--sd-zoom,1));background:var(--t-surface);border:calc(1px/var(--sd-zoom,1)) solid var(--accent);border-radius:50%;z-index:20;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+.handle{position:absolute;width:calc(7px/var(--sd-zoom,1));height:calc(7px/var(--sd-zoom,1));background:var(--t-surface);border:calc(1px/var(--sd-zoom,1)) solid var(--accent);border-radius:50%;z-index:20;box-shadow:0 calc(1px/var(--sd-zoom,1)) calc(3px/var(--sd-zoom,1)) rgba(0,0,0,0.15)}
 .handle::before{content:'';position:absolute;inset:calc(-9px/var(--sd-zoom,1));border-radius:50%} /* ~25px invisible hit area on screen */
 .handle-nw{top:calc(-4px/var(--sd-zoom,1));left:calc(-4px/var(--sd-zoom,1));cursor:nwse-resize}
 .handle-ne{top:calc(-4px/var(--sd-zoom,1));right:calc(-4px/var(--sd-zoom,1));cursor:nesw-resize}
@@ -1844,7 +1844,7 @@ input,textarea,select,button{font-family:inherit}
 .tmpl-del-btn:hover{color:var(--t-red)}
 
 /* ─── Rotation Handle ──────────────────────────────────────────── */
-.handle-rotate{position:absolute;top:calc(-26px/var(--sd-zoom,1));left:50%;transform:translateX(-50%);width:calc(7px/var(--sd-zoom,1));height:calc(7px/var(--sd-zoom,1));background:var(--t-surface);border:calc(1px/var(--sd-zoom,1)) solid var(--accent);border-radius:50%;cursor:grab;z-index:20;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.handle-rotate{position:absolute;top:calc(-26px/var(--sd-zoom,1));left:50%;transform:translateX(-50%);width:calc(7px/var(--sd-zoom,1));height:calc(7px/var(--sd-zoom,1));background:var(--t-surface);border:calc(1px/var(--sd-zoom,1)) solid var(--accent);border-radius:50%;cursor:grab;z-index:20;box-shadow:0 calc(1px/var(--sd-zoom,1)) calc(3px/var(--sd-zoom,1)) rgba(0,0,0,0.2)}
 .handle-rotate:active{cursor:grabbing}
 .handle-rotate-line{position:absolute;top:calc(-19px/var(--sd-zoom,1));left:50%;transform:translateX(-50%);width:1px;height:calc(19px/var(--sd-zoom,1));background:var(--accent);opacity:0.5;pointer-events:none}
 .rotation-tooltip{position:absolute;top:-52px;left:50%;transform:translateX(-50%);background:var(--t-ink);color:var(--t-surface);font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap;pointer-events:none}
