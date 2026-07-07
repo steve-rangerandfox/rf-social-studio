@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeRow, applyRowPatch } from "../document-store.js";
+import { normalizeRow, applyRowPatch, mergeStudioDocuments } from "../document-store.js";
 
 // normalizeRow is a WHITELIST: any field it doesn't copy is silently
 // stripped from the row on every patch. These tests pin the fields that
@@ -71,5 +71,47 @@ describe("normalizeRow field preservation", () => {
     expect(row.reelDuration).toBeNull();
     expect(row.publishMode).toBe("auto");
     expect(row.platforms).toEqual([row.platform]);
+  });
+});
+
+describe("mergeStudioDocuments (conflict/poll merge)", () => {
+  const doc = (rows, extra = {}) => ({ rows, auditLog: [], ...extra });
+  const row = (id, updatedAt, fields = {}) => ({ id, updatedAt, ...fields });
+
+  it("keeps the local row when it is newer (typing survives a refresh)", () => {
+    const local = doc([row("a", "2026-07-07T10:00:05Z", { caption: "typed locally" })]);
+    const server = doc([row("a", "2026-07-07T10:00:00Z", { caption: "stale" })]);
+    const merged = mergeStudioDocuments(server, local);
+    expect(merged.rows).toHaveLength(1);
+    expect(merged.rows[0].caption).toBe("typed locally");
+  });
+
+  it("takes the server row when it is newer (scheduler outcomes land)", () => {
+    const local = doc([row("a", "2026-07-07T10:00:00Z", { status: "scheduled" })]);
+    const server = doc([row("a", "2026-07-07T10:00:09Z", { status: "posted" })]);
+    const merged = mergeStudioDocuments(server, local);
+    expect(merged.rows[0].status).toBe("posted");
+  });
+
+  it("keeps rows that exist on only one side, local order first", () => {
+    const local = doc([row("a", "2026-07-07T10:00:00Z"), row("new-local", "2026-07-07T10:00:01Z")]);
+    const server = doc([row("a", "2026-07-07T10:00:00Z"), row("new-server", "2026-07-07T10:00:02Z")]);
+    const merged = mergeStudioDocuments(server, local);
+    expect(merged.rows.map((r) => r.id)).toEqual(["a", "new-local", "new-server"]);
+  });
+
+  it("prefers the longer audit log and local non-row fields", () => {
+    const local = doc([], { instagram: { account: "local" }, auditLog: [{ id: 1 }] });
+    const server = doc([], { instagram: { account: "server" }, auditLog: [{ id: 1 }, { id: 2 }] });
+    const merged = mergeStudioDocuments(server, local);
+    expect(merged.auditLog).toHaveLength(2);
+    expect(merged.instagram.account).toBe("local");
+  });
+
+  it("treats a missing updatedAt as oldest", () => {
+    const local = doc([row("a", undefined, { caption: "no stamp" })]);
+    const server = doc([row("a", "2026-07-07T10:00:00Z", { caption: "stamped" })]);
+    const merged = mergeStudioDocuments(server, local);
+    expect(merged.rows[0].caption).toBe("stamped");
   });
 });

@@ -19,6 +19,7 @@ import {
   loadStudioDocument,
   loadStudioDocumentAsync,
   markRowDeleted,
+  mergeStudioDocuments,
   normalizeBrandProfile,
   persistStudioDocument,
   flushStudioPersist,
@@ -119,6 +120,13 @@ export function StudioProvider({ children }) {
   }));
   const documentVersionRef = useRef(null);
   const setDocumentVersion = (v) => { documentVersionRef.current = v; };
+  // Latest-doc ref for the serialized save pipeline: server saves always send
+  // the freshest state, and conflict/poll merges never work from a stale copy.
+  const latestDocRef = useRef(studioDoc);
+  latestDocRef.current = studioDoc;
+  const saveInFlightRef = useRef(false);
+  const saveDirtyRef = useRef(false);
+  const conflictRunRef = useRef(0);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [pendingUndo, setPendingUndo] = useState(null);
   const [tokenBannerDismissed, setTokenBannerDismissed] = useState(false);
@@ -255,10 +263,13 @@ export function StudioProvider({ children }) {
     fetchStudioDocument()
       .then((payload) => {
         if (cancelled || !payload?.document) return;
-        setStudioDoc(payload.document);
+        // Merge rather than replace: edits made in the seconds before this
+        // fetch resolves (per-row, newest updatedAt wins) must not vanish.
+        const merged = mergeStudioDocuments(payload.document, latestDocRef.current);
+        setStudioDoc(merged);
         setDocumentVersion(payload.version ?? null);
         persistStudioDocument(
-          { ...payload.document, lastSavedAt: payload.updatedAt || payload.document.lastSavedAt || null },
+          { ...merged, lastSavedAt: payload.updatedAt || payload.document.lastSavedAt || null },
           storageScope,
         );
         setSaveState({
@@ -282,6 +293,76 @@ export function StudioProvider({ children }) {
     setSaveState((current) => ({ ...current, status: "saving", error: null }));
   }, []);
 
+  // Server saves are SERIALIZED: one request in flight at a time, always
+  // sending the freshest document. Overlapping saves were the root cause of
+  // self-inflicted "Version conflict" errors while typing -- save A bumps the
+  // server version, then save B (debounced in carrying the old version)
+  // conflicts, and the old handler swapped in the server copy, deleting the
+  // keystrokes typed since. Conflicts now MERGE per row (newest updatedAt
+  // wins) and quietly re-save on the fresh version; typing survives.
+  const runServerSave = useCallback(function run() {
+    if (saveInFlightRef.current) { saveDirtyRef.current = true; return; }
+    saveInFlightRef.current = true;
+    const savedAt = new Date().toISOString();
+    const nextDocument = { ...latestDocRef.current, lastSavedAt: savedAt };
+    saveStudioDocument(nextDocument, documentVersionRef.current)
+      .then((payload) => {
+        conflictRunRef.current = 0;
+        if (payload?.version != null) {
+          setDocumentVersion(payload.version);
+        }
+        setSaveState({ status: "saved", lastSavedAt: payload?.updatedAt || savedAt, error: null });
+      })
+      .catch((error) => {
+        if (error?.message === "Studio persistence is not configured" || error?.message === "user context is required") {
+          setSaveState({ status: "saved", lastSavedAt: savedAt, error: null });
+          return;
+        }
+        if (error?.message === "Version conflict") {
+          conflictRunRef.current += 1;
+          if (conflictRunRef.current > 3) {
+            // Merging keeps conflicting -- stop fighting and take the server copy.
+            conflictRunRef.current = 0;
+            showToast("Your changes conflict with a newer version. Refreshing\u2026", T.red);
+            fetchStudioDocument()
+              .then((payload) => {
+                if (!payload?.document) return;
+                setStudioDoc(payload.document);
+                setDocumentVersion(payload.version ?? null);
+                persistStudioDocument(
+                  { ...payload.document, lastSavedAt: payload.updatedAt || null },
+                  storageScope,
+                );
+                setSaveState({ status: "saved", lastSavedAt: payload.updatedAt || null, error: null });
+              })
+              .catch(() => {});
+            return;
+          }
+          fetchStudioDocument()
+            .then((payload) => {
+              if (!payload?.document) return;
+              setDocumentVersion(payload.version ?? null);
+              // setStudioDoc re-arms the debounced save, which re-sends the
+              // merged document on the fresh version -- no toast, no lost text.
+              setStudioDoc(mergeStudioDocuments(payload.document, latestDocRef.current));
+            })
+            .catch(() => {});
+          return;
+        }
+        // Queue for offline sync if it was a retryable/network error
+        if (error?.retryable) {
+          addToSyncQueue({ type: "save", document: nextDocument, scope: storageScope, version: documentVersionRef.current }).catch(() => {});
+          setSaveState({ status: "offline", lastSavedAt: savedAt, error: "Offline \u2014 changes saved locally and will sync when reconnected." });
+        } else {
+          setSaveState({ status: "error", lastSavedAt: savedAt, error: "Server persistence failed. Local browser copy is still available." });
+        }
+      })
+      .finally(() => {
+        saveInFlightRef.current = false;
+        if (saveDirtyRef.current) { saveDirtyRef.current = false; run(); }
+      });
+  }, [showToast, storageScope]);
+
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       const savedAt = new Date().toISOString();
@@ -295,46 +376,10 @@ export function StudioProvider({ children }) {
         }));
         return;
       }
-      saveStudioDocument(nextDocument, documentVersionRef.current)
-        .then((payload) => {
-          if (payload?.version != null) {
-            setDocumentVersion(payload.version);
-          }
-          setSaveState({ status: "saved", lastSavedAt: payload?.updatedAt || savedAt, error: null });
-        })
-        .catch((error) => {
-          if (error?.message === "Studio persistence is not configured" || error?.message === "user context is required") {
-            setSaveState({ status: "saved", lastSavedAt: savedAt, error: null });
-            return;
-          }
-          if (error?.message === "Version conflict") {
-            showToast("Your changes conflict with a newer version. Refreshing\u2026", T.red);
-            fetchStudioDocument()
-              .then((payload) => {
-                if (payload?.document) {
-                  setStudioDoc(payload.document);
-                  setDocumentVersion(payload.version ?? null);
-                  persistStudioDocument(
-                    { ...payload.document, lastSavedAt: payload.updatedAt || null },
-                    storageScope,
-                  );
-                  setSaveState({ status: "saved", lastSavedAt: payload.updatedAt || null, error: null });
-                }
-              })
-              .catch(() => {});
-            return;
-          }
-          // Queue for offline sync if it was a retryable/network error
-          if (error?.retryable) {
-            addToSyncQueue({ type: "save", document: nextDocument, scope: storageScope, version: documentVersionRef.current }).catch(() => {});
-            setSaveState({ status: "offline", lastSavedAt: savedAt, error: "Offline — changes saved locally and will sync when reconnected." });
-          } else {
-            setSaveState({ status: "error", lastSavedAt: savedAt, error: "Server persistence failed. Local browser copy is still available." });
-          }
-        });
+      runServerSave();
     }, 180);
     return () => window.clearTimeout(timeoutId);
-  }, [showToast, storageScope, studioDoc]);
+  }, [runServerSave, storageScope, studioDoc]);
 
   // On tab close, synchronously flush the latest doc so an edit made inside
   // the 180ms/400ms debounce windows isn't lost. localStorage.setItem is
@@ -396,22 +441,31 @@ export function StudioProvider({ children }) {
     if (!userId) return;
 
     const interval = setInterval(async () => {
+      // Never poll-refresh over an in-flight or pending save -- the version
+      // is about to bump and swapping in the server copy would erase the
+      // very keystrokes that save is carrying.
+      if (saveInFlightRef.current || saveDirtyRef.current) return;
       try {
         const payload = await fetchStudioDocument();
         if (!payload?.document) return;
 
-        // Only update if server version is newer
+        // Only update if the server version is newer -- and MERGE with the
+        // local copy (per row, newest edit wins) instead of replacing it, so
+        // typing that hasn't reached the server yet survives the refresh.
         if (payload.version != null && payload.version > (documentVersionRef.current || 0)) {
-          setStudioDoc(payload.document);
+          const merged = mergeStudioDocuments(payload.document, latestDocRef.current);
+          const changed = JSON.stringify(merged) !== JSON.stringify(latestDocRef.current);
           setDocumentVersion(payload.version);
+          if (!changed) return;
+          setStudioDoc(merged);
           persistStudioDocument(
-            { ...payload.document, lastSavedAt: payload.updatedAt },
+            { ...merged, lastSavedAt: payload.updatedAt },
             storageScope,
           );
           showToast("Updated from another device", T.mint);
         }
       } catch {
-        // Silent failure — will retry on next interval
+        // Silent failure -- will retry on next interval
       }
     }, 30000); // Poll every 30 seconds
 
@@ -570,7 +624,6 @@ export function StudioProvider({ children }) {
     );
     // Drop straight into the editor — a fresh post shouldn't need a second click.
     setSelectedRowId(newRow.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, updateDocument, studioDoc.rows.length]);
 
   const createPostDraft = ({ title, dateValue, timeValue, platform }) => {
