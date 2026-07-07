@@ -2550,3 +2550,17 @@ input,textarea,select,button{font-family:inherit}
 .dp-outlet-add{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 8px;border:1px dashed var(--t-border2);border-radius:var(--radius-pill);background:transparent;cursor:pointer;font:600 11px var(--font-body);color:var(--t-text-sub);transition:border-color .1s,color .1s}
 .dp-outlet-add:hover{border-color:var(--t-ink);color:var(--t-ink)}
 .dp-outlet-none{padding:8px 10px;font:500 11px var(--font-body);color:var(--t-text-dim)}
+
+/* ── Fonts panel — Canva-style expandable weight list ── */
+.sd-font-row{display:flex;align-items:center;border-radius:var(--radius-sm);padding-right:8px;transition:background .1s}
+.sd-font-row:hover{background:var(--t-s2)}
+.sd-font-caret{width:22px;height:36px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;cursor:pointer;color:var(--t-text-dim);padding:0;flex-shrink:0}
+.sd-font-caret:hover{color:var(--t-ink)}
+.sd-font-name{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;padding:9px 4px;border:none;background:transparent;cursor:pointer;text-align:left;overflow:hidden}
+.sd-font-label{font-size:14px;font-weight:500;color:var(--t-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sd-font-row.on .sd-font-label{font-weight:700}
+.sd-font-sample{font-size:11.5px;color:var(--t-text-dim);white-space:nowrap;flex-shrink:0}
+.sd-font-weights{display:flex;flex-direction:column;padding:0 0 6px 22px}
+.sd-font-weight{display:flex;align-items:center;width:100%;padding:7px 8px;border:none;border-radius:var(--radius-sm);background:transparent;cursor:pointer;font-size:13px;color:var(--t-text);text-align:left;transition:background .1s}
+.sd-font-weight:hover{background:var(--t-s2)}
+.sd-font-weight.on{background:var(--t-s2)}
