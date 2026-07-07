@@ -15,7 +15,7 @@ import { StoryThumbnail } from "./StoryThumbnail.jsx";
 import { AICaptionAssist } from "./AICaptionAssist.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 import { canTransition, STATUS_ORDER } from "./StatusMachine.js";
-import { AlertTriangle, CalendarIcon as Calendar, Check, CheckCircle as CheckCircle2, ChevronDown, Close as X, Play, Share as Share2, Upload } from "../../../components/icons/index.jsx";
+import { AlertTriangle, CalendarIcon as Calendar, Check, CheckCircle as CheckCircle2, ChevronDown, Close as X, Play, Plus, Share as Share2, Upload } from "../../../components/icons/index.jsx";
 import { CrossPostModal } from "./CrossPostModal.jsx";
 
 export function DetailPanel() {
@@ -40,6 +40,7 @@ export function DetailPanel() {
   const [showLIPreview, setShowLIPreview] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
+  const [outletPickerOpen, setOutletPickerOpen] = useState(false);
   const [isCrossPostOpen, setIsCrossPostOpen] = useState(false);
 
   const titleInputRef = useRef(null);
@@ -48,6 +49,7 @@ export function DetailPanel() {
   const assigneeRef = useRef(null);
   const bodyRef = useRef(null);
   const platformDropdownRef = useRef(null);
+  const outletPickerRef = useRef(null);
   const panelRef = useRef(null);
   const previousFocusRef = useRef(null);
 
@@ -70,6 +72,7 @@ export function DetailPanel() {
     setShowLIPreview(false);
     setIsClosing(false);
     setPlatformDropdownOpen(false);
+    setOutletPickerOpen(false);
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
   }, [selectedRowId]);
 
@@ -157,6 +160,15 @@ export function DetailPanel() {
     document.addEventListener("pointerdown", handler);
     return () => document.removeEventListener("pointerdown", handler);
   }, [platformDropdownOpen]);
+
+  useEffect(() => {
+    if (!outletPickerOpen) return;
+    const handler = (e) => {
+      if (outletPickerRef.current && !outletPickerRef.current.contains(e.target)) setOutletPickerOpen(false);
+    };
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
+  }, [outletPickerOpen]);
 
   useEffect(() => {
     if (!isEditingTitle) return;
@@ -348,6 +360,64 @@ export function DetailPanel() {
                   </div>
                 )}
               </div>
+              {/* Cross-post outlets: the same post fans out to these channels.
+                  The designer's size menu follows this list — one design,
+                  reflowed per aspect. */}
+              {(() => {
+                const outlets = Array.isArray(row.platforms) && row.platforms.length ? row.platforms : [row.platform];
+                const extras = outlets.filter((k) => k !== row.platform && PLATFORMS[k]);
+                const addable = Object.keys(PLATFORMS).filter((k) => !outlets.includes(k));
+                return (
+                  <div className="dp-outlets">
+                    {extras.map((k) => (
+                      <span key={k} className="dp-outlet-chip" title={`Also posts to ${PLATFORMS[k].label}`}>
+                        <PlatformIcon platform={k} size={13} />
+                        {PLATFORMS[k].short}
+                        <button
+                          className="dp-outlet-rm"
+                          onClick={() => onChange({ platforms: outlets.filter((pl) => pl !== k) })}
+                          aria-label={`Remove ${PLATFORMS[k].label} outlet`}
+                          title="Remove outlet"
+                        >
+                          <X size={9} />
+                        </button>
+                      </span>
+                    ))}
+                    <div className="dp-outlet-anchor" ref={outletPickerRef}>
+                      <button
+                        className="dp-outlet-add"
+                        onClick={() => setOutletPickerOpen((o) => !o)}
+                        title="Add a cross-post outlet"
+                        aria-haspopup="listbox"
+                        aria-expanded={outletPickerOpen}
+                      >
+                        <Plus size={12} />
+                        {extras.length === 0 && <span>Cross-post</span>}
+                      </button>
+                      {outletPickerOpen && (
+                        <div className="dp-platform-popover" role="listbox">
+                          {addable.length === 0 && <div className="dp-outlet-none">Every outlet is already on this post.</div>}
+                          {addable.map((k) => (
+                            <button
+                              key={k}
+                              role="option"
+                              aria-selected={false}
+                              className="dp-platform-option"
+                              onClick={() => {
+                                onChange({ platforms: [...outlets, k] });
+                                setOutletPickerOpen(false);
+                              }}
+                            >
+                              <PlatformIcon platform={k} size={16} />
+                              <span>{PLATFORMS[k].short}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             {row.platform === "ig_story" ? (
               <StoryThumbnail elements={storyElements} onClick={() => { setStory(row); setSelectedRowId(null); }} />
