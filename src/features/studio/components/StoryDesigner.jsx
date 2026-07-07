@@ -2412,7 +2412,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     <button className="sd-board-label" onClick={() => switchPage(i)} title={`Edit canvas ${i + 1}`}>{String(i + 1).padStart(2, "0")}</button>
                   </div>
                   <div style={{width:preset.w*zoom,height:preset.h*zoom,flexShrink:0}}>
-                    <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left"}}>
+                    <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left","--sd-zoom":zoom}}>
                       <div className="canvas" role="button" aria-label={`Activate canvas ${i + 1}`}
                         onPointerDown={() => switchPage(i)}
                         onDragOver={(e) => e.preventDefault()}
@@ -2449,7 +2449,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 </div>
               )}
               <div style={{width:preset.w*zoom,height:preset.h*zoom,flexShrink:0}}>
-            <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left"}}>
+            <div className="canvas-wrap" style={{transform:`scale(${zoom})`,transformOrigin:"top left","--sd-zoom":zoom}}>
               <div className="canvas" ref={canvasRef} role="application" aria-label="Story canvas"
                 onPointerDown={handleCanvasPointerDown}
                 onDragOver={handleCanvasDragOver}
