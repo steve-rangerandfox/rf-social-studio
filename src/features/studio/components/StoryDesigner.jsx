@@ -1191,16 +1191,14 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
     const file = e.dataTransfer?.files?.[0];
     if (!file || (!file.type.startsWith("image/") && !file.type.startsWith("video/"))) return;
-    const bgEl = elements.find(el => el.id === "bg");
-    if (!bgEl?.url) {
-      setBg(file);
+    // Always place a dropped file as a positionable element (selected on
+    // insert, deselecting whatever was selected) — the background is set
+    // explicitly from the Background panel, not by a stray drop.
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    if (canvasRect) {
+      addMedia(file, (e.clientX - canvasRect.left) / zoom, (e.clientY - canvasRect.top) / zoom);
     } else {
-      const canvasRect = canvasRef.current?.getBoundingClientRect();
-      if (canvasRect) {
-        addMedia(file, (e.clientX - canvasRect.left) / zoom, (e.clientY - canvasRect.top) / zoom);
-      } else {
-        addMedia(file);
-      }
+      addMedia(file);
     }
   };
 

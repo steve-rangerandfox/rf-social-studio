@@ -41,6 +41,8 @@ export function DetailPanel() {
   const [mediaPreview, setMediaPreview] = useState(null); // { url, isVideo } — fresh local blob
   const [mediaWarnings, setMediaWarnings] = useState([]);
   const [mediaUploading, setMediaUploading] = useState(false);
+  const [mediaProgress, setMediaProgress] = useState(0);
+  const [thumbUploading, setThumbUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
@@ -49,6 +51,7 @@ export function DetailPanel() {
 
   const titleInputRef = useRef(null);
   const mediaRef = useRef(null);
+  const thumbRef = useRef(null);
   const approvalRef = useRef(null);
   const assigneeRef = useRef(null);
   const platformDropdownRef = useRef(null);
@@ -172,6 +175,29 @@ export function DetailPanel() {
     return warnings;
   };
 
+  // Grab a poster frame from a local video blob and upload it, so a video
+  // post has a thumbnail for the queue / grid / publish previews. Best-effort.
+  const captureVideoPoster = (blobUrl) => new Promise((resolve) => {
+    try {
+      const vid = document.createElement("video");
+      vid.muted = true;
+      vid.crossOrigin = "anonymous";
+      vid.src = blobUrl;
+      vid.onloadeddata = () => { try { vid.currentTime = Math.min(0.1, (vid.duration || 1) / 2); } catch { resolve(null); } };
+      vid.onseeked = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = vid.videoWidth || 1080;
+          canvas.height = vid.videoHeight || 1080;
+          canvas.getContext("2d").drawImage(vid, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+        } catch { resolve(null); }
+      };
+      vid.onerror = () => resolve(null);
+      setTimeout(() => resolve(null), 4000);
+    } catch { resolve(null); }
+  });
+
   // One attachment: instant local preview + background upload persisted on
   // the row, so the media survives closing and the scheduler can publish it.
   const handleFile = async (file) => {
@@ -189,17 +215,45 @@ export function DetailPanel() {
       vid.src = url;
     }
     setMediaUploading(true);
+    setMediaProgress(0);
     try {
-      const publicUrl = await uploadAssetWithProgress(file, () => {});
+      const publicUrl = await uploadAssetWithProgress(file, (pr) => setMediaProgress(pr));
       onChange({
         mediaUrl: publicUrl,
         mediaKind: isVideo ? "video" : "image",
         ...(isVideo ? {} : { thumbnailUrl: publicUrl }),
       });
+      // Auto-capture a poster for videos (unless the user set one) so the
+      // post has a still image everywhere <img> is used.
+      if (isVideo) {
+        const posterBlob = await captureVideoPoster(url);
+        if (posterBlob) {
+          try {
+            const posterFile = new File([posterBlob], `poster-${Date.now()}.jpg`, { type: "image/jpeg" });
+            const posterUrl = await uploadAssetWithProgress(posterFile, () => {});
+            onChange({ thumbnailUrl: posterUrl });
+          } catch { /* poster is best-effort */ }
+        }
+      }
     } catch (err) {
       setMediaWarnings((w) => [...w, err?.message || "Upload failed — re-attach the file before publishing"]);
     }
     setMediaUploading(false);
+    setMediaProgress(0);
+  };
+
+  // Explicit custom thumbnail (poster) for a video post.
+  const handleThumbFile = async (file) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    try { checkFileSize(file); } catch (err) { setMediaWarnings([err.message]); return; }
+    setThumbUploading(true);
+    try {
+      const url = await uploadAssetWithProgress(file, () => {});
+      onChange({ thumbnailUrl: url });
+    } catch (err) {
+      setMediaWarnings((w) => [...w, err?.message || "Thumbnail upload failed"]);
+    }
+    setThumbUploading(false);
   };
 
   const clearMedia = () => {
@@ -405,12 +459,28 @@ export function DetailPanel() {
                       <span className="dp2-story-hint">Open the designer to edit frames</span>
                     </div>
                   ) : displayMedia ? (
-                    <div className={"cpm-media-thumb" + (mediaUploading ? " uploading" : "")}>
-                      {displayMedia.isVideo
-                        ? <video src={displayMedia.previewUrl} muted loop playsInline autoPlay />
-                        : <img src={displayMedia.previewUrl} alt="" />}
-                      {mediaUploading && <span className="cpm-media-state">Uploading…</span>}
-                      <button type="button" className="cpm-media-rm" onClick={clearMedia} aria-label="Remove media"><X size={9} /></button>
+                    <div className="dp2-media-cluster">
+                      <div className={"cpm-media-thumb" + (mediaUploading ? " uploading" : "")}>
+                        {displayMedia.isVideo
+                          ? <video src={displayMedia.previewUrl} muted loop playsInline autoPlay />
+                          : <img src={displayMedia.previewUrl} alt="" />}
+                        {mediaUploading && <span className="cpm-media-state">{mediaProgress > 0 ? `${Math.round(mediaProgress * 100)}%` : "Uploading…"}</span>}
+                        <button type="button" className="cpm-media-rm" onClick={clearMedia} aria-label="Remove media"><X size={9} /></button>
+                      </div>
+                      {/* Video posts carry a still thumbnail (auto-captured,
+                          or set here) for every <img> preview + the feed. */}
+                      {displayMedia.isVideo && (
+                        <div className="dp2-thumb-slot">
+                          <input ref={thumbRef} type="file" accept="image/*" hidden
+                            onChange={(e) => { handleThumbFile(e.target.files?.[0]); e.target.value = ""; }} />
+                          <div className="dp2-thumb-prev">
+                            {row.thumbnailUrl ? <img src={row.thumbnailUrl} alt="Video thumbnail" /> : <span className="dp2-thumb-empty"><ImageIcon size={14} /></span>}
+                          </div>
+                          <button type="button" className="dp2-thumb-btn" onClick={() => thumbRef.current?.click()} disabled={thumbUploading}>
+                            {thumbUploading ? "Uploading…" : row.thumbnailUrl ? "Change thumbnail" : "Set thumbnail"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <button type="button" className="cpm-dropcard" onClick={() => mediaRef.current?.click()}>
