@@ -18,6 +18,7 @@ import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js
 import { AlertTriangle, CalendarIcon as Calendar, Check, CheckCircle as CheckCircle2, Close as X, ImageIcon, Plus, Share as Share2 } from "../../../components/icons/index.jsx";
 import { CrossPostModal } from "./CrossPostModal.jsx";
 import { NetworkPreview, PreviewEmptyState } from "./PostPreviews.jsx";
+import { MediaGallery } from "./MediaGallery.jsx";
 
 // Buffer-style post editor window: channels + composer on the left, live
 // per-network previews on the right, publish controls in the footer.
@@ -38,7 +39,8 @@ export function DetailPanel() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [isAssigneeOpen, setIsAssigneeOpen] = useState(false);
-  const [mediaPreview, setMediaPreview] = useState(null); // { url, isVideo } — fresh local blob
+  const [pending, setPending] = useState([]); // in-flight uploads: { id, url, isVideo }
+  const [activeIdx, setActiveIdx] = useState(0);
   const [mediaWarnings, setMediaWarnings] = useState([]);
   const [mediaUploading, setMediaUploading] = useState(false);
   const [mediaProgress, setMediaProgress] = useState(0);
@@ -69,7 +71,8 @@ export function DetailPanel() {
     setIsEditingTitle(false);
     setIsApprovalOpen(false);
     setIsAssigneeOpen(false);
-    setMediaPreview(null);
+    setPending([]);
+    setActiveIdx(0);
     setMediaWarnings([]);
     setPlatformDropdownOpen(false);
     setOutletPickerOpen(false);
@@ -145,16 +148,28 @@ export function DetailPanel() {
   const extras = outlets.filter((k) => k !== row.platform && PLATFORMS[k]);
   const addable = Object.keys(PLATFORMS).filter((k) => !outlets.includes(k));
 
-  const rowMediaIsVideo = row.mediaKind === "video" || /\.(mp4|mov|webm)(\?|$)/i.test(row.mediaUrl || "");
-  const displayMedia = mediaPreview
-    ? { previewUrl: mediaPreview.url, isVideo: mediaPreview.isVideo }
-    : row.mediaUrl
-      ? { previewUrl: row.mediaUrl, isVideo: rowMediaIsVideo }
-      : isStory && row.thumbnailUrl
-        ? { previewUrl: row.thumbnailUrl, isVideo: false }
-        : null;
+  // Feed platforms take multiple images (native carousel / multi-image);
+  // stories + reels are single-frame / single-video.
+  const allowsMulti = !isStory && !isReel;
 
-  const hasMedia = !!displayMedia || (Array.isArray(row.carouselSlides) && row.carouselSlides.length > 0) || !!row.storyFrames;
+  const urlIsVideo = (u, kind) => kind === "video" || /\.(mp4|mov|webm)(\?|$)/i.test(u || "");
+  // Canonical gallery for this row: mediaItems if present, else a single
+  // item synthesized from the legacy mediaUrl.
+  const rowItems = Array.isArray(row.mediaItems) && row.mediaItems.length
+    ? row.mediaItems.map((it) => ({ url: it.url, isVideo: urlIsVideo(it.url, it.kind) }))
+    : row.mediaUrl
+      ? [{ url: row.mediaUrl, isVideo: urlIsVideo(row.mediaUrl, row.mediaKind) }]
+      : [];
+  // Hosted items + in-flight uploads, in one list for the gallery.
+  const galleryItems = [
+    ...rowItems.map((it, i) => ({ id: `row-${i}-${it.url}`, url: it.url, isVideo: it.isVideo, uploading: false })),
+    ...pending.map((p) => ({ id: p.id, url: p.url, isVideo: p.isVideo, uploading: true })),
+  ];
+  const primary = galleryItems[0] || null;
+  const displayMedia = primary ? { previewUrl: primary.url, isVideo: primary.isVideo } : (isStory && row.thumbnailUrl ? { previewUrl: row.thumbnailUrl, isVideo: false } : null);
+  const galleryVideo = galleryItems.some((it) => it.isVideo);
+
+  const hasMedia = galleryItems.length > 0 || (Array.isArray(row.carouselSlides) && row.carouselSlides.length > 0) || !!row.storyFrames;
   const checks = getReadinessChecks(row, hasMedia);
   const captionReady = !!checks.find((c) => c.label === "Caption")?.pass;
   const mediaReady = !!checks.find((c) => c.label === "Media")?.pass;
@@ -198,48 +213,95 @@ export function DetailPanel() {
     } catch { resolve(null); }
   });
 
-  // One attachment: instant local preview + background upload persisted on
-  // the row, so the media survives closing and the scheduler can publish it.
-  const handleFile = async (file) => {
-    if (!file || (!file.type.startsWith("image/") && !file.type.startsWith("video/"))) return;
-    if (isReel && !file.type.startsWith("video/")) { setMediaWarnings(["Reels need a video file"]); return; }
-    try { checkFileSize(file); } catch (err) { setMediaWarnings([err.message]); return; }
-    const isVideo = file.type.startsWith("video/");
-    const url = URL.createObjectURL(file);
-    setMediaPreview({ url, isVideo });
-    setMediaWarnings(validateMedia(file));
-    if (isVideo) {
-      const vid = document.createElement("video");
-      vid.preload = "metadata";
-      vid.onloadedmetadata = () => { if (isReel) onChange({ reelDuration: Math.round(vid.duration) }); };
-      vid.src = url;
-    }
-    setMediaUploading(true);
-    setMediaProgress(0);
-    try {
-      const publicUrl = await uploadAssetWithProgress(file, (pr) => setMediaProgress(pr));
-      onChange({
-        mediaUrl: publicUrl,
-        mediaKind: isVideo ? "video" : "image",
-        ...(isVideo ? {} : { thumbnailUrl: publicUrl }),
-      });
-      // Auto-capture a poster for videos (unless the user set one) so the
-      // post has a still image everywhere <img> is used.
+  // Persist the whole hosted gallery + every field the previews and the
+  // scheduler read from it. IG posts with ≥2 images publish as a native
+  // carousel via carouselFrameUrls (no render needed — they're real images).
+  const commitItems = (list) => {
+    const hasVideo = list.some((it) => it.kind === "video");
+    const isCarousel = list.length >= 2;
+    const firstImage = list.find((it) => it.kind !== "video");
+    onChange({
+      mediaItems: list.length ? list : null,
+      mediaUrl: list[0]?.url || null,
+      mediaKind: isCarousel ? "carousel" : hasVideo ? "video" : list.length ? "image" : null,
+      carouselFrameUrls: isCarousel && !hasVideo ? list.map((it) => it.url) : null,
+      // Thumbnail: keep a custom one; else first image; else leave for the
+      // video poster capture below.
+      ...(row.thumbnailUrl && list.some((it) => it.url === row.thumbnailUrl) ? {}
+        : firstImage ? { thumbnailUrl: firstImage.url } : {}),
+    });
+  };
+
+  // Upload one or many files; images build a gallery, a lone video is a
+  // single video post. Each shows instantly (blob) then swaps to its hosted
+  // URL on the row as it lands.
+  const handleFiles = async (fileList) => {
+    const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (!files.length) return;
+    if (isReel && !files[0].type.startsWith("video/")) { setMediaWarnings(["Reels need a video file"]); return; }
+    // Single-frame surfaces (reel) or any video: one item, replaces the set.
+    const videoFile = files.find((f) => f.type.startsWith("video/"));
+    const multi = allowsMulti && !videoFile;
+    const chosen = multi ? files.filter((f) => f.type.startsWith("image/")) : [videoFile || files[0]];
+
+    for (const file of chosen) {
+      try { checkFileSize(file); } catch (err) { setMediaWarnings((w) => [...w, err.message]); continue; }
+      const warn = validateMedia(file);
+      if (warn.length) setMediaWarnings((w) => [...w, ...warn]);
+      const isVideo = file.type.startsWith("video/");
+      const blobUrl = URL.createObjectURL(file);
+      const pid = "p" + Math.random().toString(36).slice(2, 8);
+      setPending((prev) => [...prev, { id: pid, url: blobUrl, isVideo }]);
       if (isVideo) {
-        const posterBlob = await captureVideoPoster(url);
-        if (posterBlob) {
-          try {
-            const posterFile = new File([posterBlob], `poster-${Date.now()}.jpg`, { type: "image/jpeg" });
-            const posterUrl = await uploadAssetWithProgress(posterFile, () => {});
-            onChange({ thumbnailUrl: posterUrl });
-          } catch { /* poster is best-effort */ }
-        }
+        const vid = document.createElement("video");
+        vid.preload = "metadata";
+        vid.onloadedmetadata = () => { if (isReel) onChange({ reelDuration: Math.round(vid.duration) }); };
+        vid.src = blobUrl;
       }
-    } catch (err) {
-      setMediaWarnings((w) => [...w, err?.message || "Upload failed — re-attach the file before publishing"]);
+      setMediaUploading(true);
+      setMediaProgress(0);
+      try {
+        const publicUrl = await uploadAssetWithProgress(file, (pr) => setMediaProgress(pr));
+        // Append to whatever's committed now (functional read of the row).
+        const existing = Array.isArray(row.mediaItems) && row.mediaItems.length
+          ? row.mediaItems
+          : row.mediaUrl ? [{ url: row.mediaUrl, kind: urlIsVideo(row.mediaUrl, row.mediaKind) ? "video" : "image" }] : [];
+        const base = multi ? existing : []; // video / single replaces
+        commitItems([...base, { url: publicUrl, kind: isVideo ? "video" : "image" }]);
+        setPending((prev) => prev.filter((p) => p.id !== pid));
+        URL.revokeObjectURL(blobUrl);
+        if (isVideo && !row.thumbnailUrl) {
+          const posterBlob = await captureVideoPoster(blobUrl);
+          if (posterBlob) {
+            try {
+              const posterFile = new File([posterBlob], `poster-${Date.now()}.jpg`, { type: "image/jpeg" });
+              onChange({ thumbnailUrl: await uploadAssetWithProgress(posterFile, () => {}) });
+            } catch { /* poster is best-effort */ }
+          }
+        }
+      } catch (err) {
+        setPending((prev) => prev.filter((p) => p.id !== pid));
+        setMediaWarnings((w) => [...w, err?.message || "Upload failed — re-attach the file before publishing"]);
+      }
     }
     setMediaUploading(false);
     setMediaProgress(0);
+  };
+
+  const removeItem = (idx) => {
+    const list = rowItems.map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image" }));
+    if (idx >= list.length) return; // a pending upload — can't cancel mid-flight
+    list.splice(idx, 1);
+    commitItems(list);
+    setActiveIdx((a) => Math.max(0, Math.min(a, list.length - 1)));
+    if (!list.length) { setMediaWarnings([]); onChange({ thumbnailUrl: null, ...(isReel ? { reelDuration: null } : {}) }); }
+  };
+
+  const reorderItems = (nextGallery, nextActive) => {
+    // Only the hosted items reorder; pending uploads sit at the end.
+    const list = nextGallery.filter((it) => !it.uploading).map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image" }));
+    commitItems(list);
+    setActiveIdx(nextActive);
   };
 
   // Explicit custom thumbnail (poster) for a video post.
@@ -257,10 +319,10 @@ export function DetailPanel() {
   };
 
   const clearMedia = () => {
-    if (mediaPreview?.url) URL.revokeObjectURL(mediaPreview.url);
-    setMediaPreview(null);
+    setPending([]);
+    setActiveIdx(0);
     setMediaWarnings([]);
-    onChange({ mediaUrl: null, thumbnailUrl: null, mediaKind: null, ...(isReel ? { reelDuration: null } : {}) });
+    onChange({ mediaItems: null, mediaUrl: null, thumbnailUrl: null, mediaKind: null, carouselFrameUrls: null, ...(isReel ? { reelDuration: null } : {}) });
   };
 
   const submitComment = () => {
@@ -439,26 +501,44 @@ export function DetailPanel() {
                 </div>
               </div>
 
-              {/* Composer: caption + media card */}
+              {/* Composer: caption + media */}
               <div className={"cpm-composer" + (dragOver ? " drag" : "")}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
-                onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer?.files?.[0]); }}>
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer?.files); }}>
                 <textarea
                   className="cpm-txa"
                   value={row.caption || ""}
                   placeholder={`Write your ${p.label} caption…`}
                   onChange={(e) => onChange({ caption: e.target.value })}
                 />
-                <div className="cpm-composer-foot">
-                  <input ref={mediaRef} type="file" accept={isReel ? "video/*" : "image/*,video/*,image/gif"} hidden
-                    onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ""; }} />
-                  {isStory ? (
+                <input ref={mediaRef} type="file" multiple={allowsMulti} accept={isReel ? "video/*" : "image/*,video/*,image/gif"} hidden
+                  onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+                {isStory ? (
+                  <div className="cpm-composer-foot">
                     <div className="dp2-story-slot">
                       <StoryThumbnail elements={storyElements} onClick={() => { setStory(row); setSelectedRowId(null); }} />
                       <span className="dp2-story-hint">Open the designer to edit frames</span>
                     </div>
-                  ) : displayMedia ? (
+                  </div>
+                ) : galleryItems.length >= 2 ? (
+                  // Multi-image / carousel: big active preview + reorderable strip.
+                  <div className="dp2-gallery-wrap">
+                    <MediaGallery
+                      items={galleryItems}
+                      activeIdx={Math.min(activeIdx, galleryItems.length - 1)}
+                      onSelect={setActiveIdx}
+                      onReorder={reorderItems}
+                      onRemove={removeItem}
+                      onAdd={allowsMulti ? () => mediaRef.current?.click() : undefined}
+                    />
+                    <div className="dp2-gallery-meta">
+                      <span>{galleryItems.length} {galleryVideo ? "items" : "images"}{galleryItems.length > 10 ? " · over the 10-item limit" : ""}</span>
+                      <button type="button" className="dp2-tile-action" onClick={clearMedia}>Remove all</button>
+                    </div>
+                  </div>
+                ) : displayMedia ? (
+                  <div className="cpm-composer-foot">
                     <div className="dp2-media-cluster">
                       <div className="dp2-tile-col">
                         <div className={"cpm-media-thumb" + (mediaUploading ? " uploading" : "")}>
@@ -475,6 +555,15 @@ export function DetailPanel() {
                         </div>
                         <span className="dp2-tile-lbl">{displayMedia.isVideo ? "Video" : "Image"}</span>
                       </div>
+                      {/* Add-more tile for multi-image feed posts */}
+                      {allowsMulti && !displayMedia.isVideo && (
+                        <div className="dp2-tile-col">
+                          <button type="button" className="dp2-thumb-prev empty" onClick={() => mediaRef.current?.click()} title="Add more images">
+                            <Plus size={15} />
+                          </button>
+                          <span className="dp2-tile-lbl">Add more</span>
+                        </div>
+                      )}
                       {/* Video posts carry a still thumbnail (auto-captured,
                           or set here) for every <img> preview + the feed. */}
                       {displayMedia.isVideo && (
@@ -493,12 +582,16 @@ export function DetailPanel() {
                         </div>
                       )}
                     </div>
-                  ) : (
+                  </div>
+                ) : (
+                  <div className="cpm-composer-foot">
                     <button type="button" className="cpm-dropcard" onClick={() => mediaRef.current?.click()}>
                       <ImageIcon size={17} />
-                      <span>Drag &amp; drop or <em>select a file</em>{mediaRequired && <b className={"dp-required" + (mediaReady ? " met" : "")}>*</b>}</span>
+                      <span>Drag &amp; drop or <em>select {allowsMulti ? "files" : "a file"}</em>{mediaRequired && <b className={"dp-required" + (mediaReady ? " met" : "")}>*</b>}</span>
                     </button>
-                  )}
+                  </div>
+                )}
+                <div className="dp2-count-row">
                   <span className={"cpm-count" + (over ? " over" : "")}>{capLen} / {max}</span>
                 </div>
                 {mediaWarnings.length > 0 && (
