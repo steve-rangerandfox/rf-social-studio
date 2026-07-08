@@ -91,6 +91,25 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
     if (createAnother) { setCaption(""); clearMedia(); captionRef.current?.focus(); }
   };
 
+  // "Design it" path: create the post with whatever's filled in (no caption
+  // required yet) and land directly in the story/canvas designer or the
+  // carousel builder for its media.
+  const createAndOpen = (tool) => {
+    if (channels.length === 0 || media?.uploading) return;
+    const trimmed = caption.trim();
+    onCreate({
+      title: trimmed.split("\n")[0].slice(0, 64) || "Untitled post",
+      caption: trimmed,
+      dateValue,
+      timeValue,
+      platform: channels[0],
+      platforms: channels,
+      mediaUrl: media?.publicUrl || null,
+      thumbnailUrl: media?.publicUrl && !media.isVideo ? media.publicUrl : null,
+      ...(tool === "carousel" ? { openCarousel: true } : { openDesigner: true }),
+    });
+  };
+
   return (
     <div className="overlay" onClick={onClose}>
       <form className="modal cpm" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
@@ -165,6 +184,23 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                 <span className={"cpm-count" + (caption.length > capMax ? " over" : "")}>{caption.length} / {capMax}</span>
               </div>
               {media?.error && <div className="cpm-media-error">{media.error}</div>}
+            </div>
+
+            {/* Design the media instead of uploading it */}
+            <div className="cpm-design-row">
+              <span className="cpm-design-label">Or design it:</span>
+              <button type="button" className="dp2-design-btn" onClick={() => createAndOpen("designer")}
+                title="Create the post and open the canvas designer (sizes follow your channels)">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M11.3 2.2 13.8 4.7 5.5 13H3v-2.5L11.3 2.2Z"/><path d="M9.8 3.7l2.5 2.5"/></svg>
+                Design in canvas
+              </button>
+              {channels.some((c) => c === "ig_post" || c === "linkedin") && (
+                <button type="button" className="dp2-design-btn" onClick={() => createAndOpen("carousel")}
+                  title="Create the post and open the carousel builder">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="1.5" y="3.5" width="8" height="9" rx="1"/><path d="M11.5 4.5h1a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-1"/></svg>
+                  Carousel
+                </button>
+              )}
             </div>
           </div>
 

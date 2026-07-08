@@ -626,7 +626,7 @@ export function StudioProvider({ children }) {
     setSelectedRowId(newRow.id);
   }, [currentUser, updateDocument, studioDoc.rows.length]);
 
-  const createPostDraft = ({ title, caption, dateValue, timeValue, platform, platforms, mediaUrl, thumbnailUrl, createAnother }) => {
+  const createPostDraft = ({ title, caption, dateValue, timeValue, platform, platforms, mediaUrl, thumbnailUrl, createAnother, openDesigner, openCarousel }) => {
     const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
     const [hour, minute] = timeValue.split(":").map(Number);
     const iso = ptPickerToISO(targetYear, targetMonth - 1, day, hour, minute);
@@ -648,7 +648,10 @@ export function StudioProvider({ children }) {
     );
     if (createAnother) return; // keep the Create Post window open for the next one
     setAddPostDraft(null);
-    // Drop straight into the editor — a fresh post shouldn't need a second click.
+    // "Design it" paths land in the right tool immediately; otherwise drop
+    // straight into the editor — a fresh post shouldn't need a second click.
+    if (openDesigner) { setStory(newRow); return; }
+    if (openCarousel) { setCarousel({ row: newRow }); return; }
     setSelectedRowId(newRow.id);
   };
 

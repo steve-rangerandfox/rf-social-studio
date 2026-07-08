@@ -298,7 +298,7 @@ function StudioShell() {
 
       {carousel && (
         <Suspense fallback={<LoadingShell variant="overlay" label="Loading carousel" />}>
-          <CarouselComposer row={carousel.row} onClose={() => setCarousel(null)} />
+          <CarouselComposer row={carousel.row} onClose={() => { const id = carousel.row?.id; setCarousel(null); if (id) setSelectedRowId(id); }} />
         </Suspense>
       )}
 
