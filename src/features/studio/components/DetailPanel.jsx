@@ -460,23 +460,34 @@ export function DetailPanel() {
                     </div>
                   ) : displayMedia ? (
                     <div className="dp2-media-cluster">
-                      <div className={"cpm-media-thumb" + (mediaUploading ? " uploading" : "")}>
-                        {displayMedia.isVideo
-                          ? <video src={displayMedia.previewUrl} muted loop playsInline autoPlay />
-                          : <img src={displayMedia.previewUrl} alt="" />}
-                        {mediaUploading && <span className="cpm-media-state">{mediaProgress > 0 ? `${Math.round(mediaProgress * 100)}%` : "Uploading…"}</span>}
-                        <button type="button" className="cpm-media-rm" onClick={clearMedia} aria-label="Remove media"><X size={9} /></button>
+                      <div className="dp2-tile-col">
+                        <div className={"cpm-media-thumb" + (mediaUploading ? " uploading" : "")}>
+                          {displayMedia.isVideo
+                            ? <video src={displayMedia.previewUrl} muted loop playsInline autoPlay />
+                            : <img src={displayMedia.previewUrl} alt="" />}
+                          {mediaUploading && (
+                            <>
+                              <span className="dp2-tile-pct">{mediaProgress > 0 ? `${Math.round(mediaProgress * 100)}%` : "…"}</span>
+                              <span className="dp2-tile-bar" style={{ width: `${Math.round(mediaProgress * 100)}%` }} />
+                            </>
+                          )}
+                          <button type="button" className="cpm-media-rm" onClick={clearMedia} aria-label="Remove media"><X size={9} /></button>
+                        </div>
+                        <span className="dp2-tile-lbl">{displayMedia.isVideo ? "Video" : "Image"}</span>
                       </div>
                       {/* Video posts carry a still thumbnail (auto-captured,
                           or set here) for every <img> preview + the feed. */}
                       {displayMedia.isVideo && (
-                        <div className="dp2-thumb-slot">
+                        <div className="dp2-tile-col">
                           <input ref={thumbRef} type="file" accept="image/*" hidden
                             onChange={(e) => { handleThumbFile(e.target.files?.[0]); e.target.value = ""; }} />
-                          <div className="dp2-thumb-prev">
-                            {row.thumbnailUrl ? <img src={row.thumbnailUrl} alt="Video thumbnail" /> : <span className="dp2-thumb-empty"><ImageIcon size={14} /></span>}
-                          </div>
-                          <button type="button" className="dp2-thumb-btn" onClick={() => thumbRef.current?.click()} disabled={thumbUploading}>
+                          <button type="button" className={"dp2-thumb-prev" + (row.thumbnailUrl ? "" : " empty")}
+                            onClick={() => thumbRef.current?.click()} disabled={thumbUploading}
+                            title={row.thumbnailUrl ? "Change the video thumbnail" : "Set a video thumbnail"}>
+                            {row.thumbnailUrl ? <img src={row.thumbnailUrl} alt="Video thumbnail" /> : <ImageIcon size={15} />}
+                            {thumbUploading && <span className="dp2-tile-pct">…</span>}
+                          </button>
+                          <button type="button" className="dp2-tile-lbl dp2-tile-action" onClick={() => thumbRef.current?.click()} disabled={thumbUploading}>
                             {thumbUploading ? "Uploading…" : row.thumbnailUrl ? "Change thumbnail" : "Set thumbnail"}
                           </button>
                         </div>
