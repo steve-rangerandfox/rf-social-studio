@@ -229,7 +229,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
     const startX = data.x, startY = data.y;
     const w = data.width || 140, h = data.height || 140;
 
-    // Which directions grow scale for this corner
+    // Which directions grow for this corner
     const signX = corner === 'se' || corner === 'ne' ? 1 : -1;
     const signY = corner === 'se' || corner === 'sw' ? 1 : -1;
 
@@ -237,15 +237,27 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
       // Convert screen-pixel delta to canvas-pixel delta by dividing by zoom
       const dx = (mv.clientX - startMouseX) / zoom;
       const dy = (mv.clientY - startMouseY) / zoom;
-      // Project mouse movement onto the diagonal direction for this corner
-      const delta = (dx * signX + dy * signY) / 2;
 
       if (data.type === 'text') {
         // Scale proportionally relative to current font size so feel is consistent
+        const delta = (dx * signX + dy * signY) / 2;
         const newSize = Math.max(6, Math.min(96, startFontSize * (1 + delta / 100)));
         onUpdate({ fontSize: newSize });
+      } else if (data.type === 'shape') {
+        // Shapes stretch X and Y independently (Figma-style) — corners move
+        // both axes without uniform scale-up. Legacy scale folds into
+        // width/height so the geometry stays literal.
+        const startW = w * startScale, startH = h * startScale;
+        const minH = data.shape === 'line' ? 1 : 4;
+        const newW = Math.max(4, startW + dx * signX);
+        const newH = Math.max(minH, startH + dy * signY);
+        const patch = { width: newW, height: newH, scale: 1 };
+        if (signX < 0) patch.x = startX + (startW - newW);
+        if (signY < 0) patch.y = startY + (startH - newH);
+        onUpdate(patch);
       } else {
-        // Scale proportionally: delta in canvas-px relative to current element size
+        // Media keeps proportional scaling (photos shouldn't distort)
+        const delta = (dx * signX + dy * signY) / 2;
         const baseDim = Math.max(w, h) * startScale;
         const newScale = Math.max(0.1, Math.min(8, startScale * (1 + delta / baseDim)));
         const patch = { scale: newScale };
@@ -263,10 +275,37 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
     document.addEventListener('pointerup', onUp);
   };
 
+  // Single-axis stretch for shapes (edge midpoint handles + line endpoint
+  // nodes). Anchors the opposite edge; normalizes legacy scale into w/h.
+  const handleStretchShape = (side) => (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const startMouseX = e.clientX, startMouseY = e.clientY;
+    const startScale = data.scale || 1;
+    const startW = (data.width || 140) * startScale;
+    const startH = (data.height || 140) * startScale;
+    const startX = data.x, startY = data.y;
+    const minH = data.shape === 'line' ? 1 : 4;
+    const onMove = (mv) => {
+      const dx = (mv.clientX - startMouseX) / zoom;
+      const dy = (mv.clientY - startMouseY) / zoom;
+      const patch = { scale: 1 };
+      if (side === 'e') patch.width = Math.max(4, startW + dx);
+      else if (side === 'w') { patch.width = Math.max(4, startW - dx); patch.x = startX + (startW - patch.width); }
+      else if (side === 's') patch.height = Math.max(minH, startH + dy);
+      else if (side === 'n') { patch.height = Math.max(minH, startH - dy); patch.y = startY + (startH - patch.height); }
+      onUpdate(patch);
+    };
+    const onUp = () => { document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  };
+
   const handleResizeBox = (side) => (e) => {
     e.preventDefault(); e.stopPropagation();
     const startMouseX = e.clientX;
-    const startW = data.boxWidth || 190;
+    // Auto-width text starts from its rendered width, so grabbing a width
+    // handle doesn't jump to the old 190px default.
+    const startW = data.boxWidth || editRef.current?.offsetWidth || 190;
     const startElX = data.x;
     const onMove = (mv) => {
       const dx = (mv.clientX - startMouseX) / zoom;
@@ -334,7 +373,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
 
   return (
     <div
-      className={"element-wrap " + (isSelected ? "element-selected" : "") + (isEditing ? " element-editing" : "")}
+      className={"element-wrap " + (isSelected ? "element-selected" : "") + (isEditing ? " element-editing" : "") + (data.type === 'shape' && data.shape === 'line' ? " el-linear" : "")}
       style={wrapperStyle}
       onPointerDown={isEditing ? undefined : handleDrag}
       onClick={(e) => { e.stopPropagation(); onSelect(data.id, e.shiftKey); }}
@@ -384,9 +423,15 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
             textDecoration: [data.underline && 'underline', data.strikethrough && 'line-through'].filter(Boolean).join(' ') || 'none',
             lineHeight: data.lineHeight || 1.25,
             textAlign: data.textAlign || 'left',
-            whiteSpace: 'pre-wrap',
+            // Auto-width until the user drags the width handles: the box hugs
+            // the glyphs instead of a fixed 190px column. Fixed width wraps.
+            whiteSpace: data.boxWidth ? 'pre-wrap' : 'pre',
+            width: data.boxWidth || 'max-content',
+            // Trim the line box to cap-height/baseline (Chromium/Safari) so
+            // the bounding box adheres to the visible letterforms — the
+            // flattened export draws with the same cap-top anchor.
+            textBox: 'trim-both cap alphabetic',
             textTransform: data.uppercase ? 'uppercase' : undefined,
-            width: data.boxWidth || 190,
             textShadow: data.shadow ? '0 2px 12px rgba(0,0,0,0.8)' : undefined,
             WebkitTextStroke: data.outline ? `${data.outline}px ${data.outlineColor || "#000"}` : undefined,
             textRendering: 'optimizeLegibility',
@@ -450,14 +495,31 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
       )}
       {isSelected && (
         <>
-          <div className="handle handle-nw" onPointerDown={handleResize('nw')}/>
-          <div className="handle handle-ne" onPointerDown={handleResize('ne')}/>
-          <div className="handle handle-sw" onPointerDown={handleResize('sw')}/>
-          <div className="handle handle-se" onPointerDown={handleResize('se')}/>
-          {data.type === 'text' && <>
-            <div className="handle handle-e" onPointerDown={handleResizeBox('e')}/>
-            <div className="handle handle-w" onPointerDown={handleResizeBox('w')}/>
-          </>}
+          {data.type === 'shape' && data.shape === 'line' ? (
+            <>
+              {/* Lines: no bounding box — just the two endpoint nodes on the
+                  path itself (Canva-style). Dragging extends the line. */}
+              <div className="handle handle-pt-w" onPointerDown={handleStretchShape('w')}/>
+              <div className="handle handle-pt-e" onPointerDown={handleStretchShape('e')}/>
+            </>
+          ) : (
+            <>
+              <div className="handle handle-nw" onPointerDown={handleResize('nw')}/>
+              <div className="handle handle-ne" onPointerDown={handleResize('ne')}/>
+              <div className="handle handle-sw" onPointerDown={handleResize('sw')}/>
+              <div className="handle handle-se" onPointerDown={handleResize('se')}/>
+              {data.type === 'text' && <>
+                <div className="handle handle-e" onPointerDown={handleResizeBox('e')}/>
+                <div className="handle handle-w" onPointerDown={handleResizeBox('w')}/>
+              </>}
+              {data.type === 'shape' && <>
+                <div className="handle handle-n" onPointerDown={handleStretchShape('n')}/>
+                <div className="handle handle-s" onPointerDown={handleStretchShape('s')}/>
+                <div className="handle handle-e" onPointerDown={handleStretchShape('e')}/>
+                <div className="handle handle-w" onPointerDown={handleStretchShape('w')}/>
+              </>}
+            </>
+          )}
           {/* Rotation handle */}
           <div className="handle-rotate-line"/>
           <div className="handle-rotate" onPointerDown={handleRotate}/>

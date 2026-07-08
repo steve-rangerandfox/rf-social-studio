@@ -1347,32 +1347,48 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         ctx.shadowBlur = 12 * SCALE;
       }
 
-      // Word wrap (uppercase + list markers applied first; justify falls
-      // back to left in the flattened render)
-      const maxWidth = (el.boxWidth || 190) * SCALE;
+      // Uppercase + list markers applied first; justify falls back to left
+      // in the flattened render.
       let source = el.content || "";
       if (el.uppercase) source = source.toUpperCase();
       if (el.listStyle) source = source.split("\n").map((ln, i) => (el.listStyle === "number" ? `${i + 1}. ` : "\u2022 ") + ln).join("\n");
-      const align = el.textAlign === "center" ? "center" : el.textAlign === "right" ? "right" : "left";
-      ctx.textAlign = align;
-      const anchorX = align === "center" ? x + maxWidth / 2 : align === "right" ? x + maxWidth : x;
-      const words = source.split(" ");
-      let line = "";
-      let lineY = y;
+      const hasBox = !!el.boxWidth;
+      const maxWidth = (el.boxWidth || 190) * SCALE;
       const lineHeight = fontSize * (el.lineHeight || 1.25);
 
-      for (const word of words) {
-        const test = line + (line ? " " : "") + word;
-        if (ctx.measureText(test).width > maxWidth && line) {
-          ctx.fillText(line, anchorX, lineY);
-          line = word;
-          lineY += lineHeight;
-        } else {
-          line = test;
+      // Fixed-width text word-wraps to its box; auto-width text renders its
+      // lines as-is (\n only), exactly like the editor's max-content box.
+      const lines = [];
+      if (hasBox) {
+        for (const rawLine of source.split("\n")) {
+          let line = "";
+          for (const word of rawLine.split(" ")) {
+            const test = line + (line ? " " : "") + word;
+            if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = word; }
+            else line = test;
+          }
+          lines.push(line);
         }
+      } else {
+        lines.push(...source.split("\n"));
       }
-      ctx.fillText(line, anchorX, lineY);
+
+      // Anchor the CAP TOP of the first line at el.y \u2014 mirrors the editor's
+      // `text-box: trim-both cap alphabetic`, so the flattened image lands
+      // where the bounding box showed it.
+      const capAsc = ctx.measureText("H").actualBoundingBoxAscent || fontSize * 0.72;
+      const boxW = hasBox ? maxWidth : Math.max(...lines.map((ln) => ctx.measureText(ln).width), 1);
+      const align = el.textAlign === "center" ? "center" : el.textAlign === "right" ? "right" : "left";
+      ctx.textAlign = align;
+      ctx.textBaseline = "alphabetic";
+      const anchorX = align === "center" ? x + boxW / 2 : align === "right" ? x + boxW : x;
+      let lineY = y + capAsc;
+      for (const line of lines) {
+        ctx.fillText(line, anchorX, lineY);
+        lineY += lineHeight;
+      }
       ctx.textAlign = "left";
+      ctx.textBaseline = "top";
       ctx.restore();
     }
 
