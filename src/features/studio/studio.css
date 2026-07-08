@@ -2690,3 +2690,23 @@ input,textarea,select,button{font-family:inherit}
 .el-linear .el-outline{display:none}
 .handle-pt-w{left:calc(-4px/var(--sd-zoom,1));top:50%;transform:translateY(-50%);cursor:ew-resize}
 .handle-pt-e{right:calc(-4px/var(--sd-zoom,1));top:50%;transform:translateY(-50%);cursor:ew-resize}
+
+/* ── Multi-image gallery (native carousel/multi-image, no designer) ── */
+.mg{display:flex;flex-direction:column;gap:10px;width:100%}
+.mg-main{position:relative;width:100%;max-width:340px;aspect-ratio:1;border-radius:var(--radius-md);overflow:hidden;background:var(--t-s2);border:1px solid var(--t-border);display:flex;align-items:center;justify-content:center}
+.mg-main img,.mg-main video{width:100%;height:100%;object-fit:cover;display:block}
+.mg-uploading{position:absolute;inset:auto 0 0;padding:4px 0;text-align:center;font:600 9.5px var(--font-mono);color:#fff;background:rgba(9,9,11,0.55)}
+.mg-strip{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.mg-thumb{position:relative;width:52px;height:52px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--t-border);background:var(--t-s2);cursor:pointer;flex-shrink:0;transition:border-color .1s,box-shadow .1s}
+.mg-thumb.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.mg-thumb.over{border-color:var(--accent);border-style:dashed}
+.mg-thumb img,.mg-thumb video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.mg-thumb-n{position:absolute;left:3px;top:2px;font:700 9px var(--font-mono);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.7);pointer-events:none}
+.mg-thumb-up{position:absolute;inset:0;background:rgba(9,9,11,0.4)}
+.mg-thumb-rm{position:absolute;top:2px;right:2px;width:15px;height:15px;display:flex;align-items:center;justify-content:center;border:none;border-radius:50%;background:rgba(9,9,11,0.62);color:#fff;cursor:pointer;padding:0;opacity:0;transition:opacity .1s}
+.mg-thumb:hover .mg-thumb-rm{opacity:1}
+.mg-add{width:52px;height:52px;border:1.5px dashed var(--t-border2);border-radius:var(--radius-sm);background:transparent;color:var(--t-text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .1s,color .1s}
+.mg-add:hover{border-color:var(--accent);color:var(--accent)}
+.dp2-gallery-wrap{display:flex;flex-direction:column;gap:8px}
+.dp2-gallery-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;font:600 10.5px var(--font-mono);letter-spacing:.04em;color:var(--t-text-dim)}
+.dp2-count-row{display:flex;justify-content:flex-end;padding-top:2px}
