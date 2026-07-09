@@ -2,6 +2,8 @@ import React from "react";
 import {
   AlignCenterHorizontallyIcon,
   AlignLeftIcon as RxAlignLeftIcon,
+  BookmarkIcon,
+  DotsHorizontalIcon,
   AlignRightIcon as RxAlignRightIcon,
   CalendarIcon as RxCalendarIcon,
   ChatBubbleIcon,
@@ -188,6 +190,8 @@ export function ThumbsUp(props) {
 }
 
 export function Heart(props) { return <HeartIcon {...radixProps(props)} />; }
+export function Bookmark(props) { return <BookmarkIcon {...radixProps(props)} />; }
+export function MoreHorizontal(props) { return <DotsHorizontalIcon {...radixProps(props)} />; }
 export function MessageSquare(props) { return <ChatBubbleIcon {...radixProps(props)} />; }
 
 // ─── Media controls ────────────────────────────────────────────────

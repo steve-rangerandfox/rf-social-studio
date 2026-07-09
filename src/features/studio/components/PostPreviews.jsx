@@ -1,19 +1,18 @@
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, ImageIcon, MessageSquare, Repeat as Repeat2, Send, ThumbsUp } from "../../../components/icons/index.jsx";
+import { Bookmark, ChevronLeft, ChevronRight, Heart, ImageIcon, MessageSquare, MoreHorizontal, Repeat as Repeat2, Send, ThumbsUp } from "../../../components/icons/index.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { PLATFORMS } from "../shared.js";
 
-// Live per-network post previews (Buffer-style rail). Shared by the Create
-// Post window and the post editor. `items` is [{ previewUrl, isVideo }] (a
-// single-item array for one-media posts); `media` is the legacy single form.
+// Product-accurate per-network previews (Buffer-style rail). Shared by the
+// Create Post window and the post editor. `items` is [{ previewUrl, isVideo }]
+// (a single-item array for one-media posts); `media` is the legacy single form.
 
-const VERTICAL = new Set(["ig_story", "ig_reel", "tiktok"]);
-
-// Active carousel item + prev/next arrows, shared by every network shape.
-function MediaFrame({ items, className }) {
+// Carousel paging shared by the feed shapes: active item + arrows + dots.
+function MediaFrame({ items, className, showCounter }) {
   const [idx, setIdx] = useState(0);
   if (!items.length) return <div className={className}><div className="cpm-story-empty"><ImageIcon size={20} /></div></div>;
-  const active = items[Math.min(idx, items.length - 1)];
+  const cur = Math.min(idx, items.length - 1);
+  const active = items[cur];
   const multi = items.length > 1;
   const go = (d, e) => { e.stopPropagation(); e.preventDefault(); setIdx((i) => (i + d + items.length) % items.length); };
   return (
@@ -23,11 +22,104 @@ function MediaFrame({ items, className }) {
         : <img src={active.previewUrl} alt="" />}
       {multi && (
         <>
+          {showCounter && <span className="cpm-frame-count">{cur + 1}/{items.length}</span>}
           <button type="button" className="cpm-frame-arw left" onClick={(e) => go(-1, e)} aria-label="Previous image"><ChevronLeft size={14} /></button>
           <button type="button" className="cpm-frame-arw right" onClick={(e) => go(1, e)} aria-label="Next image"><ChevronRight size={14} /></button>
-          <div className="cpm-frame-dots">{items.map((_, i) => <span key={i} className={i === Math.min(idx, items.length - 1) ? "on" : ""} />)}</div>
+          <div className="cpm-frame-dots">{items.map((_, i) => <span key={i} className={i === cur ? "on" : ""} />)}</div>
         </>
       )}
+    </div>
+  );
+}
+
+// Instagram feed post — header, media, action row, likes, caption.
+function FeedPreview({ caption, items }) {
+  return (
+    <div className="igp">
+      <div className="igp-head">
+        <span className="igp-avatar">RF</span>
+        <b className="igp-name">rangerandfox</b>
+        <MoreHorizontal size={15} className="igp-more" />
+      </div>
+      <MediaFrame items={items} className="igp-media" showCounter />
+      <div className="igp-actions">
+        <Heart size={20} />
+        <MessageSquare size={19} />
+        <Send size={19} />
+        <Bookmark size={19} className="igp-save" />
+      </div>
+      <div className="igp-likes">128 likes</div>
+      {caption && <div className="igp-caption"><b>rangerandfox</b> {caption}</div>}
+      <div className="igp-time">2 hours ago</div>
+    </div>
+  );
+}
+
+// Instagram story — tall frame, segment progress, playable video, message bar.
+function StoryPreview({ items }) {
+  const [idx, setIdx] = useState(0);
+  const cur = Math.min(idx, Math.max(items.length - 1, 0));
+  const active = items[cur];
+  const multi = items.length > 1;
+  const go = (d, e) => { e.stopPropagation(); e.preventDefault(); setIdx((i) => (i + d + items.length) % items.length); };
+  return (
+    <div className="igs">
+      <div className="igs-top">
+        <div className="igs-progress">{(multi ? items : [1]).map((_, i) => <span key={i} className={i <= cur ? "on" : ""} />)}</div>
+        <div className="igs-head">
+          <span className="igp-avatar sm">RF</span>
+          <span className="igs-name">rangerandfox</span>
+          <span className="igs-time">21h</span>
+          <svg className="igs-mute" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2.5 6v4h2.5L9 13V3L5 6H2.5Z" fill="currentColor" stroke="none"/><path d="M11.5 6.5l3 3M14.5 6.5l-3 3"/></svg>
+        </div>
+      </div>
+      <div className="igs-media">
+        {active
+          ? (active.isVideo
+            ? <video src={active.previewUrl} controls playsInline preload="metadata" />
+            : <img src={active.previewUrl} alt="" />)
+          : <div className="cpm-story-empty"><ImageIcon size={20} /></div>}
+      </div>
+      {multi && (
+        <>
+          <button type="button" className="cpm-frame-arw left" onClick={(e) => go(-1, e)} aria-label="Previous frame"><ChevronLeft size={14} /></button>
+          <button type="button" className="cpm-frame-arw right" onClick={(e) => go(1, e)} aria-label="Next frame"><ChevronRight size={14} /></button>
+        </>
+      )}
+      <div className="igs-foot">
+        <span className="igs-msg">Send message</span>
+        <Heart size={20} />
+        <Send size={19} />
+      </div>
+    </div>
+  );
+}
+
+// Reel / TikTok — vertical frame with the right-side action rail.
+function ReelPreview({ caption, items, handle }) {
+  const active = items[0];
+  return (
+    <div className="igr">
+      <div className="igr-media">
+        {active
+          ? (active.isVideo
+            ? <video src={active.previewUrl} muted loop playsInline autoPlay controls />
+            : <img src={active.previewUrl} alt="" />)
+          : <div className="cpm-story-empty"><ImageIcon size={20} /></div>}
+      </div>
+      <div className="igr-rail">
+        <Heart size={20} />
+        <MessageSquare size={19} />
+        <Repeat2 size={19} />
+        <Send size={19} />
+        <MoreHorizontal size={17} />
+        <span className="igr-album">{active && !active.isVideo ? <img src={active.previewUrl} alt="" /> : <span className="igr-album-fill" />}</span>
+      </div>
+      <div className="igr-foot">
+        <span className="igp-avatar sm">RF</span>
+        <span className="igs-name">{handle}</span>
+      </div>
+      {caption && <div className="igr-caption">{caption}</div>}
     </div>
   );
 }
@@ -37,55 +129,39 @@ export function NetworkPreview({ platform, caption, media, items }) {
   const list = Array.isArray(items) && items.length ? items : media ? [media] : [];
   const hasMedia = list.length > 0;
 
+  let body;
   if (platform === "linkedin" || platform === "facebook") {
-    return (
-      <div className="cpm-net">
-        <div className="cpm-net-label"><PlatformIcon platform={platform} size={13} /> {p.label}</div>
-        <div className="li-card cpm-li">
-          <div className="li-header">
-            <div className="li-avatar">RF</div>
-            <div className="li-header-info">
-              <div className="li-name">Ranger &amp; Fox</div>
-              <div className="li-meta">1h · 🌐</div>
-            </div>
+    body = (
+      <div className="li-card cpm-li">
+        <div className="li-header">
+          <div className="li-avatar">RF</div>
+          <div className="li-header-info">
+            <div className="li-name">Ranger &amp; Fox</div>
+            <div className="li-meta">1h · 🌐</div>
           </div>
-          {caption && <div className="li-caption">{caption.split("\n").map((line, i) => <span key={i}>{i > 0 && <br />}{line}</span>)}</div>}
-          {hasMedia && <MediaFrame items={list} className="cpm-li-media" />}
-          <div className="li-actions">
-            <button className="li-action-btn" type="button"><ThumbsUp size={13} /> Like</button>
-            <button className="li-action-btn" type="button"><MessageSquare size={13} /> Comment</button>
-            <button className="li-action-btn" type="button"><Repeat2 size={13} /> Repost</button>
-            <button className="li-action-btn" type="button"><Send size={13} /> Send</button>
-          </div>
+        </div>
+        {caption && <div className="li-caption">{caption.split("\n").map((line, i) => <span key={i}>{i > 0 && <br />}{line}</span>)}</div>}
+        {hasMedia && <MediaFrame items={list} className="cpm-li-media" showCounter />}
+        <div className="li-actions">
+          <button className="li-action-btn" type="button"><ThumbsUp size={13} /> Like</button>
+          <button className="li-action-btn" type="button"><MessageSquare size={13} /> Comment</button>
+          <button className="li-action-btn" type="button"><Repeat2 size={13} /> Repost</button>
+          <button className="li-action-btn" type="button"><Send size={13} /> Send</button>
         </div>
       </div>
     );
+  } else if (platform === "ig_story") {
+    body = <StoryPreview items={list} />;
+  } else if (platform === "ig_reel" || platform === "tiktok") {
+    body = <ReelPreview caption={caption} items={list} handle="rangerandfox" />;
+  } else {
+    body = <FeedPreview caption={caption} items={list} />;
   }
 
-  if (VERTICAL.has(platform)) {
-    return (
-      <div className="cpm-net">
-        <div className="cpm-net-label"><PlatformIcon platform={platform} size={13} /> {p.label}</div>
-        <div className="cpm-story">
-          <MediaFrame items={list} className="cpm-story-media" />
-          {caption && <div className="cpm-story-caption">{caption}</div>}
-        </div>
-      </div>
-    );
-  }
-
-  // Instagram feed / anything square
   return (
     <div className="cpm-net">
       <div className="cpm-net-label"><PlatformIcon platform={platform} size={13} /> {p.label}</div>
-      <div className="cpm-ig">
-        <div className="cpm-ig-head">
-          <span className="cpm-ig-avatar">RF</span>
-          <span className="cpm-ig-name">rangerandfox</span>
-        </div>
-        <MediaFrame items={list} className="cpm-ig-media" />
-        {caption && <div className="cpm-ig-caption"><b>rangerandfox</b> {caption}</div>}
-      </div>
+      {body}
     </div>
   );
 }
