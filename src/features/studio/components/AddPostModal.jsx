@@ -232,21 +232,15 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
               </div>
             </div>
 
-            {/* Design the media instead of uploading it */}
+            {/* One universal Design door — creates the post and opens the
+                designer with your uploaded images already in place. */}
             <div className="cpm-design-row">
               <span className="cpm-design-label">Or design it:</span>
               <button type="button" className="dp2-design-btn" onClick={() => createAndOpen("designer")}
-                title="Create the post and open the canvas designer (sizes follow your channels)">
+                title="Create the post and open the designer — your uploaded images come with you">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M11.3 2.2 13.8 4.7 5.5 13H3v-2.5L11.3 2.2Z"/><path d="M9.8 3.7l2.5 2.5"/></svg>
-                Design in canvas
+                Design
               </button>
-              {channels.some((c) => c === "ig_post" || c === "linkedin") && (
-                <button type="button" className="dp2-design-btn" onClick={() => createAndOpen("carousel")}
-                  title="Create the post and open the carousel builder">
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="1.5" y="3.5" width="8" height="9" rx="1"/><path d="M11.5 4.5h1a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-1"/></svg>
-                  Carousel
-                </button>
-              )}
             </div>
           </div>
 
