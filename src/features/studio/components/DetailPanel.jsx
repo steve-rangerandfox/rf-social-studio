@@ -27,7 +27,7 @@ export function DetailPanel() {
   const {
     selectedRowId, setSelectedRowId,
     rows, update, remove, showToast,
-    setComposer, setStory, setCarousel, setPublishConfirm,
+    setComposer, setStory, setPublishConfirm,
     connections, currentUser, team,
     addComment,
     approveAndSchedule,
@@ -625,25 +625,19 @@ export function DetailPanel() {
                 )}
               </div>
 
-              {/* Designer entries — the media's "make it" path. Stories use
-                  the thumbnail above; everything else gets explicit doors. */}
+              {/* One universal Design door — opens the canvas designer, which
+                  seeds from the post's uploaded images and follows its
+                  channels' sizes (a multi-image post becomes one artboard per
+                  image). Stories edit via the thumbnail above. */}
               {!isStory && (
                 <div className="cpm-design-row">
                   <span className="cpm-design-label">Or design it:</span>
                   <button type="button" className="dp2-design-btn"
                     onClick={() => { setStory(row); setSelectedRowId(null); }}
-                    title="Open the canvas designer — sizes follow this post's channels">
+                    title="Open the designer — your uploaded images come with you">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M11.3 2.2 13.8 4.7 5.5 13H3v-2.5L11.3 2.2Z"/><path d="M9.8 3.7l2.5 2.5"/></svg>
-                    Design in canvas
+                    Design
                   </button>
-                  {outlets.some((c) => c === "ig_post" || c === "linkedin") && (
-                    <button type="button" className="dp2-design-btn"
-                      onClick={() => { setCarousel({ row }); setSelectedRowId(null); }}
-                      title="Open the carousel builder">
-                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="1.5" y="3.5" width="8" height="9" rx="1"/><path d="M11.5 4.5h1a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-1"/></svg>
-                      Carousel
-                    </button>
-                  )}
                 </div>
               )}
 
