@@ -36,10 +36,10 @@ export function MediaGallery({ items, activeIdx, onSelect, onReorder, onRemove, 
             aria-selected={i === activeIdx}
             className={"mg-thumb" + (i === activeIdx ? " on" : "") + (overIdx === i && dragIdx !== null && dragIdx !== i ? " over" : "")}
             draggable
-            onDragStart={() => setDragIdx(i)}
-            onDragOver={(e) => { e.preventDefault(); setOverIdx(i); }}
+            onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData("application/x-mg-reorder", "1"); e.dataTransfer.effectAllowed = "move"; setDragIdx(i); }}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOverIdx(i); }}
             onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-            onDrop={(e) => { e.preventDefault(); drop(i); }}
+            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); drop(i); }}
             onClick={() => onSelect(i)}
           >
             {it.isVideo ? <video src={it.url} muted playsInline /> : <img src={it.url} alt="" />}

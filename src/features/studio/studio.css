@@ -2733,3 +2733,15 @@ input,textarea,select,button{font-family:inherit}
 .cpm-tiles-hint{font:500 10.5px var(--font-mono);letter-spacing:.03em;color:var(--t-text-dim)}
 .cpm-dropveil{position:absolute;inset:8px;z-index:5;border:2px dashed var(--accent);border-radius:var(--radius-md);background:rgba(255,90,31,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--accent);font:600 14px var(--font-body);pointer-events:none}
 .cpm-composer{position:relative}
+
+/* Carousel navigation in the preview frames */
+.cpm-frame{position:relative}
+.cpm-story-media{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.cpm-story-media img,.cpm-story-media video{width:100%;height:100%;object-fit:cover}
+.cpm-frame-arw{position:absolute;top:50%;transform:translateY(-50%);width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:none;border-radius:50%;background:rgba(9,9,11,0.5);color:#fff;cursor:pointer;padding:0;z-index:2;transition:background .1s}
+.cpm-frame-arw:hover{background:rgba(9,9,11,0.72)}
+.cpm-frame-arw.left{left:8px}
+.cpm-frame-arw.right{right:8px}
+.cpm-frame-dots{position:absolute;left:0;right:0;bottom:8px;display:flex;gap:5px;justify-content:center;z-index:2}
+.cpm-frame-dots span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.55)}
+.cpm-frame-dots span.on{background:#fff}
