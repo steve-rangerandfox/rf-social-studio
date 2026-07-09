@@ -144,9 +144,12 @@ export function CarouselComposer({ row, onClose }) {
       const patch = { carouselSlides: slides, mediaKind: "carousel" };
       if (firstSaveRef.current) {
         firstSaveRef.current = false;
-      } else if (renderedRef.current || row.carouselFrameUrls) {
+      } else if (renderedRef.current) {
+        // Only a render THIS session produces stale frames to invalidate.
+        // (row.carouselFrameUrls is no longer set from raw uploads, so its
+        // mere presence must not nuke the post's base media on an edit.)
         renderedRef.current = false;
-        Object.assign(patch, { carouselFrameUrls: null, mediaUrl: null, thumbnailUrl: null });
+        Object.assign(patch, { carouselFrameUrls: null });
         setRenderState("idle");
       }
       update(row.id, patch);

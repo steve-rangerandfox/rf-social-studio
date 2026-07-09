@@ -63,6 +63,14 @@ describe("normalizeRow field preservation", () => {
     expect(patched.platforms).toEqual(["ig_post", "linkedin"]);
   });
 
+  it("preserves mediaItems across a patch (multi-image gallery)", () => {
+    const items = [{ url: "https://cdn.example/1.jpg", kind: "image" }, { url: "https://cdn.example/2.jpg", kind: "image" }];
+    const row = normalizeRow({ note: "gallery", mediaItems: items });
+    expect(row.mediaItems).toEqual(items);
+    const patched = applyRowPatch(row, { caption: "hi" }, "tester");
+    expect(patched.mediaItems).toEqual(items);
+  });
+
   it("defaults missing fields without inventing data", () => {
     const row = normalizeRow({ note: "bare" });
     expect(row.mediaUrl).toBeNull();

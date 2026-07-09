@@ -224,7 +224,8 @@ export function DetailPanel() {
       mediaItems: list.length ? list : null,
       mediaUrl: list[0]?.url || null,
       mediaKind: isCarousel ? "carousel" : hasVideo ? "video" : list.length ? "image" : null,
-      carouselFrameUrls: isCarousel && !hasVideo ? list.map((it) => it.url) : null,
+      // carouselFrameUrls is designer-rendered output only; the scheduler
+      // falls back to mediaItems for a raw multi-image post.
       // Thumbnail: keep a custom one; else first image; else leave for the
       // video poster capture below.
       ...(row.thumbnailUrl && list.some((it) => it.url === row.thumbnailUrl) ? {}

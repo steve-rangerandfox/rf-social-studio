@@ -79,13 +79,19 @@ function resolveStoryFrames(row) {
   return single ? [{ url: single, kind: "image" }] : [];
 }
 
-/** The ordered slide-image URLs for a designed carousel row, or [] when the
- *  carousel hasn't been rendered yet (the composer's "Render & save" writes
- *  `carouselFrameUrls`; editing slides afterwards clears them). */
+/** The ordered slide-image URLs for a carousel row. Prefers designer-rendered
+ *  frames (`carouselFrameUrls`, written by "Render & save"); otherwise falls
+ *  back to the raw uploaded gallery (`mediaItems`) so a native multi-image
+ *  post publishes without going through the designer. */
 function resolveCarouselFrames(row) {
   if (row.mediaKind !== "carousel") return [];
-  if (!Array.isArray(row.carouselFrameUrls)) return [];
-  return row.carouselFrameUrls.filter(Boolean);
+  if (Array.isArray(row.carouselFrameUrls) && row.carouselFrameUrls.length) {
+    return row.carouselFrameUrls.filter(Boolean);
+  }
+  if (Array.isArray(row.mediaItems) && row.mediaItems.length) {
+    return row.mediaItems.filter((it) => it && it.kind !== "video" && it.url).map((it) => it.url);
+  }
+  return [];
 }
 
 /** Find rows that are due for publishing right now. */
