@@ -38,6 +38,7 @@ import {
 import { CanvasElement, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./CanvasElement.jsx";
 import { StoryDesignerTour } from "./StoryDesignerTour.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
+import { seedPages } from "../designer-seed.js";
 import { useStudio } from "../StudioContext.jsx";
 import { generateStoryTips } from "../../../lib/api-client.js";
 import { uploadAssetWithProgress, checkFileSize, fetchAssets, saveAsset } from "../../../lib/supabase.js";
@@ -484,28 +485,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // ── Artboards (multi-canvas pages) ──────────────────────────────────
   // `elements` is a derived view of the ACTIVE page — the rest of the editor
   // is unchanged; setElements writes back to the active page in `pages`.
-  const [pages, setPages] = useState(() => {
-    const galleryItems = (Array.isArray(row?.mediaItems) ? row.mediaItems : []).filter(it => it?.url);
-    const seedFromGallery = () => galleryItems.map(it => ({
-      id: uid(),
-      elements: [{ id: "bg", type: "image", url: it.url, x: 0, y: 0, scale: 1, locked: true, mediaType: it.kind === "video" ? "video" : "image" }],
-    }));
-    if (Array.isArray(row?.storyPages) && row.storyPages.length) {
-      // The designer auto-saves storyPages on every open — including a
-      // never-touched default template. If the post has uploaded images but
-      // the saved pages never got any real media (no bg url/fill, no placed
-      // media anywhere), those pages are a stale default: seed the gallery.
-      const pagesHaveMedia = row.storyPages.some(els => els.some(e =>
-        (e.locked && (e.url || e.fill)) || (!e.locked && e.type === "image" && e.url)));
-      if (!(galleryItems.length && !pagesHaveMedia)) {
-        return row.storyPages.map(els => ({ id: uid(), elements: els }));
-      }
-    }
-    // Images uploaded on the post seed one canvas each, image as background —
-    // "those images set when you opened the designer".
-    if (galleryItems.length) return seedFromGallery();
-    return [{ id: uid(), elements: computeInitialElements() }];
-  });
+  // Seeding rules (incl. merging gallery images uploaded after a designer
+  // visit onto their own canvases) live in designer-seed.js with tests.
+  const [pages, setPages] = useState(() => seedPages(row, computeInitialElements));
   const [activePageIdx, setActivePageIdx] = useState(0);
   const activePageIdxRef = useRef(0);
   useEffect(() => { activePageIdxRef.current = activePageIdx; }, [activePageIdx]);
