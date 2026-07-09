@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeRow, applyRowPatch, mergeStudioDocuments } from "../document-store.js";
+import { normalizeRow, applyRowPatch, mergeStudioDocuments, createNewRow } from "../document-store.js";
 
 // normalizeRow is a WHITELIST: any field it doesn't copy is silently
 // stripped from the row on every patch. These tests pin the fields that
@@ -69,6 +69,24 @@ describe("normalizeRow field preservation", () => {
     expect(row.mediaItems).toEqual(items);
     const patched = applyRowPatch(row, { caption: "hi" }, "tester");
     expect(patched.mediaItems).toEqual(items);
+  });
+
+  it("createNewRow carries gallery + channel overrides onto the new row", () => {
+    const items = [{ url: "https://cdn.example/1.jpg", kind: "image" }, { url: "https://cdn.example/2.jpg", kind: "image" }];
+    const row = createNewRow({
+      note: "gallery post",
+      platform: "ig_post",
+      platforms: ["ig_post", "linkedin"],
+      mediaItems: items,
+      mediaKind: "carousel",
+      mediaUrl: items[0].url,
+      thumbnailUrl: items[0].url,
+    }, "tester", 0);
+    expect(row.mediaItems).toEqual(items);
+    expect(row.mediaKind).toBe("carousel");
+    expect(row.mediaUrl).toBe(items[0].url);
+    expect(row.thumbnailUrl).toBe(items[0].url);
+    expect(row.platforms).toEqual(["ig_post", "linkedin"]);
   });
 
   it("defaults missing fields without inventing data", () => {
