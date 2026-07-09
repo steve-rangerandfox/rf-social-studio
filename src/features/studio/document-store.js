@@ -413,6 +413,11 @@ export function mergeStudioDocuments(serverDoc, localDoc) {
 export function createNewRow(overrides, actor, order) {
   return normalizeRow(
     {
+      // Pass EVERY override through — normalizeRow's allowlist is the only
+      // gate. The old explicit field list here silently dropped anything it
+      // didn't name (mediaItems, platforms, mediaKind…), so a post created
+      // with an uploaded gallery arrived empty.
+      ...overrides,
       id: uid(),
       scheduledAt: overrides.scheduledAt ?? null,
       note: overrides.note || "",
