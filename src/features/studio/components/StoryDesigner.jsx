@@ -488,6 +488,14 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     if (Array.isArray(row?.storyPages) && row.storyPages.length) {
       return row.storyPages.map(els => ({ id: uid(), elements: els }));
     }
+    // Images uploaded on the post seed one canvas each, image as background —
+    // "those images set when you opened the designer".
+    if (Array.isArray(row?.mediaItems) && row.mediaItems.length) {
+      return row.mediaItems.map(it => ({
+        id: uid(),
+        elements: [{ id: "bg", type: "image", url: it.url, x: 0, y: 0, scale: 1, locked: true, mediaType: it.kind === "video" ? "video" : "image" }],
+      }));
+    }
     return [{ id: uid(), elements: computeInitialElements() }];
   });
   const [activePageIdx, setActivePageIdx] = useState(0);

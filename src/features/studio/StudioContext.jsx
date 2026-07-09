@@ -626,7 +626,7 @@ export function StudioProvider({ children }) {
     setSelectedRowId(newRow.id);
   }, [currentUser, updateDocument, studioDoc.rows.length]);
 
-  const createPostDraft = ({ title, caption, dateValue, timeValue, platform, platforms, mediaUrl, thumbnailUrl, createAnother, openDesigner, openCarousel }) => {
+  const createPostDraft = ({ title, caption, dateValue, timeValue, platform, platforms, mediaUrl, thumbnailUrl, mediaItems, mediaKind, carouselFrameUrls, createAnother, openDesigner, openCarousel }) => {
     const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
     const [hour, minute] = timeValue.split(":").map(Number);
     const iso = ptPickerToISO(targetYear, targetMonth - 1, day, hour, minute);
@@ -638,6 +638,9 @@ export function StudioProvider({ children }) {
       ...(caption ? { caption } : {}),
       ...(mediaUrl ? { mediaUrl } : {}),
       ...(thumbnailUrl ? { thumbnailUrl } : {}),
+      ...(Array.isArray(mediaItems) && mediaItems.length ? { mediaItems } : {}),
+      ...(mediaKind ? { mediaKind } : {}),
+      ...(Array.isArray(carouselFrameUrls) && carouselFrameUrls.length ? { carouselFrameUrls } : {}),
     }, currentUser, studioDoc.rows.length);
     updateDocument(
       (current) => ({
