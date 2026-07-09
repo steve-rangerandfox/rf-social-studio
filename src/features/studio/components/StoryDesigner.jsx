@@ -485,17 +485,25 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // `elements` is a derived view of the ACTIVE page — the rest of the editor
   // is unchanged; setElements writes back to the active page in `pages`.
   const [pages, setPages] = useState(() => {
+    const galleryItems = (Array.isArray(row?.mediaItems) ? row.mediaItems : []).filter(it => it?.url);
+    const seedFromGallery = () => galleryItems.map(it => ({
+      id: uid(),
+      elements: [{ id: "bg", type: "image", url: it.url, x: 0, y: 0, scale: 1, locked: true, mediaType: it.kind === "video" ? "video" : "image" }],
+    }));
     if (Array.isArray(row?.storyPages) && row.storyPages.length) {
-      return row.storyPages.map(els => ({ id: uid(), elements: els }));
+      // The designer auto-saves storyPages on every open — including a
+      // never-touched default template. If the post has uploaded images but
+      // the saved pages never got any real media (no bg url/fill, no placed
+      // media anywhere), those pages are a stale default: seed the gallery.
+      const pagesHaveMedia = row.storyPages.some(els => els.some(e =>
+        (e.locked && (e.url || e.fill)) || (!e.locked && e.type === "image" && e.url)));
+      if (!(galleryItems.length && !pagesHaveMedia)) {
+        return row.storyPages.map(els => ({ id: uid(), elements: els }));
+      }
     }
     // Images uploaded on the post seed one canvas each, image as background —
     // "those images set when you opened the designer".
-    if (Array.isArray(row?.mediaItems) && row.mediaItems.length) {
-      return row.mediaItems.map(it => ({
-        id: uid(),
-        elements: [{ id: "bg", type: "image", url: it.url, x: 0, y: 0, scale: 1, locked: true, mediaType: it.kind === "video" ? "video" : "image" }],
-      }));
-    }
+    if (galleryItems.length) return seedFromGallery();
     return [{ id: uid(), elements: computeInitialElements() }];
   });
   const [activePageIdx, setActivePageIdx] = useState(0);
@@ -519,14 +527,28 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   const deletedPagesRef = useRef([]);
   const lastElementEditRef = useRef(0);
 
+  // Latest-value refs so ASYNC callers (upload completions in addMedia /
+  // setBg / replaceMedia, which await network) never resolve an updater
+  // against a stale render's elements — that race made a dropped image
+  // vanish the moment its upload finished (the .map ran over a snapshot
+  // that predated the drop).
+  const elementsRef = useRef(elements);
+  elementsRef.current = elements;
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const historyIndexRef = useRef(historyIndex);
+  historyIndexRef.current = historyIndex;
+
   const pushElements = (newElements) => {
-    const resolved = typeof newElements === 'function' ? newElements(elements) : newElements;
+    const resolved = typeof newElements === 'function' ? newElements(elementsRef.current) : newElements;
     lastElementEditRef.current = Date.now();
     // Compute next history + index OUTSIDE the setState updater — calling a
     // setState inside another's updater throws "cannot update a component
     // while rendering a different component".
-    const truncated = history.slice(0, historyIndex + 1);
+    const truncated = historyRef.current.slice(0, historyIndexRef.current + 1);
     const next = [...truncated, resolved].slice(-MAX_HISTORY);
+    historyRef.current = next;
+    historyIndexRef.current = next.length - 1;
     setHistory(next);
     setHistoryIndex(next.length - 1);
     setElements(resolved);
