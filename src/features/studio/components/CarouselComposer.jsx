@@ -46,10 +46,13 @@ function defaultSlide(n) {
 export function CarouselComposer({ row, onClose }) {
   const { update, showToast } = useStudio();
   const [slides, setSlides] = useState(() => {
-    if (row?.carouselSlides?.length) return row.carouselSlides;
-    // Images uploaded on the post seed one photo slide each — already set
-    // when the carousel builder opens.
-    const imgs = (Array.isArray(row?.mediaItems) ? row.mediaItems : []).filter((it) => it.kind !== "video");
+    const imgs = (Array.isArray(row?.mediaItems) ? row.mediaItems : []).filter((it) => it.kind !== "video" && it.url);
+    // Saved slides win — unless they're a stale never-touched default (no
+    // photo on any slide) while the post has uploaded images.
+    if (row?.carouselSlides?.length) {
+      const slidesHaveMedia = row.carouselSlides.some((s) => s.bgImage);
+      if (!(imgs.length && !slidesHaveMedia)) return row.carouselSlides;
+    }
     if (imgs.length) {
       // "image" layout renders nothing over the photo — the uploaded image
       // shows full-bleed (photo layout would draw a tan placeholder on top,
