@@ -2716,3 +2716,20 @@ input,textarea,select,button{font-family:inherit}
 .dp2 .cpm-composer{flex:0 0 auto}
 .cpm-media-thumb,.dp2-thumb-prev{box-sizing:border-box;flex:0 0 auto}
 .dp2-media-cluster{align-items:flex-start}
+
+/* Create Post inline media tiles (Buffer pattern) */
+.cpm-tiles{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px 4px}
+.cpm-tile{position:relative;width:86px;height:86px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--t-border);background:var(--t-s2);flex:0 0 auto;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:0}
+.cpm-tile img,.cpm-tile video{width:100%;height:100%;object-fit:cover;display:block}
+.cpm-tile.err{border-color:var(--t-red)}
+.cpm-tile-add{flex-direction:column;gap:5px;border:1.5px dashed var(--t-border2);background:transparent;cursor:pointer;color:var(--t-text-dim);font:500 10px/1.3 var(--font-body);text-align:center;padding:6px;transition:border-color .12s,color .12s}
+.cpm-tile-add em{font-style:normal;color:var(--accent);font-weight:600}
+.cpm-tile-add:hover{border-color:var(--accent);color:var(--t-text-sub)}
+.cpm-tile-ring{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.55)}
+.cpm-tile-ring::before{content:"";position:absolute;width:40px;height:40px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p,0)*1%),rgba(9,9,11,0.12) 0)}
+.cpm-tile-ring::after{content:"";position:absolute;width:31px;height:31px;border-radius:50%;background:var(--t-surface)}
+.cpm-tile-ring-n{position:relative;z-index:1;font:700 10px var(--font-mono);color:var(--t-ink)}
+.cpm-tile-err{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(220,38,38,0.1);color:var(--t-red);font:800 20px var(--font-display)}
+.cpm-tiles-hint{font:500 10.5px var(--font-mono);letter-spacing:.03em;color:var(--t-text-dim)}
+.cpm-dropveil{position:absolute;inset:8px;z-index:5;border:2px dashed var(--accent);border-radius:var(--radius-md);background:rgba(255,90,31,0.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--accent);font:600 14px var(--font-body);pointer-events:none}
+.cpm-composer{position:relative}

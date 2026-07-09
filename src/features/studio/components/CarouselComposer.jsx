@@ -45,9 +45,16 @@ function defaultSlide(n) {
 
 export function CarouselComposer({ row, onClose }) {
   const { update, showToast } = useStudio();
-  const [slides, setSlides] = useState(() =>
-    row?.carouselSlides?.length ? row.carouselSlides : [defaultSlide(0), defaultSlide(1), defaultSlide(2)],
-  );
+  const [slides, setSlides] = useState(() => {
+    if (row?.carouselSlides?.length) return row.carouselSlides;
+    // Images uploaded on the post seed one photo slide each — already set
+    // when the carousel builder opens.
+    const imgs = (Array.isArray(row?.mediaItems) ? row.mediaItems : []).filter((it) => it.kind !== "video");
+    if (imgs.length) {
+      return imgs.map((it, n) => ({ ...defaultSlide(n), layout: "photo", bgImage: it.url, title: "", sub: "", label: "", fg: "#fafafa" }));
+    }
+    return [defaultSlide(0), defaultSlide(1), defaultSlide(2)];
+  });
   const [cur, setCur] = useState(0);
   const [platform, setPlatform] = useState(row?.platform === "linkedin" ? "linkedin" : "instagram");
 

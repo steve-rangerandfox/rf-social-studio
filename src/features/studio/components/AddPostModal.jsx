@@ -21,7 +21,8 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [createAnother, setCreateAnother] = useState(false);
-  const [media, setMedia] = useState(null); // { previewUrl, publicUrl, uploading, isVideo, name, error }
+  // Media gallery: { id, url(blob), publicUrl, uploading, progress, isVideo, error }
+  const [items, setItems] = useState([]);
   const [dragOver, setDragOver] = useState(false);
   const [dateValue, setDateValue] = useState(() => {
     const y = safeDate.getFullYear();
@@ -44,29 +45,63 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
     setChannels((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
   };
 
-  const handleFile = (file) => {
-    if (!file || (!file.type.startsWith("image/") && !file.type.startsWith("video/"))) return;
-    try { checkFileSize(file); } catch (err) { setMedia({ error: err.message }); return; }
-    const previewUrl = URL.createObjectURL(file);
-    const isVideo = file.type.startsWith("video/");
-    setMedia({ previewUrl, publicUrl: null, uploading: true, isVideo, name: file.name });
-    uploadAssetWithProgress(file, () => {})
-      .then((url) => setMedia((m) => (m?.previewUrl === previewUrl ? { ...m, publicUrl: url, uploading: false } : m)))
-      .catch((err) => setMedia((m) => (m?.previewUrl === previewUrl ? { ...m, uploading: false, error: err?.message || "Upload failed" } : m)));
+  // Feed channels take multiple images; a video is a single-video post.
+  const allowsMulti = channels.length > 0 && channels.every((k) => k !== "ig_story" && k !== "ig_reel");
+
+  // Upload one or many at once. Each tile shows instantly with its own
+  // progress ring, then fills in its hosted URL — Buffer-style.
+  const handleFiles = (fileList) => {
+    const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (!files.length) return;
+    const videoFile = files.find((f) => f.type.startsWith("video/"));
+    const multi = allowsMulti && !videoFile;
+    const chosen = multi ? files.filter((f) => f.type.startsWith("image/")) : [videoFile || files[0]];
+    for (const file of chosen) {
+      let err0 = null;
+      try { checkFileSize(file); } catch (err) { err0 = err.message; }
+      const isVideo = file.type.startsWith("video/");
+      const blobUrl = URL.createObjectURL(file);
+      const id = "m" + Math.random().toString(36).slice(2, 8);
+      // A video / single-media post replaces the set; images append.
+      setItems((prev) => (multi ? [...prev, { id, url: blobUrl, publicUrl: null, uploading: !err0, progress: 0, isVideo, error: err0 }]
+        : [{ id, url: blobUrl, publicUrl: null, uploading: !err0, progress: 0, isVideo, error: err0 }]));
+      if (err0) continue;
+      uploadAssetWithProgress(file, (pr) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, progress: pr } : it))))
+        .then((url) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, publicUrl: url, uploading: false } : it))))
+        .catch((e) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, uploading: false, error: e?.message || "Upload failed" } : it))));
+    }
   };
 
-  const clearMedia = () => {
-    if (media?.previewUrl) URL.revokeObjectURL(media.previewUrl);
-    setMedia(null);
+  const removeItem = (id) => setItems((prev) => {
+    const it = prev.find((x) => x.id === id);
+    if (it?.url?.startsWith("blob:")) URL.revokeObjectURL(it.url);
+    return prev.filter((x) => x.id !== id);
+  });
+  const clearMedia = () => { items.forEach((it) => it.url?.startsWith("blob:") && URL.revokeObjectURL(it.url)); setItems([]); };
+
+  // Derive the row's media fields from the hosted gallery.
+  const mediaFields = () => {
+    const hosted = items.filter((i) => i.publicUrl);
+    const list = hosted.map((i) => ({ url: i.publicUrl, kind: i.isVideo ? "video" : "image" }));
+    const isCarousel = list.length >= 2;
+    const hasVideo = list.some((i) => i.kind === "video");
+    return {
+      mediaUrl: list[0]?.url || null,
+      mediaItems: list.length ? list : null,
+      mediaKind: isCarousel ? "carousel" : hasVideo ? "video" : list.length ? "image" : null,
+      carouselFrameUrls: isCarousel && !hasVideo ? list.map((i) => i.url) : null,
+      thumbnailUrl: list.find((i) => i.kind !== "video")?.url || null,
+    };
   };
+  const uploading = items.some((i) => i.uploading);
 
   // Character budget = the tightest limit among the selected channels.
   const capMax = useMemo(() => (
     channels.length && channels.every((k) => k === "linkedin") ? 3000 : 2200
   ), [channels]);
 
-  const hasContent = !!caption.trim() || !!media?.previewUrl;
-  const canCreate = caption.trim() && channels.length > 0 && dateValue && timeValue && !media?.uploading;
+  const hasContent = !!caption.trim() || items.length > 0;
+  const canCreate = caption.trim() && channels.length > 0 && dateValue && timeValue && !uploading;
   const whenLabel = useMemo(() => {
     if (!dateValue || !timeValue) return "Pick a time";
     const d = new Date(`${dateValue}T${timeValue}:00`);
@@ -84,8 +119,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
       timeValue,
       platform: channels[0],
       platforms: channels,
-      mediaUrl: media?.publicUrl || null,
-      thumbnailUrl: media?.publicUrl && !media.isVideo ? media.publicUrl : null,
+      ...mediaFields(),
       createAnother,
     });
     if (createAnother) { setCaption(""); clearMedia(); captionRef.current?.focus(); }
@@ -95,7 +129,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
   // required yet) and land directly in the story/canvas designer or the
   // carousel builder for its media.
   const createAndOpen = (tool) => {
-    if (channels.length === 0 || media?.uploading) return;
+    if (channels.length === 0 || uploading) return;
     const trimmed = caption.trim();
     onCreate({
       title: trimmed.split("\n")[0].slice(0, 64) || "Untitled post",
@@ -104,8 +138,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
       timeValue,
       platform: channels[0],
       platforms: channels,
-      mediaUrl: media?.publicUrl || null,
-      thumbnailUrl: media?.publicUrl && !media.isVideo ? media.publicUrl : null,
+      ...mediaFields(),
       ...(tool === "carousel" ? { openCarousel: true } : { openDesigner: true }),
     });
   };
@@ -162,28 +195,40 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
             <div className={"cpm-composer" + (dragOver ? " drag" : "")}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer?.files?.[0]); }}>
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer?.files); }}>
+              {dragOver && (
+                <div className="cpm-dropveil"><ImageIcon size={22} /><span>Drop files to upload</span></div>
+              )}
               <textarea ref={captionRef} className="cpm-txa" value={caption}
                 placeholder="Start writing your post…"
                 onChange={(e) => setCaption(e.target.value)} />
-              <div className="cpm-composer-foot">
-                <input ref={fileRef} type="file" accept="image/*,video/*,image/gif" hidden
-                  onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ""; }} />
-                {media?.previewUrl ? (
-                  <div className={"cpm-media-thumb" + (media.uploading ? " uploading" : "")}>
-                    {media.isVideo ? <video src={media.previewUrl} muted playsInline /> : <img src={media.previewUrl} alt="" />}
-                    {media.uploading && <span className="cpm-media-state">Uploading…</span>}
-                    <button type="button" className="cpm-media-rm" onClick={clearMedia} aria-label="Remove media"><X size={9} /></button>
+              <input ref={fileRef} type="file" multiple={allowsMulti} accept="image/*,video/*,image/gif" hidden
+                onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+              {/* Inline media tiles + always-present add tile (Buffer pattern) */}
+              <div className="cpm-tiles">
+                {items.map((it) => (
+                  <div key={it.id} className={"cpm-tile" + (it.error ? " err" : "")}>
+                    {it.isVideo ? <video src={it.url} muted playsInline /> : <img src={it.url} alt="" />}
+                    {it.uploading && (
+                      <span className="cpm-tile-ring" style={{ "--p": Math.round(it.progress * 100) }}>
+                        <span className="cpm-tile-ring-n">{Math.round(it.progress * 100)}%</span>
+                      </span>
+                    )}
+                    {it.error && <span className="cpm-tile-err" title={it.error}>!</span>}
+                    <button type="button" className="cpm-media-rm" onClick={() => removeItem(it.id)} aria-label="Remove"><X size={9} /></button>
                   </div>
-                ) : (
-                  <button type="button" className="cpm-dropcard" onClick={() => fileRef.current?.click()}>
+                ))}
+                {(allowsMulti || items.length === 0) && (
+                  <button type="button" className="cpm-tile cpm-tile-add" onClick={() => fileRef.current?.click()}>
                     <ImageIcon size={17} />
                     <span>Drag &amp; drop or <em>select a file</em></span>
                   </button>
                 )}
+              </div>
+              <div className="cpm-composer-foot">
+                <span className="cpm-tiles-hint">{items.length > 1 ? `${items.length} images · drag to reorder in the editor` : ""}</span>
                 <span className={"cpm-count" + (caption.length > capMax ? " over" : "")}>{caption.length} / {capMax}</span>
               </div>
-              {media?.error && <div className="cpm-media-error">{media.error}</div>}
             </div>
 
             {/* Design the media instead of uploading it */}
@@ -211,7 +256,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
               {channels.length === 0 || !hasContent ? (
                 <PreviewEmptyState />
               ) : (
-                channels.map((k) => <NetworkPreview key={k} platform={k} caption={caption.trim()} media={media?.previewUrl ? media : null} />)
+                channels.map((k) => <NetworkPreview key={k} platform={k} caption={caption.trim()} media={items[0] ? { previewUrl: items[0].url, isVideo: items[0].isVideo } : null} />)
               )}
             </div>
           )}
@@ -230,7 +275,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
               <span className="cpm-when-label">{whenLabel}</span>
             </div>
             <button type="submit" className="btn btn-primary" disabled={!canCreate}
-              title={canCreate ? undefined : media?.uploading ? "Media is still uploading" : "Write a caption and pick at least one channel"}>
+              title={canCreate ? undefined : uploading ? "Media is still uploading" : "Write a caption and pick at least one channel"}>
               Create post →
             </button>
           </div>
