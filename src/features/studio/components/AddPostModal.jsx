@@ -4,6 +4,9 @@ import { NetworkPreview, PreviewEmptyState } from "./PostPreviews.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { PLATFORMS, nowPT } from "../shared.js";
 import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
+import { planUpload } from "../capabilities.js";
+import { probeFiles } from "../media-probe.js";
+import { CapabilityDialog } from "./CapabilityDialog.jsx";
 
 // Buffer-style Create Post window: channels across the top, a big composer
 // with a drag-and-drop media card on the left, and a live per-network
@@ -24,6 +27,8 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
   // Media gallery: { id, url(blob), publicUrl, uploading, progress, isVideo, error }
   const [items, setItems] = useState([]);
   const [dragOver, setDragOver] = useState(false);
+  // Capability violation awaiting a user decision: { files, plan }
+  const [capIssue, setCapIssue] = useState(null);
   const [dateValue, setDateValue] = useState(() => {
     const y = safeDate.getFullYear();
     const m = String(safeDate.getMonth() + 1).padStart(2, "0");
@@ -50,11 +55,12 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
 
   // Upload one or many at once. Each tile shows instantly with its own
   // progress ring, then fills in its hosted URL — Buffer-style.
-  const handleFiles = (fileList) => {
-    const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
-    if (!files.length) return;
+  // channelList is passed explicitly when the capability dialog just
+  // changed the channels (the closure's `channels` would be stale).
+  const startUpload = (files, channelList = channels) => {
     const videoFile = files.find((f) => f.type.startsWith("video/"));
-    const multi = allowsMulti && !videoFile;
+    const canMulti = channelList.length > 0 && channelList.every((k) => k !== "ig_story" && k !== "ig_reel");
+    const multi = canMulti && !videoFile;
     const chosen = multi ? files.filter((f) => f.type.startsWith("image/")) : [videoFile || files[0]];
     for (const file of chosen) {
       let err0 = null;
@@ -70,6 +76,19 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
         .then((url) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, publicUrl: url, uploading: false } : it))))
         .catch((e) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, uploading: false, error: e?.message || "Upload failed" } : it))));
     }
+  };
+
+  // Capability gate: every drop / file-pick lands here first. If the
+  // prospective media breaks a selected channel, raise the dialog naming
+  // the channel instead of uploading.
+  const handleFiles = async (fileList) => {
+    const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (!files.length) return;
+    const additions = await probeFiles(files);
+    const existing = items.map((it) => ({ kind: it.isVideo ? "video" : "image" }));
+    const plan = planUpload(channels, existing, additions);
+    if (!plan.ok) { setCapIssue({ files, plan }); return; }
+    startUpload(files);
   };
 
   const removeItem = (id) => setItems((prev) => {
@@ -277,6 +296,17 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
           </div>
         </div>
       </form>
+
+      {capIssue && (
+        <CapabilityDialog plan={capIssue.plan}
+          onRemoveChannels={() => {
+            setChannels(capIssue.plan.remainingChannels);
+            startUpload(capIssue.files, capIssue.plan.remainingChannels);
+            setCapIssue(null);
+          }}
+          onReplace={() => { clearMedia(); startUpload(capIssue.files); setCapIssue(null); }}
+          onCancel={() => setCapIssue(null)} />
+      )}
     </div>
   );
 }
