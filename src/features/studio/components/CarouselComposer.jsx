@@ -51,7 +51,10 @@ export function CarouselComposer({ row, onClose }) {
     // when the carousel builder opens.
     const imgs = (Array.isArray(row?.mediaItems) ? row.mediaItems : []).filter((it) => it.kind !== "video");
     if (imgs.length) {
-      return imgs.map((it, n) => ({ ...defaultSlide(n), layout: "photo", bgImage: it.url, title: "", sub: "", label: "", fg: "#fafafa" }));
+      // "image" layout renders nothing over the photo — the uploaded image
+      // shows full-bleed (photo layout would draw a tan placeholder on top,
+      // which reads as the default template).
+      return imgs.map((it, n) => ({ ...defaultSlide(n), layout: "image", bgImage: it.url, title: "", sub: "", label: "", fg: "#fafafa" }));
     }
     return [defaultSlide(0), defaultSlide(1), defaultSlide(2)];
   });
@@ -244,7 +247,10 @@ export function CarouselComposer({ row, onClose }) {
                   <div className="cc2-card" style={{ background: s.bg, color: s.fg, position: "relative", overflow: "hidden" }}>
                     {s.bgImage && <>
                       <SlicedBg url={s.bgImage} span={slideSpanInfo(i)} />
-                      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,0.55),rgba(0,0,0,0.08) 55%,rgba(0,0,0,0.32))", pointerEvents: "none" }} />
+                      {/* Legibility scrim only when the slide carries text */}
+                      {(s.title || s.sub || s.label) && (
+                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,0.55),rgba(0,0,0,0.08) 55%,rgba(0,0,0,0.32))", pointerEvents: "none" }} />
+                      )}
                     </>}
                     <div style={{ position: "relative", height: "100%" }}>
                       <CarouselSlideRender slide={s} />

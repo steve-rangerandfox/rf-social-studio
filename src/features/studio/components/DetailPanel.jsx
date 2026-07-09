@@ -526,7 +526,7 @@ export function DetailPanel() {
               <div className={"cpm-composer" + (dragOver ? " drag" : "")}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
-                onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer?.files); }}>
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer?.types?.includes("application/x-mg-reorder")) return; handleFiles(e.dataTransfer?.files); }}>
                 <textarea
                   className="cpm-txa"
                   value={row.caption || ""}
@@ -770,7 +770,7 @@ export function DetailPanel() {
                 <div className="cpm-right-title">Post Previews</div>
                 {(row.caption || "").trim() || displayMedia
                   ? outlets.filter((k) => PLATFORMS[k]).map((k) => (
-                      <NetworkPreview key={k} platform={k} caption={(row.caption || "").trim()} media={displayMedia} />
+                      <NetworkPreview key={k} platform={k} caption={(row.caption || "").trim()} items={galleryItems.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo }))} />
                     ))
                   : <PreviewEmptyState />}
               </div>

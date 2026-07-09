@@ -256,7 +256,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
               {channels.length === 0 || !hasContent ? (
                 <PreviewEmptyState />
               ) : (
-                channels.map((k) => <NetworkPreview key={k} platform={k} caption={caption.trim()} media={items[0] ? { previewUrl: items[0].url, isVideo: items[0].isVideo } : null} />)
+                channels.map((k) => <NetworkPreview key={k} platform={k} caption={caption.trim()} items={items.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo }))} />)
               )}
             </div>
           )}
