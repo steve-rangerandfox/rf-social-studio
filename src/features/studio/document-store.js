@@ -209,6 +209,10 @@ export function normalizeRow(row, actor = "system") {
     imageUrl: row.imageUrl ?? null,
     videoUrl: row.videoUrl ?? null,
     mediaKind: row.mediaKind ?? null,
+    // Native multi-image / carousel gallery: [{ url, kind }]. Uploaded on the
+    // post (no designer). Without this line every patch strips it — the
+    // "images not retained after exiting the carousel" bug.
+    mediaItems: Array.isArray(row.mediaItems) ? row.mediaItems : null,
     carouselSlides: Array.isArray(row.carouselSlides) ? row.carouselSlides : null,
     // Rendered slide images for a designed carousel — written by the
     // composer's "Render & save", consumed by the scheduler, cleared when

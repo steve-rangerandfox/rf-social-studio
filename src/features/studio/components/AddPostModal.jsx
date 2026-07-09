@@ -89,7 +89,8 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
       mediaUrl: list[0]?.url || null,
       mediaItems: list.length ? list : null,
       mediaKind: isCarousel ? "carousel" : hasVideo ? "video" : list.length ? "image" : null,
-      carouselFrameUrls: isCarousel && !hasVideo ? list.map((i) => i.url) : null,
+      // carouselFrameUrls stays a designer-render artifact; the scheduler
+      // falls back to mediaItems for raw multi-image posts.
       thumbnailUrl: list.find((i) => i.kind !== "video")?.url || null,
     };
   };
