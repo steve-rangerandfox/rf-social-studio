@@ -232,46 +232,67 @@ export function DetailPanel() {
     });
   };
 
-  // Upload one or many files; images build a gallery, a lone video is a
-  // single video post. Each shows instantly (blob) then swaps to its hosted
-  // URL on the row as it lands.
+  // Upload one or many files at once; images build a gallery, a lone video
+  // is a single video post. Each shows instantly (blob) then swaps to its
+  // hosted URL. Uploads run in parallel and accumulate onto ONE local list
+  // (the row closure is stale mid-batch, so reading row.mediaItems per file
+  // would make each upload clobber the previous — the multi-drop bug).
   const handleFiles = async (fileList) => {
-    const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
-    if (!files.length) return;
-    if (isReel && !files[0].type.startsWith("video/")) { setMediaWarnings(["Reels need a video file"]); return; }
-    // Single-frame surfaces (reel) or any video: one item, replaces the set.
-    const videoFile = files.find((f) => f.type.startsWith("video/"));
+    const all = Array.from(fileList || []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (!all.length) return;
+    if (isReel && !all[0].type.startsWith("video/")) { setMediaWarnings(["Reels need a video file"]); return; }
+    setMediaWarnings([]); // fresh batch — don't pile old warnings
+    const videoFile = all.find((f) => f.type.startsWith("video/"));
     const multi = allowsMulti && !videoFile;
-    const chosen = multi ? files.filter((f) => f.type.startsWith("image/")) : [videoFile || files[0]];
+    const chosen = multi ? all.filter((f) => f.type.startsWith("image/")) : [videoFile || all[0]];
 
+    // Validate up front; collect unique warnings; drop hard-rejected files.
+    const warnings = new Set();
+    const accepted = [];
     for (const file of chosen) {
-      try { checkFileSize(file); } catch (err) { setMediaWarnings((w) => [...w, err.message]); continue; }
-      const warn = validateMedia(file);
-      if (warn.length) setMediaWarnings((w) => [...w, ...warn]);
+      try { checkFileSize(file); } catch (err) { warnings.add(err.message); continue; }
+      validateMedia(file).forEach((w) => warnings.add(w));
+      accepted.push(file);
+    }
+    if (warnings.size) setMediaWarnings([...warnings]);
+    if (!accepted.length) return;
+
+    // Seed the accumulator from what's already committed (multi appends;
+    // a video/single replaces).
+    const existing = Array.isArray(row.mediaItems) && row.mediaItems.length
+      ? row.mediaItems.map((it) => ({ url: it.url, kind: it.kind || (urlIsVideo(it.url) ? "video" : "image") }))
+      : row.mediaUrl ? [{ url: row.mediaUrl, kind: urlIsVideo(row.mediaUrl, row.mediaKind) ? "video" : "image" }] : [];
+    let committed = multi ? [...existing] : [];
+
+    // Blob previews for instant feedback.
+    const jobs = accepted.map((file) => {
       const isVideo = file.type.startsWith("video/");
       const blobUrl = URL.createObjectURL(file);
       const pid = "p" + Math.random().toString(36).slice(2, 8);
-      setPending((prev) => [...prev, { id: pid, url: blobUrl, isVideo }]);
-      if (isVideo) {
-        const vid = document.createElement("video");
-        vid.preload = "metadata";
-        vid.onloadedmetadata = () => { if (isReel) onChange({ reelDuration: Math.round(vid.duration) }); };
-        vid.src = blobUrl;
-      }
-      setMediaUploading(true);
-      setMediaProgress(0);
+      return { file, isVideo, blobUrl, pid };
+    });
+    setPending((prev) => [...prev, ...jobs.map((j) => ({ id: j.pid, url: j.blobUrl, isVideo: j.isVideo }))]);
+    const firstVideo = jobs.find((j) => j.isVideo);
+    if (firstVideo && isReel) {
+      const vid = document.createElement("video");
+      vid.preload = "metadata";
+      vid.onloadedmetadata = () => onChange({ reelDuration: Math.round(vid.duration) });
+      vid.src = firstVideo.blobUrl;
+    }
+    setMediaUploading(true);
+    setMediaProgress(0);
+
+    // Upload in parallel; commit the growing list as each lands so previews
+    // fill in progressively but never overwrite a sibling.
+    await Promise.all(jobs.map(async (j) => {
       try {
-        const publicUrl = await uploadAssetWithProgress(file, (pr) => setMediaProgress(pr));
-        // Append to whatever's committed now (functional read of the row).
-        const existing = Array.isArray(row.mediaItems) && row.mediaItems.length
-          ? row.mediaItems
-          : row.mediaUrl ? [{ url: row.mediaUrl, kind: urlIsVideo(row.mediaUrl, row.mediaKind) ? "video" : "image" }] : [];
-        const base = multi ? existing : []; // video / single replaces
-        commitItems([...base, { url: publicUrl, kind: isVideo ? "video" : "image" }]);
-        setPending((prev) => prev.filter((p) => p.id !== pid));
-        URL.revokeObjectURL(blobUrl);
-        if (isVideo && !row.thumbnailUrl) {
-          const posterBlob = await captureVideoPoster(blobUrl);
+        const publicUrl = await uploadAssetWithProgress(j.file, (pr) => setMediaProgress(pr));
+        committed = [...committed, { url: publicUrl, kind: j.isVideo ? "video" : "image" }];
+        commitItems(committed);
+        setPending((prev) => prev.filter((p) => p.id !== j.pid));
+        URL.revokeObjectURL(j.blobUrl);
+        if (j.isVideo && !row.thumbnailUrl) {
+          const posterBlob = await captureVideoPoster(j.blobUrl);
           if (posterBlob) {
             try {
               const posterFile = new File([posterBlob], `poster-${Date.now()}.jpg`, { type: "image/jpeg" });
@@ -280,10 +301,10 @@ export function DetailPanel() {
           }
         }
       } catch (err) {
-        setPending((prev) => prev.filter((p) => p.id !== pid));
-        setMediaWarnings((w) => [...w, err?.message || "Upload failed — re-attach the file before publishing"]);
+        setPending((prev) => prev.filter((p) => p.id !== j.pid));
+        setMediaWarnings((w) => [...new Set([...w, err?.message || "Upload failed — re-attach before publishing"])]);
       }
-    }
+    }));
     setMediaUploading(false);
     setMediaProgress(0);
   };

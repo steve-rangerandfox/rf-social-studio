@@ -2710,3 +2710,9 @@ input,textarea,select,button{font-family:inherit}
 .dp2-gallery-wrap{display:flex;flex-direction:column;gap:8px}
 .dp2-gallery-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;font:600 10.5px var(--font-mono);letter-spacing:.04em;color:var(--t-text-dim)}
 .dp2-count-row{display:flex;justify-content:flex-end;padding-top:2px}
+
+/* Post editor: composer sizes to content so warnings push the next row
+   instead of overflowing onto it; tiles are exact squares. */
+.dp2 .cpm-composer{flex:0 0 auto}
+.cpm-media-thumb,.dp2-thumb-prev{box-sizing:border-box;flex:0 0 auto}
+.dp2-media-cluster{align-items:flex-start}
