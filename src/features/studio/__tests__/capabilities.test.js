@@ -4,6 +4,7 @@ import {
   getCapability,
   validateChannelMedia,
   validatePostMedia,
+  planUpload,
 } from "../capabilities.js";
 
 // The capability matrix encodes VERIFIED per-channel publishing facts
@@ -149,5 +150,63 @@ describe("validatePostMedia — aggregate across channels", () => {
   });
   it("ignores empty media (nothing to validate yet)", () => {
     expect(validatePostMedia(["ig_reel", "linkedin"], []).ok).toBe(true);
+  });
+});
+
+describe("planUpload — drop/upload decision for the enforcement dialog", () => {
+  it("ok when the combined media satisfies every channel", () => {
+    const plan = planUpload(["ig_post"], [img()], [img(), img()]);
+    expect(plan.ok).toBe(true);
+    expect(plan.violations).toHaveLength(0);
+  });
+
+  it("flags the violating channels when the combined media breaks one", () => {
+    // linkedin already has an image; dropping a video mixes media there,
+    // but ig_post is fine with the mix.
+    const plan = planUpload(["ig_post", "linkedin"], [img()], [vid(20)]);
+    expect(plan.ok).toBe(false);
+    expect(plan.violatingChannels).toEqual(["linkedin"]);
+    expect(plan.remainingChannels).toEqual(["ig_post"]);
+  });
+
+  it("offers remove-channels when the remaining channels validate", () => {
+    const plan = planUpload(["ig_post", "linkedin"], [img()], [vid(20)]);
+    expect(plan.canRemoveChannels).toBe(true);
+  });
+
+  it("does not offer remove-channels when every channel violates", () => {
+    // Image dropped on a reel-only post: no channel survives.
+    const plan = planUpload(["ig_reel"], [], [img()]);
+    expect(plan.ok).toBe(false);
+    expect(plan.violatingChannels).toEqual(["ig_reel"]);
+    expect(plan.canRemoveChannels).toBe(false);
+  });
+
+  it("offers replace when the dropped files alone validate", () => {
+    // linkedin post already holding images; a lone dropped video would
+    // be a valid LinkedIn video post on its own.
+    const plan = planUpload(["linkedin"], [img(), img()], [vid(20)]);
+    expect(plan.ok).toBe(false);
+    expect(plan.canReplace).toBe(true);
+  });
+
+  it("does not offer replace when the dropped files alone still violate", () => {
+    const plan = planUpload(["ig_reel"], [], [img()]);
+    expect(plan.canReplace).toBe(false);
+  });
+
+  it("enforces slide-count caps across the combined list", () => {
+    const plan = planUpload(["ig_post"], list(9, img), [img(), img()]);
+    expect(plan.ok).toBe(false);
+    expect(plan.violations.some((v) => v.type === "too_many")).toBe(true);
+    // Replacing with just the 2 new images is fine.
+    expect(plan.canReplace).toBe(true);
+  });
+
+  it("enforces duration checks on dropped videos", () => {
+    const plan = planUpload(["ig_story"], [], [vid(120)]);
+    expect(plan.ok).toBe(false);
+    expect(plan.violations.some((v) => v.type === "duration_over")).toBe(true);
+    expect(plan.canReplace).toBe(false);
   });
 });

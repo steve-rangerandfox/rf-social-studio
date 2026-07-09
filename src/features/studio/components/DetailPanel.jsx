@@ -19,6 +19,9 @@ import { AlertTriangle, CalendarIcon as Calendar, Check, CheckCircle as CheckCir
 import { CrossPostModal } from "./CrossPostModal.jsx";
 import { NetworkPreview, PreviewEmptyState } from "./PostPreviews.jsx";
 import { MediaGallery } from "./MediaGallery.jsx";
+import { planUpload } from "../capabilities.js";
+import { probeFiles } from "../media-probe.js";
+import { CapabilityDialog } from "./CapabilityDialog.jsx";
 
 // Buffer-style post editor window: channels + composer on the left, live
 // per-network previews on the right, publish controls in the footer.
@@ -50,6 +53,8 @@ export function DetailPanel() {
   const [platformDropdownOpen, setPlatformDropdownOpen] = useState(false);
   const [outletPickerOpen, setOutletPickerOpen] = useState(false);
   const [isCrossPostOpen, setIsCrossPostOpen] = useState(false);
+  // Capability violation awaiting a user decision: { files, plan }
+  const [capIssue, setCapIssue] = useState(null);
 
   const titleInputRef = useRef(null);
   const mediaRef = useRef(null);
@@ -76,6 +81,7 @@ export function DetailPanel() {
     setMediaWarnings([]);
     setPlatformDropdownOpen(false);
     setOutletPickerOpen(false);
+    setCapIssue(null);
   }, [selectedRowId]);
 
   // Restore originating focus on unmount
@@ -233,18 +239,32 @@ export function DetailPanel() {
     });
   };
 
+  // Capability gate: every drop / file-pick lands here first. If the
+  // prospective media breaks a selected channel, raise the dialog naming
+  // the channel instead of uploading.
+  const handleFiles = async (fileList) => {
+    const all = Array.from(fileList || []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (!all.length) return;
+    const additions = await probeFiles(all);
+    const existing = rowItems.map((it) => ({ kind: it.isVideo ? "video" : "image" }));
+    const plan = planUpload(outlets, existing, additions);
+    if (!plan.ok) { setCapIssue({ files: all, plan }); return; }
+    doUpload(all);
+  };
+
   // Upload one or many files at once; images build a gallery, a lone video
   // is a single video post. Each shows instantly (blob) then swaps to its
   // hosted URL. Uploads run in parallel and accumulate onto ONE local list
   // (the row closure is stale mid-batch, so reading row.mediaItems per file
   // would make each upload clobber the previous — the multi-drop bug).
-  const handleFiles = async (fileList) => {
-    const all = Array.from(fileList || []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
-    if (!all.length) return;
-    if (isReel && !all[0].type.startsWith("video/")) { setMediaWarnings(["Reels need a video file"]); return; }
+  // outletList is passed explicitly when the capability dialog just changed
+  // the channels (the closure's outlets/platform would be stale).
+  const doUpload = async (all, { replace = false, outletList = outlets } = {}) => {
     setMediaWarnings([]); // fresh batch — don't pile old warnings
+    const primaryK = outletList[0] || row.platform;
+    const singleFrame = primaryK === "ig_story" || primaryK === "ig_reel";
     const videoFile = all.find((f) => f.type.startsWith("video/"));
-    const multi = allowsMulti && !videoFile;
+    const multi = !singleFrame && !videoFile;
     const chosen = multi ? all.filter((f) => f.type.startsWith("image/")) : [videoFile || all[0]];
 
     // Validate up front; collect unique warnings; drop hard-rejected files.
@@ -259,11 +279,12 @@ export function DetailPanel() {
     if (!accepted.length) return;
 
     // Seed the accumulator from what's already committed (multi appends;
-    // a video/single replaces).
+    // a video/single — or an explicit replace from the capability dialog —
+    // starts the set over).
     const existing = Array.isArray(row.mediaItems) && row.mediaItems.length
       ? row.mediaItems.map((it) => ({ url: it.url, kind: it.kind || (urlIsVideo(it.url) ? "video" : "image") }))
       : row.mediaUrl ? [{ url: row.mediaUrl, kind: urlIsVideo(row.mediaUrl, row.mediaKind) ? "video" : "image" }] : [];
-    let committed = multi ? [...existing] : [];
+    let committed = multi && !replace ? [...existing] : [];
 
     // Blob previews for instant feedback.
     const jobs = accepted.map((file) => {
@@ -274,7 +295,7 @@ export function DetailPanel() {
     });
     setPending((prev) => [...prev, ...jobs.map((j) => ({ id: j.pid, url: j.blobUrl, isVideo: j.isVideo }))]);
     const firstVideo = jobs.find((j) => j.isVideo);
-    if (firstVideo && isReel) {
+    if (firstVideo && primaryK === "ig_reel") {
       const vid = document.createElement("video");
       vid.preload = "metadata";
       vid.onloadedmetadata = () => onChange({ reelDuration: Math.round(vid.duration) });
@@ -815,6 +836,21 @@ export function DetailPanel() {
 
       {isCrossPostOpen && (
         <CrossPostModal sourceRow={row} onClose={() => setIsCrossPostOpen(false)} />
+      )}
+
+      {capIssue && (
+        <CapabilityDialog plan={capIssue.plan}
+          onRemoveChannels={() => {
+            const remaining = capIssue.plan.remainingChannels;
+            onChange({
+              platforms: remaining,
+              ...(remaining.includes(row.platform) ? {} : { platform: remaining[0] }),
+            });
+            doUpload(capIssue.files, { outletList: remaining });
+            setCapIssue(null);
+          }}
+          onReplace={() => { doUpload(capIssue.files, { replace: true }); setCapIssue(null); }}
+          onCancel={() => setCapIssue(null)} />
       )}
     </>
   );

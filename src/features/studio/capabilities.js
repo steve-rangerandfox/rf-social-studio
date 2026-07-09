@@ -149,3 +149,27 @@ export function validatePostMedia(channels = [], mediaItems = []) {
   }
   return { ok: violations.length === 0, violations };
 }
+
+// Drop/upload decision for the enforcement dialog. `existing` is the
+// post's committed media, `additions` the incoming files (as media items).
+// When the combined set violates a channel, reports which channels break
+// and which recovery actions are viable:
+//   canRemoveChannels — dropping the violating channels makes it valid
+//   canReplace        — the additions alone (fresh media set) are valid
+export function planUpload(channels = [], existing = [], additions = []) {
+  const combined = [...existing, ...additions];
+  const res = validatePostMedia(channels, combined);
+  if (res.ok) {
+    return { ok: true, violations: [], violatingChannels: [], remainingChannels: channels, canRemoveChannels: false, canReplace: false };
+  }
+  const violatingChannels = [...new Set(res.violations.map((v) => v.channel))];
+  const remainingChannels = channels.filter((c) => !violatingChannels.includes(c));
+  return {
+    ok: false,
+    violations: res.violations,
+    violatingChannels,
+    remainingChannels,
+    canRemoveChannels: remainingChannels.length > 0 && validatePostMedia(remainingChannels, combined).ok,
+    canReplace: validatePostMedia(channels, additions).ok,
+  };
+}
