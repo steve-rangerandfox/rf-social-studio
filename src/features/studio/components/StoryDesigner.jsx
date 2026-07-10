@@ -907,14 +907,14 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
   };
 
-  // The right properties panel shows only while an element is selected
-  // (inspector, or the fonts view the top bar's font button opens).
-  // Canvas/background controls live in the left rail's Canvas tab —
-  // clicking the locked background opens it.
-  const [propsView, setPropsView] = useState("inspector"); // "inspector" | "fonts"
+  // Properties/Fonts live in the LEFT palette slot (the only right-side
+  // panel is the slides strip): selecting an element swaps the palette to
+  // Properties, the locked background opens the Canvas tab, and
+  // deselecting returns Properties/Fonts to Canvas.
   useEffect(() => {
-    setPropsView("inspector");
     if (selected?.locked) setSideTab("canvas");
+    else if (selected) setSideTab("props");
+    else setSideTab((s) => (s === "props" || s === "fonts" ? "canvas" : s));
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
@@ -1020,8 +1020,8 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
   // Opening the Fonts view starts with the current font's weights expanded.
   useEffect(() => {
-    if (propsView === "fonts") setFontOpenName(selected?.fontFamily || null);
-  }, [propsView]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (sideTab === "fonts") setFontOpenName(selected?.fontFamily || null);
+  }, [sideTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load the shared asset library the first time the Uploads tab opens.
   useEffect(() => {
@@ -1774,8 +1774,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
             ))}
           </div>
 
-          {/* ── PALETTE PANEL (collapsible) ── */}
-          {sideTab && (
+          {/* ── PALETTE PANEL (collapsible) — Properties/Fonts take this
+                 slot over via the sd-props block below ── */}
+          {sideTab && sideTab !== "props" && sideTab !== "fonts" && (
             <div style={{
               width:240,flexShrink:0,borderRight:`1px solid ${T.border}`,
               display:"flex",flexDirection:"column",background:T.surface,overflow:"hidden",
@@ -2066,18 +2067,16 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
             </div>
           )}
 
-          {/* ── PROPERTIES PANEL — shows while an element is selected:
-                 inspector / Fonts view. Rendered here (after the palette)
-                 but pinned to the FAR RIGHT of s-layout via CSS order, so
-                 the giant inspector JSX didn't have to move across the
-                 file. Canvas/background controls live in the rail's
-                 Canvas tab. ── */}
-          {selected && !selected.locked && (
+          {/* ── PROPERTIES / FONTS — takes over the palette slot next to
+                 the icon rail (the palette above hides while these are
+                 active); the slides strip stays the only right-side
+                 panel. ── */}
+          {(sideTab === "props" || sideTab === "fonts") && (
           <div className="sd-props">
             <div className="sd-props-head">
-              {propsView === "fonts" ? (
+              {sideTab === "fonts" ? (
                 <>
-                  <button className="sd-props-back" onClick={() => setPropsView("inspector")} aria-label="Back to properties">
+                  <button className="sd-props-back" onClick={() => setSideTab("props")} aria-label="Back to properties">
                     <ChevronDown size={12} style={{transform:"rotate(90deg)"}}/>
                   </button>
                   <span>Fonts</span>
@@ -2085,9 +2084,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               ) : (
                 <span>Properties</span>
               )}
+              <button className="sd-props-collapse" onClick={() => setSideTab(null)} title="Collapse" aria-label="Collapse panel">
+                <PanelLeftClose size={14}/>
+              </button>
             </div>
             <div className="sd-props-body">
-              {propsView === "fonts" && (
+              {sideTab === "fonts" && (
                 <div style={{display:"flex",flexDirection:"column"}}>
                   {!selected || selected.type!=='text' ? (
                     <div style={{fontSize:11,color:T.textDim,padding:"8px 0",lineHeight:1.5}}>Select a text element to change its font.</div>
@@ -2129,7 +2131,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   )}
                 </div>
               )}
-              {propsView !== "fonts" && selected && !selected.locked && (
+              {sideTab === "props" && !(selected && !selected.locked) && (
+                <div style={{fontSize:11,color:T.textDim,padding:"8px 0",lineHeight:1.5}}>Select an element on the canvas to edit its properties.</div>
+              )}
+              {sideTab === "props" && selected && !selected.locked && (
                   <>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
                       <span style={{fontSize:11,fontWeight:600,color:T.textSub}}>
@@ -2438,7 +2443,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 <div className="sd-topbar" onPointerDown={e=>e.stopPropagation()}>
                   {topPop && <div className="sd-pop-backdrop" onClick={()=>setTopPop(null)}/>}
                   {selected.type==='text' && (<>
-                    <button className="sd-tb-font" onClick={()=>setPropsView('fonts')} title="Change font" style={{fontFamily:`'${selected.fontFamily}',sans-serif`}}>
+                    <button className="sd-tb-font" onClick={()=>setSideTab('fonts')} title="Change font" style={{fontFamily:`'${selected.fontFamily}',sans-serif`}}>
                       {selected.fontFamily}
                     </button>
                     <div className="sd-tb-size">
