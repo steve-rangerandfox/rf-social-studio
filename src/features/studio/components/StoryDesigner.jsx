@@ -29,6 +29,7 @@ import {
   Sliders,
   Strikethrough,
   Trash as Trash2,
+  Copy as CopyIcon,
   TypeIcon as Type,
   Underline,
   Undo as Undo2,
@@ -554,6 +555,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
   // ── Page (artboard) management ──
   const [pageMenuOpen, setPageMenuOpen] = useState(false);
+  // Slides panel (replaces the bottom page strip)
+  const [slidesOpen, setSlidesOpen] = useState(true);
+  const [slideDropIdx, setSlideDropIdx] = useState(null);
   // Canvas-size dropdown (custom popover — the native select can't match
   // the design system and drags the UA focus ring with it).
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
@@ -599,6 +603,17 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     if (j < 0 || j >= pages.length) return;
     setPages(prev => { const next = [...prev]; [next[idx], next[j]] = [next[j], next[idx]]; return next; });
     setActivePageIdx(a => (a === idx ? j : a === j ? idx : a));
+  };
+  // Drag-reorder from the slides panel: move `from` to sit at `to`.
+  const reorderPage = (from, to) => {
+    if (from === to || from < 0 || to < 0 || from >= pages.length || to >= pages.length) return;
+    setPages(prev => { const next = [...prev]; const [pg] = next.splice(from, 1); next.splice(to, 0, pg); return next; });
+    setActivePageIdx(a => {
+      if (a === from) return to;
+      if (from < a && to >= a) return a - 1;
+      if (from > a && to <= a) return a + 1;
+      return a;
+    });
   };
 
   // ── Panorama: fit one image across every canvas ──
@@ -2248,6 +2263,68 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
             </div>
           )}
 
+          {/* ── SLIDES PANEL — live thumb per canvas: click to edit, drag to
+                 reorder, hover to delete. Replaces the bottom page strip. ── */}
+          {slidesOpen ? (
+            <div className="sd-slides">
+              <div className="sd-slides-head">
+                <span>Slides · {pages.length}</span>
+                <button onClick={() => setSlidesOpen(false)} title="Collapse slides" aria-label="Collapse slides panel"><PanelLeftClose size={13}/></button>
+              </div>
+              <div className="sd-slides-list">
+                {pages.map((pg, i) => {
+                  const sp = spanInfoFor(i);
+                  const s = 104 / preset.w;
+                  return (
+                    <div key={pg.id}
+                      className={"sd-slide" + (i === activePageIdx ? " active" : "") + (slideDropIdx === i ? " drop" : "")}
+                      draggable
+                      onDragStart={(e) => { e.dataTransfer.setData("application/x-sd-slide", String(i)); e.dataTransfer.effectAllowed = "move"; }}
+                      onDragOver={(e) => { if (e.dataTransfer.types.includes("application/x-sd-slide")) { e.preventDefault(); setSlideDropIdx(i); } }}
+                      onDragLeave={() => setSlideDropIdx((d) => (d === i ? null : d))}
+                      onDrop={(e) => { e.preventDefault(); setSlideDropIdx(null); const from = parseInt(e.dataTransfer.getData("application/x-sd-slide"), 10); if (!Number.isNaN(from)) reorderPage(from, i); }}
+                      onClick={() => switchPage(i)}
+                      role="button" tabIndex={0} aria-label={`Canvas ${i + 1}`} title={`Canvas ${i + 1} — drag to reorder`}
+                      onKeyDown={(e) => { if (e.key === "Enter") switchPage(i); }}>
+                      <span className="sd-slide-num">{i + 1}</span>
+                      {pages.length > 1 && (
+                        <button className="sd-slide-del" title="Delete canvas (Ctrl+Z to undo)" aria-label={`Delete canvas ${i + 1}`}
+                          onClick={(e) => { e.stopPropagation(); deletePage(i); }}><Trash2 size={10}/></button>
+                      )}
+                      <div className="sd-slide-thumb" style={{ width: 104, height: Math.round(preset.h * s) }}>
+                        <div style={{ transform: `scale(${s})`, transformOrigin: "top left", "--sd-zoom": s }}>
+                          <div className="canvas" style={{ width: preset.w, height: preset.h, pointerEvents: "none", position: "relative", overflow: "hidden" }}>
+                            {pg.elements.filter((e) => e.locked).map((el) => (
+                              <CanvasElement key={el.id} data={el} isSelected={false} bgSpanTotal={sp?.total} bgSpanIndex={sp?.index}
+                                onSelect={() => {}} onUpdate={() => {}} canvasW={preset.w} canvasH={preset.h}/>
+                            ))}
+                            {pg.elements.filter((e) => !e.locked).map((el) => (
+                              <CanvasElement key={el.id} data={el} isSelected={false}
+                                onSelect={() => {}} onUpdate={() => {}} canvasW={preset.w} canvasH={preset.h}/>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="sd-slides-foot">
+                <button className="sd-slides-tool" onClick={() => addPage(false)} title="New canvas"><Plus size={12}/> Add</button>
+                <button className="sd-slides-tool" onClick={() => addPage(true)} title="Duplicate the active canvas"><CopyIcon size={12}/> Duplicate</button>
+              </div>
+              {pages.length > 1 && (
+                <button className="sd-slides-span" onClick={() => spanFileRef.current?.click()} title="Fit one image seamlessly across every canvas">
+                  <ImageIcon size={12}/> Fit image across {pages.length}
+                </button>
+              )}
+            </div>
+          ) : (
+            <button className="sd-slides-collapsed" onClick={() => setSlidesOpen(true)} title="Show slides" aria-label="Expand slides panel">
+              <Layers size={14}/><span>{pages.length}</span>
+            </button>
+          )}
+
           {/* ── CANVAS AREA ── */}
           <div className="s-canvas-area">
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",position:"relative"}}>
@@ -2547,22 +2624,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               )}
             </div>
             </div>
-
-            {/* Artboards / page strip */}
-            <div className="sd-pages">
-              {pages.map((pg, i) => (
-                <div key={pg.id} className={"sd-page-tab" + (i === activePageIdx ? " active" : "")} onClick={() => switchPage(i)} title={`Canvas ${i + 1}`}>
-                  <span className="sd-page-num">{i + 1}</span>
-                </div>
-              ))}
-              <span className="sd-pages-sep" />
-              {pages.length > 1 && (
-                <button className="sd-pages-tool" title="Fit one image seamlessly across every canvas" onClick={() => spanFileRef.current?.click()}>
-                  <ImageIcon size={13} /> Fit image across {pages.length}
-                </button>
-              )}
-            </div>
-
 
           </div>
         </div>
