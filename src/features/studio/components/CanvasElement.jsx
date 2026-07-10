@@ -69,7 +69,7 @@ export function fitMediaBox(width, height, maxWidth, maxHeight) {
   };
 }
 
-export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, onContextMenu, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H, bgSpanTotal, bgSpanIndex }) {
+export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, onContextMenu, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H, bgSpanTotal, bgSpanIndex, ghost = false }) {
   const videoRef = useRef(null);
   const editRef = useRef(null);
   const [muted, setMuted] = useState(true);
@@ -373,7 +373,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
 
   return (
     <div
-      className={"element-wrap " + (isSelected ? "element-selected" : "") + (isEditing ? " element-editing" : "") + (data.type === 'shape' && data.shape === 'line' ? " el-linear" : "")}
+      className={"element-wrap " + (isSelected ? "element-selected" : "") + (isEditing ? " element-editing" : "") + (data.type === 'shape' && data.shape === 'line' ? " el-linear" : "") + (ghost ? " el-ghost" : "")}
       data-elid={data.id}
       style={wrapperStyle}
       onPointerDown={isEditing ? undefined : handleDrag}
