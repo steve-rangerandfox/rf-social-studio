@@ -652,12 +652,11 @@ export function DetailPanel() {
                   image). Stories edit via the thumbnail above. */}
               {!isStory && (
                 <div className="cpm-design-row">
-                  <span className="cpm-design-label">Or design it:</span>
                   <button type="button" className="dp2-design-btn"
                     onClick={() => { setStory(row); setSelectedRowId(null); }}
                     title="Open the designer — your uploaded images come with you">
                     <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M11.3 2.2 13.8 4.7 5.5 13H3v-2.5L11.3 2.2Z"/><path d="M9.8 3.7l2.5 2.5"/></svg>
-                    Design
+                    Open Designer
                   </button>
                 </div>
               )}
