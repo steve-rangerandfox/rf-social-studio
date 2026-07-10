@@ -62,7 +62,6 @@ import { AddPostModal } from "./components/AddPostModal.jsx";
 import { Composer } from "./components/Composer.jsx";
 import { BrandView } from "./components/BrandView.jsx";
 import { AssetsView } from "./components/AssetsView.jsx";
-const CarouselComposer = lazy(() => import("./components/CarouselComposer.jsx").then(m => ({ default: m.CarouselComposer })));
 const StoryDesigner = lazy(() => import("./components/StoryDesigner.jsx").then(m => ({ default: m.StoryDesigner })));
 import { MonthMiniMap } from "./components/MonthMiniMap.jsx";
 import { TokenExpiryBanner } from "./components/TokenExpiryBanner.jsx";
@@ -96,7 +95,6 @@ function StudioShell() {
     composer, setComposer,
     addPostDraft, setAddPostDraft,
     story, setStory,
-    carousel, setCarousel,
     appearance,
     showAssets, setAssets,
     showConn, setShowConn,
@@ -262,7 +260,6 @@ function StudioShell() {
         <Composer
           row={composer.row}
           postNow={composer.postNow}
-          onOpenCarousel={() => { setCarousel({ row: composer.row }); setComposer(null); }}
           onClose={() => setComposer(null)}
           onPosted={({ mediaId, mediaUrl } = {}) => {
             update(composer.row.id, {
@@ -293,12 +290,6 @@ function StudioShell() {
             onSave={els => update(story.id, { storyElements: els })}
             onUpdate={patch => update(story.id, patch)}
           />
-        </Suspense>
-      )}
-
-      {carousel && (
-        <Suspense fallback={<LoadingShell variant="overlay" label="Loading carousel" />}>
-          <CarouselComposer row={carousel.row} onClose={() => { const id = carousel.row?.id; setCarousel(null); if (id) setSelectedRowId(id); }} />
         </Suspense>
       )}
 
