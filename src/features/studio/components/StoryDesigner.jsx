@@ -872,12 +872,14 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
   };
 
-  // Clicking the background opens the Background panel. Unlocked elements
-  // edit through the contextual top bar; the full inspector stays a click
-  // away behind the top bar's "⋯" button.
+  // The permanent right properties panel is selection-contextual: element
+  // inspector when something is selected, Background otherwise, with a
+  // fonts view the top bar's font button opens. Reset to the inspector
+  // whenever the selection changes.
+  const [propsView, setPropsView] = useState("inspector"); // "inspector" | "fonts"
   useEffect(() => {
-    if (selected?.locked) setSideTab("props");
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+    setPropsView("inspector");
+  }, [selectedId]);
 
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
   const deleteEl  = (id) => { pushElements(els => els.filter(e => e.id !== id)); setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; }); };
@@ -980,10 +982,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
   const canvasRef = useRef(null);
 
-  // Opening the Fonts panel starts with the current font's weights expanded.
+  // Opening the Fonts view starts with the current font's weights expanded.
   useEffect(() => {
-    if (sideTab === "fonts") setFontOpenName(selected?.fontFamily || null);
-  }, [sideTab]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (propsView === "fonts") setFontOpenName(selected?.fontFamily || null);
+  }, [propsView]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load the shared asset library the first time the Uploads tab opens.
   useEffect(() => {
@@ -1728,7 +1730,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 alignItems:"center",justifyContent:"space-between",flexShrink:0,
               }}>
                 <span style={{fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:T.text,fontFamily:"'JetBrains Mono',monospace"}}>
-                  {{elements:"Elements",text:"Text",uploads:"Uploads",templates:"Templates",layers:"Layers",ai:"AI Copilot",props:"Properties",fonts:"Fonts"}[sideTab]}
+                  {{elements:"Elements",text:"Text",uploads:"Uploads",templates:"Templates",layers:"Layers",ai:"AI Copilot"}[sideTab]}
                 </span>
                 <button onClick={() => setSideTab(null)} title="Collapse" aria-label="Collapse panel"
                   style={{background:"transparent",border:"none",cursor:"pointer",color:T.textDim,padding:2,display:"flex"}}>
@@ -1765,49 +1767,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 {/* ── FONTS panel (opened from the top bar's font button) —
                        Canva-style list: chevron expands a weight sub-list,
                        each weight drawn in its own weight. ── */}
-                {sideTab === "fonts" && (
-                  <div style={{display:"flex",flexDirection:"column"}}>
-                    {!selected || selected.type!=='text' ? (
-                      <div style={{fontSize:11,color:T.textDim,padding:"8px 0",lineHeight:1.5}}>Select a text element to change its font.</div>
-                    ) : (
-                      [...BRAND_FONTS, ...SYS_FONTS, ...customFonts].map(fo => {
-                        const isCur = selected.fontFamily === fo.name;
-                        const isOpen = fontOpenName === fo.name;
-                        return (
-                          <div key={fo.name || fo.id}>
-                            <div className={"sd-font-row"+(isCur?" on":"")}>
-                              <button className="sd-font-caret" aria-expanded={isOpen} aria-label={`${isOpen?"Collapse":"Expand"} ${fo.label} weights`}
-                                onClick={()=>setFontOpenName(isOpen?null:fo.name)}>
-                                <ChevronDown size={11} style={{transform:isOpen?"none":"rotate(-90deg)",transition:"transform .15s"}}/>
-                              </button>
-                              <button className="sd-font-name" onClick={()=>{updateEl(selectedId,{fontFamily:fo.name,fontWeight:snapWeight(fo,selected.fontWeight)}); setFontOpenName(fo.name);}}>
-                                <span className="sd-font-label" style={{fontFamily:`'${fo.name}',sans-serif`}}>{fo.label}</span>
-                                <span className="sd-font-sample" style={{fontFamily:`'${fo.name}',sans-serif`}}>AaBbCc</span>
-                              </button>
-                              {isCur && <Check size={11} style={{opacity:.5,flexShrink:0}}/>}
-                            </div>
-                            {isOpen && (
-                              <div className="sd-font-weights">
-                                {fontWeightsOf(fo).map(([w,l])=>{
-                                  const active = isCur && (selected.fontWeight||400)===w;
-                                  return (
-                                    <button key={w} className={"sd-font-weight"+(active?" on":"")}
-                                      style={{fontFamily:`'${fo.name}',sans-serif`,fontWeight:w}}
-                                      onClick={()=>updateEl(selectedId,{fontFamily:fo.name,fontWeight:w})}>
-                                      {l}
-                                      {active && <Check size={10} style={{opacity:.5,marginLeft:"auto"}}/>}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-
                 {/* ── TEXT tab ── */}
                 {sideTab === "text" && (
                   <>
@@ -1820,7 +1779,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                       <button key={preset.label}
                         onClick={() => {
                           const el = { id:uid(), type:"text", content:preset.label, x:20, y:160, fontSize:preset.fontSize, fontFamily:preset.fontFamily, color:"#FFFFFF", letterSpacing:preset.letterSpacing||0, fontWeight:preset.fontWeight, shadow:false };
-                          pushElements(els => [...els, el]); setSelectedIds(new Set([el.id])); setSideTab("props");
+                          pushElements(els => [...els, el]); setSelectedIds(new Set([el.id]));
                         }}
                         style={{
                           width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${T.border}`,
@@ -1999,7 +1958,72 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 )}
 
                 {/* ── PROPERTIES tab (context-sensitive) ── */}
-                {sideTab === "props" && selected && !selected.locked && (
+              </div>
+            </div>
+          )}
+
+          {/* ── PROPERTIES PANEL — permanent and selection-contextual:
+                 element inspector / Background / Fonts view. Rendered here
+                 (after the palette) but pinned to the FAR RIGHT of s-layout
+                 via CSS order, so the giant inspector JSX didn't have to
+                 move across the file. ── */}
+          <div className="sd-props">
+            <div className="sd-props-head">
+              {propsView === "fonts" ? (
+                <>
+                  <button className="sd-props-back" onClick={() => setPropsView("inspector")} aria-label="Back to properties">
+                    <ChevronDown size={12} style={{transform:"rotate(90deg)"}}/>
+                  </button>
+                  <span>Fonts</span>
+                </>
+              ) : (
+                <span>{selected && !selected.locked ? "Properties" : "Canvas"}</span>
+              )}
+            </div>
+            <div className="sd-props-body">
+              {propsView === "fonts" && (
+                <div style={{display:"flex",flexDirection:"column"}}>
+                  {!selected || selected.type!=='text' ? (
+                    <div style={{fontSize:11,color:T.textDim,padding:"8px 0",lineHeight:1.5}}>Select a text element to change its font.</div>
+                  ) : (
+                    [...BRAND_FONTS, ...SYS_FONTS, ...customFonts].map(fo => {
+                      const isCur = selected.fontFamily === fo.name;
+                      const isOpen = fontOpenName === fo.name;
+                      return (
+                        <div key={fo.name || fo.id}>
+                          <div className={"sd-font-row"+(isCur?" on":"")}>
+                            <button className="sd-font-caret" aria-expanded={isOpen} aria-label={`${isOpen?"Collapse":"Expand"} ${fo.label} weights`}
+                              onClick={()=>setFontOpenName(isOpen?null:fo.name)}>
+                              <ChevronDown size={11} style={{transform:isOpen?"none":"rotate(-90deg)",transition:"transform .15s"}}/>
+                            </button>
+                            <button className="sd-font-name" onClick={()=>{updateEl(selectedId,{fontFamily:fo.name,fontWeight:snapWeight(fo,selected.fontWeight)}); setFontOpenName(fo.name);}}>
+                              <span className="sd-font-label" style={{fontFamily:`'${fo.name}',sans-serif`}}>{fo.label}</span>
+                              <span className="sd-font-sample" style={{fontFamily:`'${fo.name}',sans-serif`}}>AaBbCc</span>
+                            </button>
+                            {isCur && <Check size={11} style={{opacity:.5,flexShrink:0}}/>}
+                          </div>
+                          {isOpen && (
+                            <div className="sd-font-weights">
+                              {fontWeightsOf(fo).map(([w,l])=>{
+                                const active = isCur && (selected.fontWeight||400)===w;
+                                return (
+                                  <button key={w} className={"sd-font-weight"+(active?" on":"")}
+                                    style={{fontFamily:`'${fo.name}',sans-serif`,fontWeight:w}}
+                                    onClick={()=>updateEl(selectedId,{fontFamily:fo.name,fontWeight:w})}>
+                                    {l}
+                                    {active && <Check size={10} style={{opacity:.5,marginLeft:"auto"}}/>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+              {propsView !== "fonts" && selected && !selected.locked && (
                   <>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
                       <span style={{fontSize:11,fontWeight:600,color:T.textSub}}>
@@ -2235,7 +2259,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     )}
                   </>
                 )}
-                {sideTab === "props" && (!selected || selected.locked) && (
+                {propsView !== "fonts" && (!selected || selected.locked) && (
                   <div style={{display:"flex",flexDirection:"column",gap:8}}>
                     <div className="inspector-group-title">Background</div>
                     <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
@@ -2259,9 +2283,8 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     )}
                   </div>
                 )}
-              </div>
             </div>
-          )}
+          </div>
 
           {/* ── SLIDES PANEL — live thumb per canvas: click to edit, drag to
                  reorder, hover to delete. Replaces the bottom page strip. ── */}
@@ -2332,7 +2355,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 <div className="sd-topbar" onPointerDown={e=>e.stopPropagation()}>
                   {topPop && <div className="sd-pop-backdrop" onClick={()=>setTopPop(null)}/>}
                   {selected.type==='text' && (<>
-                    <button className="sd-tb-font" onClick={()=>setSideTab('fonts')} title="Change font" style={{fontFamily:`'${selected.fontFamily}',sans-serif`}}>
+                    <button className="sd-tb-font" onClick={()=>setPropsView('fonts')} title="Change font" style={{fontFamily:`'${selected.fontFamily}',sans-serif`}}>
                       {selected.fontFamily}
                     </button>
                     <div className="sd-tb-size">
@@ -2448,7 +2471,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                       </div>
                     )}
                   </div>
-                  <button className="sd-tb-btn" onClick={()=>setSideTab(s=>s==='props'?null:'props')} title="More settings" aria-label="More settings" style={{fontSize:15,fontWeight:700,letterSpacing:.5,paddingBottom:5}}>⋯</button>
                   <button className="sd-tb-btn" onClick={()=>deleteEl(selectedId)} title="Delete element" aria-label="Delete element"><Trash2 size={13}/></button>
                 </div>
               )}
