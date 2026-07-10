@@ -576,14 +576,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       ?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [activePageIdx]);
 
-  // Unclipped selection chrome: .canvas is overflow:hidden (the design
-  // crops at its edges), which also crops the transform box when an
-  // element hangs past the edge. Mirror each selected element's bounding
-  // box in a sibling overlay OUTSIDE the clipped canvas, measured from
-  // the live DOM (offsets are in canvas units — unaffected by the zoom
-  // transform). Re-measured on every element/selection/zoom change, so
-  // it tracks drags frame-by-frame. Lines keep endpoint-node chrome only.
-  const [ghostBoxes, setGhostBoxes] = useState([]);
   const addPage = (duplicate) => {
     setPageMenuOpen(false);
     const src = pages[activePageIdx];
@@ -1740,23 +1732,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     updateEl(selectedId, { listStyle: order[(order.indexOf(cur)+1)%order.length] });
   };
 
-  // Measure selected elements' wrappers for the unclipped ghost chrome
-  // (declared up top; effect lives here so elements/selectedIds/zoom are
-  // all initialized before the deps array evaluates).
-  useEffect(() => {
-    const c = canvasRef.current;
-    if (!c || selectedIds.size === 0) { setGhostBoxes([]); return; }
-    const nodes = [...c.querySelectorAll(".element-wrap.element-selected:not(.el-linear)")];
-    setGhostBoxes(nodes.map((n) => ({
-      id: n.dataset.elid,
-      x: n.offsetLeft,
-      y: n.offsetTop,
-      w: n.offsetWidth,
-      h: n.offsetHeight,
-      rot: elements.find((e) => e.id === n.dataset.elid)?.rotation || 0,
-    })));
-  }, [selectedIds, elements, zoom, activePageIdx, canvasPreset]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const layersRev = [...elements].reverse();
 
   return (
@@ -2749,23 +2724,29 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   </div>
                 )}
               </div>
-              {ghostBoxes.length > 0 && (
-                /* Unclipped mirror of the selection chrome — .canvas is
-                   overflow:hidden (the design crops at its edges), so this
-                   sibling layer in the same coordinate space keeps the
-                   transform box visible when an element hangs past the
-                   canvas edge. Visual only; interaction stays on the
-                   element itself. */
-                <div className="sd-ghost-layer" aria-hidden="true">
-                  {ghostBoxes.map((b) => (
-                    <div key={b.id} className="sd-ghost-box"
-                      style={{ left: b.x, top: b.y, width: b.w, height: b.h, transform: b.rot ? `rotate(${b.rot}deg)` : undefined }}>
-                      <span className="sd-ghost-h nw" /><span className="sd-ghost-h ne" />
-                      <span className="sd-ghost-h sw" /><span className="sd-ghost-h se" />
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Unclipped selection layer — .canvas is overflow:hidden (the
+                  design crops at its edges), which also clipped chrome AND
+                  hit-testing for anything hanging past the edge. Selected
+                  elements render a second, INTERACTIVE copy here: content
+                  invisible (the clipped copy below stays the visual), but
+                  the wrapper + chrome are live, so grab/drag/resize/rotate
+                  work outside the canvas too. Text being edited inline is
+                  left to the real copy. */}
+              <div className="sd-ghost-layer">
+                {elements.filter((el) => !el.locked && selectedIds.has(el.id) && editingId !== el.id).map((el) => (
+                  <CanvasElement key={"ghost-" + el.id} data={el} ghost isSelected
+                    onSelect={(id, shiftKey) => { handleSelect(el.id, shiftKey); initMultiDrag(); if (editingId && editingId !== el.id) setEditingId(null); }}
+                    onUpdate={(p) => updateEl(el.id, p)}
+                    onDragAll={selectedIds.size > 1 && selectedIds.has(el.id) ? multiDrag : undefined}
+                    onDropReplace={replaceMedia}
+                    onContextMenu={(e, id) => { e.preventDefault(); handleSelect(id, false); setCtxMenu({ x: e.clientX, y: e.clientY, id }); }}
+                    snapEnabled={snapOn} siblings={elements} onGuides={setGuides}
+                    isEditing={false}
+                    onStartEdit={() => { setSelectedIds(new Set([el.id])); setEditingId(el.id); }}
+                    onStopEdit={() => setEditingId(null)}
+                    zoom={zoom} canvasW={preset.w} canvasH={preset.h}/>
+                ))}
+              </div>
             </div>
               </div>
               </div>
