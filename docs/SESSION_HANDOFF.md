@@ -36,8 +36,8 @@ Connected services (config lives in their dashboards, not the repo):
 
 ## 3. Architecture map (key files)
 
-- `src/features/studio/StudioApp.jsx` — shell; mounts views + modals (Composer, AddPostModal, StoryDesigner, CarouselComposer, DetailPanel…)
-- `src/features/studio/StudioContext.jsx` — all app state; **serialized save pipeline** (one in-flight save, merge-on-conflict, merge-on-poll), `createPostDraft` (creates post, can open designer via `openDesigner`/`openCarousel`)
+- `src/features/studio/StudioApp.jsx` — shell; mounts views + modals (Composer, AddPostModal, StoryDesigner, DetailPanel…)
+- `src/features/studio/StudioContext.jsx` — all app state; **serialized save pipeline** (one in-flight save, merge-on-conflict, merge-on-poll), `createPostDraft` (creates post, can open designer via `openDesigner`)
 - `src/features/studio/document-store.js` — row model. **`normalizeRow` is an allowlist: any field not named there is silently stripped on every save.** `createNewRow` spreads overrides through it. `mergeStudioDocuments` = per-row newest-updatedAt merge
 - `src/features/studio/components/AddPostModal.jsx` — Buffer-style Create Post window (channels, caption, multi-image tiles w/ progress rings, live previews, Design door)
 - `src/features/studio/components/DetailPanel.jsx` — Buffer-style post editor window (same shell; gallery w/ drag-reorder via MediaGallery, thumbnail control for video, approval/comments/publish)
@@ -45,7 +45,7 @@ Connected services (config lives in their dashboards, not the repo):
 - `src/features/studio/components/MediaGallery.jsx` — multi-image gallery (active preview, drag-reorder marks `application/x-mg-reorder` so drops aren't treated as uploads)
 - `src/features/studio/components/StoryDesigner.jsx` — THE canvas designer (~2500 lines): multi-artboard pages, per-outlet layouts (`storyLayouts`/`storyPreset`), Canva contextual top bar, uploads library (media_assets), fonts panel w/ real per-family weights, seeding from `row.mediaItems` (one canvas per image), render-on-close → `storyFrames`
 - `src/features/studio/components/CanvasElement.jsx` — element rendering: zoom×scale-invariant selection chrome, auto-width text w/ cap-height trim (`text-box`), shape X/Y stretch, line endpoint nodes
-- `src/features/studio/components/CarouselComposer.jsx` — legacy carousel builder (being absorbed into the universal designer; UI door already removed — only `openCarousel` flag reaches it)
+- `src/features/studio/carousel-layouts.js` — the retired CarouselComposer's 5 slide layouts as designer presets (Templates → Slide layouts); `carouselRender.js` still renders legacy `carouselSlides` rows at publish
 - `src/inngest/publish-scheduled.js` — scheduler; `resolveCarouselFrames` prefers `carouselFrameUrls` (designer render) then falls back to `mediaItems` (raw uploads)
 - `src/lib/supabase.js` — `uploadAssetWithProgress`, `fetchAssets`/`saveAsset` (media_assets library)
 - `src/features/studio/studio.css` — design tokens: `--t-*` + semantic aliases; radii ONLY 6/12/20/pill (canvases square, radius 0); accent `#ff5a1f`
