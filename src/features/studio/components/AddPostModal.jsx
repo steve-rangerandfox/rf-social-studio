@@ -9,6 +9,8 @@ import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js
 import { planUpload } from "../capabilities.js";
 import { probeFiles } from "../media-probe.js";
 import { CapabilityDialog } from "./CapabilityDialog.jsx";
+import { EditImageModal } from "./EditImageModal.jsx";
+import { MoreHorizontal } from "../../../components/icons/index.jsx";
 
 // Buffer-parity Create Post window: title + Tags up top-left; Templates /
 // AI Assistant / Preview / expand on the right; avatar channel row with a
@@ -46,6 +48,10 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
   const [dragOver, setDragOver] = useState(false);
   // Capability violation awaiting a user decision: { files, plan }
   const [capIssue, setCapIssue] = useState(null);
+  // Tile interactions: per-tile ⋯ menu, lightbox, image editor
+  const [menuFor, setMenuFor] = useState(null);
+  const [expand, setExpand] = useState(null); // { url, isVideo }
+  const [editItem, setEditItem] = useState(null); // item id
   const [dateValue, setDateValue] = useState(() => {
     const y = safeDate.getFullYear();
     const m = String(safeDate.getMonth() + 1).padStart(2, "0");
@@ -128,6 +134,32 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
     if (it?.url?.startsWith("blob:")) URL.revokeObjectURL(it.url);
     return prev.filter((x) => x.id !== id);
   });
+
+  // Close any open per-tile ⋯ menu on an outside click.
+  useEffect(() => {
+    if (!menuFor) return;
+    const h = (e) => { if (!e.target.closest?.(".cpm-tile-more")) setMenuFor(null); };
+    document.addEventListener("pointerdown", h);
+    return () => document.removeEventListener("pointerdown", h);
+  }, [menuFor]);
+
+  // Edited image comes back as a JPEG blob: swap the tile's preview to it
+  // instantly and re-upload for a fresh hosted URL.
+  const applyEdit = async (blob) => {
+    const it = items.find((x) => x.id === editItem);
+    setEditItem(null);
+    if (!it) return;
+    const file = new File([blob], `edit-${Date.now()}.jpg`, { type: "image/jpeg" });
+    const blobUrl = URL.createObjectURL(blob);
+    if (it.url?.startsWith("blob:")) URL.revokeObjectURL(it.url);
+    setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, url: blobUrl, publicUrl: null, uploading: true, progress: 0, error: null } : x)));
+    try {
+      const url = await uploadAssetWithProgress(file, (pr) => setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, progress: pr } : x))));
+      setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, publicUrl: url, uploading: false } : x)));
+    } catch (e) {
+      setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, uploading: false, error: e?.message || "Upload failed" } : x)));
+    }
+  };
   const clearMedia = () => { items.forEach((it) => it.url?.startsWith("blob:") && URL.revokeObjectURL(it.url)); setItems([]); };
 
   // Derive the row's media fields from the hosted gallery.
@@ -368,7 +400,10 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
               {/* Media tiles + always-present add tile (Buffer pattern) */}
               <div className="cpm-tiles">
                 {items.map((it) => (
-                  <div key={it.id} className={"cpm-tile" + (it.error ? " err" : "")}>
+                  <div key={it.id} className={"cpm-tile" + (it.error ? " err" : "")} title="Click to expand"
+                    role="button" tabIndex={0}
+                    onClick={() => setExpand({ url: it.url, isVideo: it.isVideo })}
+                    onKeyDown={(e) => { if (e.key === "Enter") setExpand({ url: it.url, isVideo: it.isVideo }); }}>
                     {it.isVideo ? <video src={it.url} muted playsInline /> : <img src={it.url} alt="" />}
                     {it.uploading && (
                       <span className="cpm-tile-ring" style={{ "--p": Math.round(it.progress * 100) }}>
@@ -376,7 +411,26 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                       </span>
                     )}
                     {it.error && <span className="cpm-tile-err" title={it.error}>!</span>}
-                    <button type="button" className="cpm-media-rm" onClick={() => removeItem(it.id)} aria-label="Remove"><X size={9} /></button>
+                    <span className="cpm-tile-more">
+                      <button type="button" className="cpm-tile-ctl cpm-tile-dots" title="More"
+                        onClick={(e) => { e.stopPropagation(); setMenuFor((m) => (m === it.id ? null : it.id)); }}>
+                        <MoreHorizontal size={11} />
+                      </button>
+                      {menuFor === it.id && (
+                        <div className="cpm-tile-menu" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" onClick={() => { setMenuFor(null); setExpand({ url: it.url, isVideo: it.isVideo }); }}>Expand</button>
+                          {!it.isVideo && <button type="button" onClick={() => { setMenuFor(null); setEditItem(it.id); }}>Edit image</button>}
+                          <button type="button" onClick={() => { setMenuFor(null); removeItem(it.id); }}>Remove</button>
+                        </div>
+                      )}
+                    </span>
+                    <button type="button" className="cpm-media-rm" onClick={(e) => { e.stopPropagation(); removeItem(it.id); }} aria-label="Remove"><X size={9} /></button>
+                    {!it.isVideo && !it.uploading && (
+                      <button type="button" className="cpm-tile-ctl cpm-tile-edit" title="Edit image"
+                        onClick={(e) => { e.stopPropagation(); setEditItem(it.id); }}>
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M11.3 2.2 13.8 4.7 5.5 13H3v-2.5L11.3 2.2Z"/><path d="M9.8 3.7l2.5 2.5"/></svg>
+                      </button>
+                    )}
                   </div>
                 ))}
                 {(allowsMulti || items.length === 0) && (
@@ -490,6 +544,21 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
           </div>
         </div>
       </form>
+
+      {expand && (
+        <div className="overlay cpm-lightbox" onClick={(e) => { e.stopPropagation(); setExpand(null); }}>
+          {expand.isVideo
+            ? <video src={expand.url} controls autoPlay onClick={(e) => e.stopPropagation()} />
+            : <img src={expand.url} alt="" onClick={(e) => e.stopPropagation()} />}
+          <button type="button" className="cpm-lightbox-x" aria-label="Close"><X size={16} /></button>
+        </div>
+      )}
+
+      {editItem && (() => {
+        const it = items.find((x) => x.id === editItem);
+        // Edit from the local blob preview — same-origin, no canvas taint.
+        return it ? <EditImageModal src={it.url} onCancel={() => setEditItem(null)} onApply={applyEdit} /> : null;
+      })()}
 
       {capIssue && (
         <CapabilityDialog plan={capIssue.plan}
