@@ -99,7 +99,6 @@ export function StudioProvider({ children }) {
   const [composer, setComposer] = useState(null);
   const [addPostDraft, setAddPostDraft] = useState(null);
   const [story, setStory] = useState(null);
-  const [carousel, setCarousel] = useState(null);
   const [showAssets, setAssets] = useState(false);
   const [showConn, setShowConn] = useState(null);
   const [showSettings, setSettings] = useState(false);
@@ -626,7 +625,7 @@ export function StudioProvider({ children }) {
     setSelectedRowId(newRow.id);
   }, [currentUser, updateDocument, studioDoc.rows.length]);
 
-  const createPostDraft = ({ title, caption, dateValue, timeValue, platform, platforms, tags, firstComment, mediaUrl, thumbnailUrl, mediaItems, mediaKind, carouselFrameUrls, createAnother, openDesigner, openCarousel }) => {
+  const createPostDraft = ({ title, caption, dateValue, timeValue, platform, platforms, tags, firstComment, mediaUrl, thumbnailUrl, mediaItems, mediaKind, carouselFrameUrls, createAnother, openDesigner }) => {
     const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
     const [hour, minute] = timeValue.split(":").map(Number);
     const iso = ptPickerToISO(targetYear, targetMonth - 1, day, hour, minute);
@@ -656,7 +655,6 @@ export function StudioProvider({ children }) {
     // "Design it" paths land in the right tool immediately; otherwise drop
     // straight into the editor — a fresh post shouldn't need a second click.
     if (openDesigner) { setStory(newRow); return; }
-    if (openCarousel) { setCarousel({ row: newRow }); return; }
     setSelectedRowId(newRow.id);
   };
 
@@ -922,7 +920,6 @@ export function StudioProvider({ children }) {
     composer, setComposer,
     addPostDraft, setAddPostDraft,
     story, setStory,
-    carousel, setCarousel,
     showAssets, setAssets,
     showConn, setShowConn,
     showSettings, setSettings, settingsInitialTab, openSettingsTab,

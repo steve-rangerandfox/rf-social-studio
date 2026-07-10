@@ -40,6 +40,7 @@ import { CanvasElement, BRAND_COLORS, CANVAS_W, CANVAS_H, fitMediaBox } from "./
 import { StoryDesignerTour } from "./StoryDesignerTour.jsx";
 import { T, uid, TEMPLATES } from "../shared.js";
 import { seedPages } from "../designer-seed.js";
+import { LAYOUT_PRESETS, CAROUSEL_GRADIENTS, layoutElements } from "../carousel-layouts.js";
 import { useStudio } from "../StudioContext.jsx";
 import { generateStoryTips } from "../../../lib/api-client.js";
 import { uploadAssetWithProgress, checkFileSize, fetchAssets, saveAsset } from "../../../lib/supabase.js";
@@ -604,6 +605,17 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     setPages(prev => { const next = [...prev]; [next[idx], next[j]] = [next[j], next[idx]]; return next; });
     setActivePageIdx(a => (a === idx ? j : a === j ? idx : a));
   };
+  // Stamp a slide layout onto the ACTIVE canvas: background + fresh
+  // editable elements replace the current content (undoable via history).
+  const stampLayout = (layoutId) => {
+    const { bg, elements: els } = layoutElements(layoutId, preset.w, preset.h);
+    pushElements(prev => [
+      ...prev.filter(e => e.locked).map(e => ({ ...e, fill: bg, url: null, mediaType: "image", bgSpanId: undefined })),
+      ...els,
+    ]);
+    setSelectedIds(new Set());
+  };
+
   // Drag-reorder from the slides panel: move `from` to sit at `to`.
   const reorderPage = (from, to) => {
     if (from === to || from < 0 || to < 0 || from >= pages.length || to >= pages.length) return;
@@ -1286,7 +1298,19 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         if (video.videoWidth) ctx.drawImage(video, 0, 0, EXPORT_W, EXPORT_H);
       } catch { /* keep the dark fallback */ }
     } else {
-      ctx.fillStyle = bgEl?.fill || "#080A0E";
+      // Gradient backgrounds (Background panel presets): a CSS gradient
+      // string is not a valid canvas fillStyle — rebuild it from its hex
+      // stops on a top-left → bottom-right diagonal (same approximation
+      // as carouselRender.paintBackground).
+      const fill = bgEl?.fill || "#080A0E";
+      const stops = String(fill).includes("gradient") ? (String(fill).match(/#[0-9a-f]{3,8}/gi) || []) : [];
+      if (stops.length >= 2) {
+        const grad = ctx.createLinearGradient(0, 0, EXPORT_W, EXPORT_H);
+        stops.forEach((c, si) => grad.addColorStop(si / (stops.length - 1), c));
+        ctx.fillStyle = grad;
+      } else {
+        ctx.fillStyle = stops[0] || fill;
+      }
       ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
     }
 
@@ -1859,6 +1883,20 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 {/* ── TEMPLATES tab ── */}
                 {sideTab === "templates" && (
                   <>
+                    {/* One-click slide layouts (absorbed from the old
+                        carousel builder) — stamps editable elements onto
+                        the ACTIVE canvas, replacing its content (undoable). */}
+                    <div className="inspector-group-title">Slide layouts</div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:4}}>
+                      {LAYOUT_PRESETS.map(({ id, label }) => (
+                        <button key={id} onClick={() => stampLayout(id)} title={`${label} layout — replaces this canvas's content`}
+                          style={{padding:"10px 4px",borderRadius:6,border:`1px solid ${T.border}`,background:T.s2,cursor:"pointer",fontSize:10,fontWeight:600,color:T.textSub,transition:"border-color 0.1s"}}
+                          onMouseEnter={e=>e.currentTarget.style.borderColor=T.border2}
+                          onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                     {templates.length > 0 && (
                       <div className="tmpl-gallery">
                         {templates.map(tmpl => (
@@ -2270,6 +2308,13 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                       <input type="color" value={elements.find(e=>e.locked)?.fill||"#080A0E"}
                         onChange={e=>{const v=e.target.value;pushElements(els=>els.map(el=>el.locked?{...el,fill:v,url:null,mediaType:'image'}:el));}}
                         style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom background color"/>
+                    </div>
+                    <div className="inspector-group-title" style={{marginTop:4}}>Gradients</div>
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                      {CAROUSEL_GRADIENTS.map(g => (
+                        <button key={g} onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,fill:g,url:null,mediaType:'image'}:e))} title="Gradient background"
+                          style={{width:22,height:22,borderRadius:6,border:(elements.find(e=>e.locked)?.fill)===g?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:g,cursor:"pointer",padding:0}}/>
+                      ))}
                     </div>
                     <button onClick={()=>bgFileRef.current?.click()}
                       style={{width:"100%",padding:"8px 12px",borderRadius:6,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub}}>

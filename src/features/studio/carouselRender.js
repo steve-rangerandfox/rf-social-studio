@@ -1,8 +1,9 @@
-// Render designed carousel slides to publishable images. The CarouselComposer
-// stores slides as { layout, bg, fg, title, sub, label }; Instagram needs each
-// as a hosted JPEG. We draw them to an offscreen canvas (no extra dependency)
-// at 1080×1080 — square is valid for every IG aspect, so it works for both the
-// IG and LinkedIn ratios the composer offers.
+// Render LEGACY designed carousel slides to publishable images. Rows saved by
+// the retired CarouselComposer store slides as { layout, bg, fg, title, sub,
+// label }; Instagram needs each as a hosted JPEG. We draw them to an offscreen
+// canvas at 1080×1080 (square is valid for every IG aspect). New carousels are
+// designed in the universal designer (carousel-layouts.js presets) — this file
+// only keeps old posts publishable.
 // ponytail: canvas mirror of CarouselSlideRender — faithful, not pixel-identical
 // to the DOM preview. Needs a real-account visual pass before heavy reliance.
 
