@@ -10,6 +10,7 @@ import { planUpload } from "../capabilities.js";
 import { probeFiles } from "../media-probe.js";
 import { CapabilityDialog } from "./CapabilityDialog.jsx";
 import { EditImageModal } from "./EditImageModal.jsx";
+import { MediaViewerModal } from "./MediaViewerModal.jsx";
 import { MoreHorizontal } from "../../../components/icons/index.jsx";
 
 // Buffer-parity Create Post window: title + Tags up top-left; Templates /
@@ -173,7 +174,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
   // Derive the row's media fields from the hosted gallery.
   const mediaFields = () => {
     const hosted = items.filter((i) => i.publicUrl);
-    const list = hosted.map((i) => ({ url: i.publicUrl, kind: i.isVideo ? "video" : "image" }));
+    const list = hosted.map((i) => ({ url: i.publicUrl, kind: i.isVideo ? "video" : "image", ...(i.alt ? { alt: i.alt } : {}) }));
     const isCarousel = list.length >= 2;
     const hasVideo = list.some((i) => i.kind === "video");
     return {
@@ -513,8 +514,8 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                 {items.map((it) => (
                   <div key={it.id} className={"cpm-tile" + (it.error ? " err" : "")} title="Click to expand"
                     role="button" tabIndex={0}
-                    onClick={() => setExpand({ url: it.url, isVideo: it.isVideo })}
-                    onKeyDown={(e) => { if (e.key === "Enter") setExpand({ url: it.url, isVideo: it.isVideo }); }}>
+                    onClick={() => setExpand({ url: it.publicUrl || it.url, isVideo: it.isVideo, id: it.id, alt: it.alt || "" })}
+                    onKeyDown={(e) => { if (e.key === "Enter") setExpand({ url: it.publicUrl || it.url, isVideo: it.isVideo, id: it.id, alt: it.alt || "" }); }}>
                     {it.isVideo ? <video src={it.url} muted playsInline /> : <img src={it.url} alt="" />}
                     {it.uploading && (
                       <span className="cpm-tile-ring" style={{ "--p": Math.round(it.progress * 100) }}>
@@ -529,7 +530,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                       </button>
                       {menuFor === it.id && (
                         <div className="cpm-tile-menu" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" onClick={() => { setMenuFor(null); setExpand({ url: it.url, isVideo: it.isVideo }); }}>Expand</button>
+                          <button type="button" onClick={() => { setMenuFor(null); setExpand({ url: it.publicUrl || it.url, isVideo: it.isVideo, id: it.id, alt: it.alt || "" }); }}>Expand</button>
                           {!it.isVideo && <button type="button" onClick={() => { setMenuFor(null); setEditItem(it.id); }}>Edit image</button>}
                           <button type="button" onClick={() => { setMenuFor(null); removeItem(it.id); }}>Remove</button>
                         </div>
@@ -756,12 +757,12 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
       </form>
 
       {expand && (
-        <div className="overlay cpm-lightbox" onClick={(e) => { e.stopPropagation(); setExpand(null); }}>
-          {expand.isVideo
-            ? <video src={expand.url} controls autoPlay onClick={(e) => e.stopPropagation()} />
-            : <img src={expand.url} alt="" onClick={(e) => e.stopPropagation()} />}
-          <button type="button" className="cpm-lightbox-x" aria-label="Close"><X size={16} /></button>
-        </div>
+        <MediaViewerModal
+          item={expand}
+          initialAlt={expand.alt || ""}
+          onClose={() => setExpand(null)}
+          onSave={(alt) => setItems((prev) => prev.map((x) => (x.id === expand.id ? { ...x, alt } : x)))}
+        />
       )}
 
       {editItem && (() => {

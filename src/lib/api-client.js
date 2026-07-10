@@ -98,6 +98,13 @@ async function requestJson(url, options = {}, { timeoutMs = DEFAULT_TIMEOUT_MS, 
   throw lastError || new Error("Request failed after retries");
 }
 
+export function generateAltText({ imageUrl }) {
+  return requestJson("/api/captions", {
+    method: "POST",
+    body: JSON.stringify({ intent: "alt_text", imageUrl }),
+  }, { timeoutMs: 30000 });
+}
+
 export function generateCaption({ platform, prompt, brandProfile }) {
   return requestJson("/api/captions", {
     method: "POST",

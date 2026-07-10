@@ -33,7 +33,7 @@ export function MediaGallery({ items, onReorder, onRemove, onAdd, onOpen, onEdit
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOverIdx(i); }}
           onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
           onDrop={(e) => { e.preventDefault(); e.stopPropagation(); drop(i); }}
-          onClick={() => onOpen?.(it)}
+          onClick={() => onOpen?.(it, i)}
         >
           {it.isVideo ? <video src={it.url} muted playsInline /> : <img src={it.url} alt="" />}
           <span className="mg-thumb-n">{i + 1}</span>
