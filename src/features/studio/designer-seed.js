@@ -12,9 +12,20 @@ import { uid } from "./shared.js";
 //    after a visit must merge in; all-or-nothing loses them.)
 export function seedPages(row, makeDefaultElements) {
   const galleryItems = (Array.isArray(row?.mediaItems) ? row.mediaItems : []).filter((it) => it?.url);
+  // One canvas per gallery item: plain dark background + the image as a
+  // regular UNLOCKED element, so it's draggable/scalable immediately.
+  // No width/height — CanvasElement measures the media on load and fits
+  // it inside the canvas margins.
   const canvasFor = (it) => ({
     id: uid(),
-    elements: [{ id: "bg", type: "image", url: it.url, x: 0, y: 0, scale: 1, locked: true, mediaType: it.kind === "video" ? "video" : "image" }],
+    elements: [
+      { id: "bg", type: "image", url: null, fill: "#080A0E", x: 0, y: 0, scale: 1, locked: true, mediaType: "image" },
+      {
+        id: uid(), type: "image", url: it.url, x: 15, y: 27, scale: 1, locked: false,
+        mediaType: it.kind === "video" ? "video" : "image",
+        ...(it.kind === "video" ? { loop: true, muted: true, autoPlay: true } : {}),
+      },
+    ],
   });
 
   const saved = Array.isArray(row?.storyPages) && row.storyPages.length ? row.storyPages : null;
