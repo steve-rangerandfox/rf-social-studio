@@ -28,6 +28,7 @@ describe("normalizeRow field preservation", () => {
     publishMode: "manual",
     storyLink: "https://rangerandfox.tv",
     platforms: ["ig_post", "linkedin"],
+    firstComment: "First comment with #hashtags",
   });
 
   it("keeps media + editorial + scheduler write-back fields", () => {
@@ -48,6 +49,7 @@ describe("normalizeRow field preservation", () => {
     expect(row.publishMode).toBe("manual");
     expect(row.storyLink).toBe("https://rangerandfox.tv");
     expect(row.platforms).toEqual(["ig_post", "linkedin"]);
+    expect(row.firstComment).toBe("First comment with #hashtags");
   });
 
   it("survives an unrelated patch (the original data-loss bug)", () => {

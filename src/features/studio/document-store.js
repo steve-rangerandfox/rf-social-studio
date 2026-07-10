@@ -189,6 +189,9 @@ export function normalizeRow(row, actor = "system") {
     // Instagram Story link sticker, which the API can't attach).
     publishMode: row.publishMode === "manual" ? "manual" : "auto",
     storyLink: typeof row.storyLink === "string" ? row.storyLink : "",
+    // First comment to post right after the post itself (customize step);
+    // stored now, publish-path wiring is a follow-up.
+    firstComment: typeof row.firstComment === "string" ? row.firstComment : "",
     order: Number.isFinite(row.order) ? row.order : 0,
     createdAt: row.createdAt || now,
     createdBy: row.createdBy || actor,
