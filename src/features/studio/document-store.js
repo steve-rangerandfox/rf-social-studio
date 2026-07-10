@@ -176,6 +176,11 @@ export function normalizeRow(row, actor = "system") {
     // designer saves pages; storyElements stays as page 0 for back-compat
     // (scheduler/export read storyElements).
     storyPages: Array.isArray(row.storyPages) ? row.storyPages : null,
+    // Designer per-outlet state: arrangements per canvas size + the size
+    // the designer was last viewing. Stripping these resets every outlet
+    // layout on save (gotcha #1 class).
+    storyLayouts: row.storyLayouts && typeof row.storyLayouts === "object" ? row.storyLayouts : null,
+    storyPreset: typeof row.storyPreset === "string" ? row.storyPreset : null,
     // Multi-frame story publishing: one frame per canvas as { url, kind }
     // (kind "image" | "video"), plus resume bookkeeping the scheduler writes
     // back after a partial publish. storyFrameUrls is the legacy (image-only)

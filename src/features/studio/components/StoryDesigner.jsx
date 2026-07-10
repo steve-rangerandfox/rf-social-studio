@@ -690,6 +690,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // frames rendered before the edit.
   const renderedRef = useRef(false);
   const firstSaveRef = useRef(true);
+  // True once ANY edit lands this session. closeAndSave must not decide
+  // from the `row` prop — it's the open-time snapshot and never sees the
+  // auto-save invalidation, so a previously-designed post would skip the
+  // close render and be left with its frames nulled (the "edits
+  // disappear on close" bug).
+  const dirtyRef = useRef(false);
 
   // Auto-save elements to parent row whenever they change.
   // Persist every page; keep storyElements = page 0 for scheduler/export.
@@ -705,13 +711,15 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     if (firstSaveRef.current) {
       // Initial mount — don't wipe frames just because the designer opened.
       firstSaveRef.current = false;
-    } else if (renderedRef.current || row?.storyFrames || row?.storyFrameUrls || row?.mediaUrl) {
-      // The design changed after a render (this session or a prior one) — drop
-      // the now-stale flattened frames so a re-render is required before publishing.
-      renderedRef.current = false;
-      Object.assign(patch, { storyFrames: null, storyFrameUrls: null, storyFramesPosted: 0, storyFrameIds: null, mediaUrl: null, thumbnailUrl: null });
-      if (postState === "done") setPostState("idle");
-      
+    } else {
+      dirtyRef.current = true; // a real edit — the close must re-render
+      if (renderedRef.current || row?.storyFrames || row?.storyFrameUrls || row?.mediaUrl) {
+        // The design changed after a render (this session or a prior one) — drop
+        // the now-stale flattened frames so a re-render is required before publishing.
+        renderedRef.current = false;
+        Object.assign(patch, { storyFrames: null, storyFrameUrls: null, storyFramesPosted: 0, storyFrameIds: null, mediaUrl: null, thumbnailUrl: null });
+        if (postState === "done") setPostState("idle");
+      }
     }
     onUpdate(patch);
   }, [pages, onUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1597,6 +1605,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         storyFrameIds: [],
       });
       renderedRef.current = true; // a later canvas edit will invalidate these frames
+      dirtyRef.current = false; // rendered frames now reflect every edit
       setPostState("done");
     } catch {
       setPostState("idle");
@@ -1677,7 +1686,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // the frames before closing — no button, it just happens.
   const closeAndSave = async () => {
     if (postState === "posting") return;
-    const hasFrames = renderedRef.current || !!row?.storyFrames;
+    // Session edits ALWAYS re-render on close (dirtyRef) — `row` is the
+    // open-time snapshot, so row.storyFrames can't be trusted after the
+    // auto-save invalidation nulled the real row's frames.
+    const hasFrames = !dirtyRef.current && (renderedRef.current || !!row?.storyFrames);
     if (!hasFrames) {
       try { await doPost(); } catch { /* close anyway — the publish gate catches unrendered rows */ }
     }

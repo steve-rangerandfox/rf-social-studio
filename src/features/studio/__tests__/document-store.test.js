@@ -29,6 +29,9 @@ describe("normalizeRow field preservation", () => {
     storyLink: "https://rangerandfox.tv",
     platforms: ["ig_post", "linkedin"],
     firstComment: "First comment with #hashtags",
+    storyLayouts: { ig_post: [[{ id: "bg" }]], linkedin: [[{ id: "bg" }]] },
+    storyPreset: "linkedin",
+    storyFrameIds: ["f1", "f2"],
   });
 
   it("keeps media + editorial + scheduler write-back fields", () => {
@@ -50,6 +53,11 @@ describe("normalizeRow field preservation", () => {
     expect(row.storyLink).toBe("https://rangerandfox.tv");
     expect(row.platforms).toEqual(["ig_post", "linkedin"]);
     expect(row.firstComment).toBe("First comment with #hashtags");
+    // Designer per-outlet state — losing these resets outlet layouts and
+    // the size dropdown on every save (gotcha #1 class).
+    expect(row.storyLayouts).toEqual({ ig_post: [[{ id: "bg" }]], linkedin: [[{ id: "bg" }]] });
+    expect(row.storyPreset).toBe("linkedin");
+    expect(row.storyFrameIds).toEqual(["f1", "f2"]);
   });
 
   it("survives an unrelated patch (the original data-loss bug)", () => {
