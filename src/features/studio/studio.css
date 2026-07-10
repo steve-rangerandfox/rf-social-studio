@@ -849,6 +849,16 @@ input,textarea,select,button{font-family:inherit}
 .el-outline{position:absolute;inset:calc(-2px/var(--sd-zoom,1));border:calc(1px/var(--sd-zoom,1)) dashed rgba(255,90,31,0.5);border-radius:calc(2px/var(--sd-zoom,1));pointer-events:none;opacity:0;transition:opacity 0.1s}
 .element-selected .el-outline{opacity:1;border-color:var(--accent);border-style:solid}
 .element-editing .el-outline{border-color:var(--accent);border-style:solid;box-shadow:0 0 0 calc(2px/var(--sd-zoom,1)) rgba(255,90,31,0.15)}
+/* Unclipped selection chrome mirror — sibling of the clipped .canvas in
+   the same (zoomed) coordinate space, so every dimension divides by
+   --sd-zoom like the real chrome (gotcha #5). Purely visual. */
+.sd-ghost-layer{position:absolute;inset:0;pointer-events:none;z-index:45}
+.sd-ghost-box{position:absolute;border:calc(1px/var(--sd-zoom,1)) solid var(--accent);border-radius:calc(2px/var(--sd-zoom,1));margin:calc(-2px/var(--sd-zoom,1))}
+.sd-ghost-h{position:absolute;width:calc(7px/var(--sd-zoom,1));height:calc(7px/var(--sd-zoom,1));background:var(--t-surface);border:calc(1px/var(--sd-zoom,1)) solid var(--accent);border-radius:50%;box-shadow:0 calc(1px/var(--sd-zoom,1)) calc(3px/var(--sd-zoom,1)) rgba(0,0,0,0.15)}
+.sd-ghost-h.nw{top:calc(-4px/var(--sd-zoom,1));left:calc(-4px/var(--sd-zoom,1))}
+.sd-ghost-h.ne{top:calc(-4px/var(--sd-zoom,1));right:calc(-4px/var(--sd-zoom,1))}
+.sd-ghost-h.sw{bottom:calc(-4px/var(--sd-zoom,1));left:calc(-4px/var(--sd-zoom,1))}
+.sd-ghost-h.se{bottom:calc(-4px/var(--sd-zoom,1));right:calc(-4px/var(--sd-zoom,1))}
 .element-editing{cursor:text !important}
 /* Transform handles — divided by the canvas zoom (--sd-zoom, set on
    .canvas-wrap) so they render a constant ~9px on screen at any zoom

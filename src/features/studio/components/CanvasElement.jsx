@@ -374,6 +374,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
   return (
     <div
       className={"element-wrap " + (isSelected ? "element-selected" : "") + (isEditing ? " element-editing" : "") + (data.type === 'shape' && data.shape === 'line' ? " el-linear" : "")}
+      data-elid={data.id}
       style={wrapperStyle}
       onPointerDown={isEditing ? undefined : handleDrag}
       onClick={(e) => { e.stopPropagation(); onSelect(data.id, e.shiftKey); }}
