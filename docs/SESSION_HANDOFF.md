@@ -1,4 +1,4 @@
-# Relay — Session Handoff (2026-07-09)
+# Relay — Session Handoff (2026-07-09, updated after PRs #99–#104)
 
 Continuation kit for the Relay build sessions (Ranger & Fox social media studio).
 A new Claude Code session with this repo + this file can pick up exactly where we left off.
@@ -28,7 +28,7 @@ Connected services (config lives in their dashboards, not the repo):
 - All work on branch `claude/relaxed-thompson-eqmpln`. Never push other branches.
 - Ship loop: commit → push → open PR → **squash-merge to `main`** (Vercel auto-deploys) → reset the branch: `git fetch origin main && git checkout -B claude/relaxed-thompson-eqmpln origin/main && git push -u origin claude/relaxed-thompson-eqmpln --force-with-lease`.
 - User says "deploy" (or has an established cadence of every fix going live) → do the full loop without asking.
-- Verify before every ship: `npm run build` · `npx vitest run` (66 tests as of handoff) · `npx eslint src` (0 errors; a couple of pre-existing warnings are fine).
+- Verify before every ship: `npm run build` · `npx vitest run` (115 tests as of PR #104) · `npx eslint src` (0 errors; a couple of pre-existing warnings are fine).
 - Commit trailer: `Co-Authored-By: Claude <noreply@anthropic.com>`. Never put model IDs in repo artifacts.
 - GitHub access is via the GitHub MCP tools (no `gh` CLI in the remote env).
 - The user tests on the live site and reports with screenshots — expect visual bug reports; consider Playwright/Chromium (preinstalled in the remote env) to verify UI before shipping.
@@ -76,14 +76,15 @@ Typography/icon system (Radix behind lucide-style API) · watermark removal · c
 
 ## 7. Open queue (in priority order)
 
-1. **Universal Post Designer** (plan approved by user, not yet built):
+Shipped since the original handoff (PRs #99–#104): channel capability matrix (`capabilities.js` — `planUpload`/`validatePostMedia`, violation dialog wired into every drop/upload in AddPostModal + DetailPanel) · designer seeding merge fix (`designer-seed.js` — new gallery images always land on their own canvases, even after a prior designer visit) · Buffer-parity Create Post flow from the user's reference screenshots (avatar channel row + searchable picker, Tags/Templates/AI Assistant header, in-composer toolbar, tile hover controls + Edit Image crop/rotate/flip modal, lightbox, Next Available scheduling, customize-for-each-network step forking one post per channel with IG Post/Reel/Story radio + First Comment field `firstComment`).
+
+1. **Universal Post Designer re-layout** (plan approved, capability layer done):
    - Layout L→R: icon rail (exact current designer rail) → collapsible slides panel (carousel-composer style thumbs: reorder/delete/add, live mini-previews; replaces bottom page strip) → canvas workspace (keep top bar/zoom; canvases square) → permanent right properties panel (selection-contextual: background / text incl. fonts+weights / shape stroke / media filters; content moves from left props drawer)
    - Absorb carousel composer: its 5 slide layouts (Title/Number/Photo/Quote/CTA) become one-click layout presets stamping real editable elements; gradient presets join background panel; then retire CarouselComposer + cc2 CSS
-   - **Channel capability matrix** (`capabilities.js` + tests) — verified facts: IG carousel = 2–10 items, images AND videos OK; LinkedIn multi-image = 2–20 IMAGES ONLY (video = separate single post ≤10min; organic document carousel NOT in API); IG story = image or video 3–60s/frame; Reel = video ≤90s via API; TikTok = video 3s–10min OR photo carousel ≤35, no mixing
-   - Enforcement: drop/upload violating a channel → dialog naming the channel with actions (switch type / remove channel / cancel); slide-count caps; duration checks
 2. **LinkedIn multi-image publish** — data (`mediaItems`) is stored and ready; scheduler's LinkedIn path still publishes single media. Needs LinkedIn MultiImage API wiring in `src/server/linkedin.js` + scheduler.
-3. **Owner env checklist** (user action, keeps resurfacing): `ANTHROPIC_API_KEY` (AI captions), Stripe price IDs into `STRIPE_PRICE_ESSENTIALS`/`STRIPE_PRICE_TEAM`, enable Vercel Web Analytics, optional `VITE_DEMO_URL`, submit sitemap in Search Console.
-4. Shelf: Meta App Review prep · per-route social share cards (needs prerendering) · CLAUDE.md with the gotcha list above · Playwright smoke test for visual regressions.
+3. **First Comment publish wiring** — `firstComment` is stored on rows (customize step); IG/LinkedIn comment-after-publish calls not wired yet.
+4. **Owner env checklist** (user action, keeps resurfacing): `ANTHROPIC_API_KEY` (AI captions), Stripe price IDs into `STRIPE_PRICE_ESSENTIALS`/`STRIPE_PRICE_TEAM`, enable Vercel Web Analytics, optional `VITE_DEMO_URL`, submit sitemap in Search Console.
+5. Shelf: Buffer customize extras deferred pending API support (Stickers/Location/Shop Grid/AI-label) · multi-video uploads in AddPostModal (munging still keeps first video only) · Meta App Review prep · per-route social share cards (needs prerendering) · CLAUDE.md with the gotcha list above · Playwright smoke test for visual regressions.
 
 ## 8. Verify commands
 
