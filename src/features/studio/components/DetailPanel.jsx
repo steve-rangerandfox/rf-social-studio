@@ -22,6 +22,7 @@ import { MediaGallery } from "./MediaGallery.jsx";
 import { planUpload } from "../capabilities.js";
 import { probeFiles } from "../media-probe.js";
 import { CapabilityDialog } from "./CapabilityDialog.jsx";
+import { EditImageModal } from "./EditImageModal.jsx";
 
 // Buffer-style post editor window: channels + composer on the left, live
 // per-network previews on the right, publish controls in the footer.
@@ -43,7 +44,6 @@ export function DetailPanel() {
   const [isApprovalOpen, setIsApprovalOpen] = useState(false);
   const [isAssigneeOpen, setIsAssigneeOpen] = useState(false);
   const [pending, setPending] = useState([]); // in-flight uploads: { id, url, isVideo }
-  const [activeIdx, setActiveIdx] = useState(0);
   const [mediaWarnings, setMediaWarnings] = useState([]);
   const [mediaUploading, setMediaUploading] = useState(false);
   const [mediaProgress, setMediaProgress] = useState(0);
@@ -55,6 +55,9 @@ export function DetailPanel() {
   const [isCrossPostOpen, setIsCrossPostOpen] = useState(false);
   // Capability violation awaiting a user decision: { files, plan }
   const [capIssue, setCapIssue] = useState(null);
+  // Tile interactions: lightbox + Edit Image modal (Buffer pattern)
+  const [expandMedia, setExpandMedia] = useState(null); // { url, isVideo }
+  const [editIdx, setEditIdx] = useState(null);
 
   const titleInputRef = useRef(null);
   const mediaRef = useRef(null);
@@ -77,7 +80,6 @@ export function DetailPanel() {
     setIsApprovalOpen(false);
     setIsAssigneeOpen(false);
     setPending([]);
-    setActiveIdx(0);
     setMediaWarnings([]);
     setPlatformDropdownOpen(false);
     setOutletPickerOpen(false);
@@ -336,15 +338,33 @@ export function DetailPanel() {
     if (idx >= list.length) return; // a pending upload — can't cancel mid-flight
     list.splice(idx, 1);
     commitItems(list);
-    setActiveIdx((a) => Math.max(0, Math.min(a, list.length - 1)));
     if (!list.length) { setMediaWarnings([]); onChange({ thumbnailUrl: null, ...(isReel ? { reelDuration: null } : {}) }); }
   };
 
-  const reorderItems = (nextGallery, nextActive) => {
+  const reorderItems = (nextGallery) => {
     // Only the hosted items reorder; pending uploads sit at the end.
     const list = nextGallery.filter((it) => !it.uploading).map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image" }));
     commitItems(list);
-    setActiveIdx(nextActive);
+  };
+
+  // Edited image comes back as a JPEG blob: re-upload and swap that slot's
+  // hosted URL in place.
+  const applyEdit = async (blob) => {
+    const idx = editIdx;
+    setEditIdx(null);
+    const list = rowItems.map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image" }));
+    if (idx == null || !list[idx]) return;
+    const file = new File([blob], `edit-${Date.now()}.jpg`, { type: "image/jpeg" });
+    setMediaUploading(true);
+    try {
+      const url = await uploadAssetWithProgress(file, (pr) => setMediaProgress(pr));
+      list[idx] = { url, kind: "image" };
+      commitItems(list);
+    } catch (err) {
+      setMediaWarnings((w) => [...new Set([...w, err?.message || "Edit upload failed"])]);
+    }
+    setMediaUploading(false);
+    setMediaProgress(0);
   };
 
   // Explicit custom thumbnail (poster) for a video post.
@@ -363,7 +383,6 @@ export function DetailPanel() {
 
   const clearMedia = () => {
     setPending([]);
-    setActiveIdx(0);
     setMediaWarnings([]);
     onChange({ mediaItems: null, mediaUrl: null, thumbnailUrl: null, mediaKind: null, carouselFrameUrls: null, ...(isReel ? { reelDuration: null } : {}) });
   };
@@ -564,67 +583,34 @@ export function DetailPanel() {
                       <span className="dp2-story-hint">Open the designer to edit frames</span>
                     </div>
                   </div>
-                ) : galleryItems.length >= 2 ? (
-                  // Multi-image / carousel: big active preview + reorderable strip.
+                ) : galleryItems.length >= 1 ? (
+                  // Buffer-style tile row: click to expand, hover pencil to
+                  // edit, drag to reorder — no big active preview.
                   <div className="dp2-gallery-wrap">
                     <MediaGallery
                       items={galleryItems}
-                      activeIdx={Math.min(activeIdx, galleryItems.length - 1)}
-                      onSelect={setActiveIdx}
                       onReorder={reorderItems}
                       onRemove={removeItem}
                       onAdd={allowsMulti ? () => mediaRef.current?.click() : undefined}
+                      onOpen={(it) => setExpandMedia({ url: it.url, isVideo: it.isVideo })}
+                      onEdit={setEditIdx}
                     />
                     <div className="dp2-gallery-meta">
-                      <span>{galleryItems.length} {galleryVideo ? "items" : "images"}{galleryItems.length > 10 ? " · over the 10-item limit" : ""}</span>
+                      <span>{galleryItems.length} {galleryVideo ? (galleryItems.length === 1 ? "item" : "items") : (galleryItems.length === 1 ? "image" : "images")}{galleryItems.length > 10 ? " · over the 10-item limit" : ""}{mediaUploading ? ` · uploading ${mediaProgress > 0 ? Math.round(mediaProgress * 100) + "%" : "…"}` : ""}</span>
                       <button type="button" className="dp2-tile-action" onClick={clearMedia}>Remove all</button>
                     </div>
-                  </div>
-                ) : displayMedia ? (
-                  <div className="cpm-composer-foot">
-                    <div className="dp2-media-cluster">
-                      <div className="dp2-tile-col">
-                        <div className={"cpm-media-thumb" + (mediaUploading ? " uploading" : "")}>
-                          {displayMedia.isVideo
-                            ? <video src={displayMedia.previewUrl} muted loop playsInline autoPlay />
-                            : <img src={displayMedia.previewUrl} alt="" />}
-                          {mediaUploading && (
-                            <>
-                              <span className="dp2-tile-pct">{mediaProgress > 0 ? `${Math.round(mediaProgress * 100)}%` : "…"}</span>
-                              <span className="dp2-tile-bar" style={{ width: `${Math.round(mediaProgress * 100)}%` }} />
-                            </>
-                          )}
-                          <button type="button" className="cpm-media-rm" onClick={clearMedia} aria-label="Remove media"><X size={9} /></button>
-                        </div>
-                        <span className="dp2-tile-lbl">{displayMedia.isVideo ? "Video" : "Image"}</span>
+                    {/* Video posts carry a still thumbnail (auto-captured or
+                        set here) for every <img> preview + the feed. */}
+                    {galleryVideo && (
+                      <div className="dp2-gallery-meta">
+                        <input ref={thumbRef} type="file" accept="image/*" hidden
+                          onChange={(e) => { handleThumbFile(e.target.files?.[0]); e.target.value = ""; }} />
+                        <span>Video thumbnail</span>
+                        <button type="button" className="dp2-tile-action" onClick={() => thumbRef.current?.click()} disabled={thumbUploading}>
+                          {thumbUploading ? "Uploading…" : row.thumbnailUrl ? "Change thumbnail" : "Set thumbnail"}
+                        </button>
                       </div>
-                      {/* Add-more tile for multi-image feed posts */}
-                      {allowsMulti && !displayMedia.isVideo && (
-                        <div className="dp2-tile-col">
-                          <button type="button" className="dp2-thumb-prev empty" onClick={() => mediaRef.current?.click()} title="Add more images">
-                            <Plus size={15} />
-                          </button>
-                          <span className="dp2-tile-lbl">Add more</span>
-                        </div>
-                      )}
-                      {/* Video posts carry a still thumbnail (auto-captured,
-                          or set here) for every <img> preview + the feed. */}
-                      {displayMedia.isVideo && (
-                        <div className="dp2-tile-col">
-                          <input ref={thumbRef} type="file" accept="image/*" hidden
-                            onChange={(e) => { handleThumbFile(e.target.files?.[0]); e.target.value = ""; }} />
-                          <button type="button" className={"dp2-thumb-prev" + (row.thumbnailUrl ? "" : " empty")}
-                            onClick={() => thumbRef.current?.click()} disabled={thumbUploading}
-                            title={row.thumbnailUrl ? "Change the video thumbnail" : "Set a video thumbnail"}>
-                            {row.thumbnailUrl ? <img src={row.thumbnailUrl} alt="Video thumbnail" /> : <ImageIcon size={15} />}
-                            {thumbUploading && <span className="dp2-tile-pct">…</span>}
-                          </button>
-                          <button type="button" className="dp2-tile-lbl dp2-tile-action" onClick={() => thumbRef.current?.click()} disabled={thumbUploading}>
-                            {thumbUploading ? "Uploading…" : row.thumbnailUrl ? "Change thumbnail" : "Set thumbnail"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <div className="cpm-composer-foot">
@@ -841,6 +827,19 @@ export function DetailPanel() {
 
       {isCrossPostOpen && (
         <CrossPostModal sourceRow={row} onClose={() => setIsCrossPostOpen(false)} />
+      )}
+
+      {expandMedia && (
+        <div className="overlay cpm-lightbox" onClick={(e) => { e.stopPropagation(); setExpandMedia(null); }}>
+          {expandMedia.isVideo
+            ? <video src={expandMedia.url} controls autoPlay onClick={(e) => e.stopPropagation()} />
+            : <img src={expandMedia.url} alt="" onClick={(e) => e.stopPropagation()} />}
+          <button type="button" className="cpm-lightbox-x" aria-label="Close"><X size={16} /></button>
+        </div>
+      )}
+
+      {editIdx != null && rowItems[editIdx] && (
+        <EditImageModal src={rowItems[editIdx].url} onCancel={() => setEditIdx(null)} onApply={applyEdit} />
       )}
 
       {capIssue && (
