@@ -568,6 +568,13 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     setActivePageIdx(idx);
     resetPageEditState(pages[idx]?.elements || []);
   };
+  // Activating a canvas (slides panel or board click) glides it to the
+  // center of the workspace. Runs after render so .active is applied.
+  const canvasRowRef = useRef(null);
+  useEffect(() => {
+    canvasRowRef.current?.querySelector(".sd-board.active")
+      ?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [activePageIdx]);
   const addPage = (duplicate) => {
     setPageMenuOpen(false);
     const src = pages[activePageIdx];
@@ -2571,7 +2578,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                    editing machinery; clicking any other board activates it.
                    Each frame is sized to the ZOOMED dimensions so the scaled
                    canvases occupy real layout space and never overlap. ── */}
-            <div className={"sd-canvas-row" + (pages.length > 1 ? " multi" : "")}>
+            <div className={"sd-canvas-row" + (pages.length > 1 ? " multi" : "")} ref={canvasRowRef}>
             {pages.map((pg, i) => {
               const isActive = i === activePageIdx;
               const sp = spanInfoFor(i);

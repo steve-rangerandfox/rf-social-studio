@@ -2390,7 +2390,7 @@ input,textarea,select,button{font-family:inherit}
 .sd-props-body{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 
 /* Slides panel — live thumb per canvas (replaces the bottom page strip) */
-.sd-slides{width:132px;flex-shrink:0;display:flex;flex-direction:column;background:var(--t-surface);border-right:1px solid var(--t-border);overflow:hidden;animation:drawerIn 0.15s ease-out}
+.sd-slides{width:132px;flex-shrink:0;order:5;display:flex;flex-direction:column;background:var(--t-surface);border-left:1px solid var(--t-border);overflow:hidden;animation:drawerIn 0.15s ease-out}
 .sd-slides-head{display:flex;align-items:center;justify-content:space-between;padding:10px 10px;border-bottom:1px solid var(--t-border);flex-shrink:0;font:700 10.5px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--t-text)}
 .sd-slides-head button{display:flex;background:transparent;border:none;cursor:pointer;color:var(--t-text-dim);padding:2px}
 .sd-slides-head button:hover{color:var(--t-text)}
@@ -2409,7 +2409,7 @@ input,textarea,select,button{font-family:inherit}
 .sd-slides-tool:hover{border-color:var(--t-ink);color:var(--t-ink);border-style:solid}
 .sd-slides-span{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 10px 10px;min-height:30px;padding:5px 6px;white-space:nowrap;border:1px solid var(--t-border);border-radius:var(--radius-sm);background:var(--t-surface);color:var(--t-text-sub);cursor:pointer;font:600 10.5px var(--font-body);transition:border-color var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out);flex-shrink:0}
 .sd-slides-span:hover{border-color:var(--t-border2);color:var(--t-text)}
-.sd-slides-collapsed{width:30px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;padding:12px 0;background:var(--t-surface);border:none;border-right:1px solid var(--t-border);color:var(--t-text-sub);cursor:pointer;transition:color var(--duration-fast) var(--ease-out)}
+.sd-slides-collapsed{width:30px;flex-shrink:0;order:5;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:6px;padding:12px 0;background:var(--t-surface);border:none;border-left:1px solid var(--t-border);color:var(--t-text-sub);cursor:pointer;transition:color var(--duration-fast) var(--ease-out)}
 .sd-slides-collapsed:hover{color:var(--t-text)}
 .sd-slides-collapsed span{font:700 10px var(--font-mono)}
 .sd-page-add-wrap{position:relative}
