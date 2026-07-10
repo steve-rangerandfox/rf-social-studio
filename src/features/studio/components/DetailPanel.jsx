@@ -23,6 +23,7 @@ import { planUpload } from "../capabilities.js";
 import { probeFiles } from "../media-probe.js";
 import { CapabilityDialog } from "./CapabilityDialog.jsx";
 import { EditImageModal } from "./EditImageModal.jsx";
+import { MediaViewerModal } from "./MediaViewerModal.jsx";
 
 // Buffer-style post editor window: channels + composer on the left, live
 // per-network previews on the right, publish controls in the footer.
@@ -164,13 +165,13 @@ export function DetailPanel() {
   // Canonical gallery for this row: mediaItems if present, else a single
   // item synthesized from the legacy mediaUrl.
   const rowItems = Array.isArray(row.mediaItems) && row.mediaItems.length
-    ? row.mediaItems.map((it) => ({ url: it.url, isVideo: urlIsVideo(it.url, it.kind) }))
+    ? row.mediaItems.map((it) => ({ url: it.url, isVideo: urlIsVideo(it.url, it.kind), alt: it.alt || "" }))
     : row.mediaUrl
-      ? [{ url: row.mediaUrl, isVideo: urlIsVideo(row.mediaUrl, row.mediaKind) }]
+      ? [{ url: row.mediaUrl, isVideo: urlIsVideo(row.mediaUrl, row.mediaKind), alt: "" }]
       : [];
   // Hosted items + in-flight uploads, in one list for the gallery.
   const galleryItems = [
-    ...rowItems.map((it, i) => ({ id: `row-${i}-${it.url}`, url: it.url, isVideo: it.isVideo, uploading: false })),
+    ...rowItems.map((it, i) => ({ id: `row-${i}-${it.url}`, url: it.url, isVideo: it.isVideo, alt: it.alt, uploading: false })),
     ...pending.map((p) => ({ id: p.id, url: p.url, isVideo: p.isVideo, uploading: true })),
   ];
   const primary = galleryItems[0] || null;
@@ -334,7 +335,7 @@ export function DetailPanel() {
   };
 
   const removeItem = (idx) => {
-    const list = rowItems.map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image" }));
+    const list = rowItems.map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image", ...(it.alt ? { alt: it.alt } : {}) }));
     if (idx >= list.length) return; // a pending upload — can't cancel mid-flight
     list.splice(idx, 1);
     commitItems(list);
@@ -343,7 +344,7 @@ export function DetailPanel() {
 
   const reorderItems = (nextGallery) => {
     // Only the hosted items reorder; pending uploads sit at the end.
-    const list = nextGallery.filter((it) => !it.uploading).map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image" }));
+    const list = nextGallery.filter((it) => !it.uploading).map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image", ...(it.alt ? { alt: it.alt } : {}) }));
     commitItems(list);
   };
 
@@ -352,7 +353,7 @@ export function DetailPanel() {
   const applyEdit = async (blob) => {
     const idx = editIdx;
     setEditIdx(null);
-    const list = rowItems.map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image" }));
+    const list = rowItems.map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image", ...(it.alt ? { alt: it.alt } : {}) }));
     if (idx == null || !list[idx]) return;
     const file = new File([blob], `edit-${Date.now()}.jpg`, { type: "image/jpeg" });
     setMediaUploading(true);
@@ -592,7 +593,7 @@ export function DetailPanel() {
                       onReorder={reorderItems}
                       onRemove={removeItem}
                       onAdd={allowsMulti ? () => mediaRef.current?.click() : undefined}
-                      onOpen={(it) => setExpandMedia({ url: it.url, isVideo: it.isVideo })}
+                      onOpen={(it, i) => setExpandMedia({ url: it.url, isVideo: it.isVideo, idx: i, alt: it.alt || "" })}
                       onEdit={setEditIdx}
                     />
                     <div className="dp2-gallery-meta">
@@ -830,12 +831,18 @@ export function DetailPanel() {
       )}
 
       {expandMedia && (
-        <div className="overlay cpm-lightbox" onClick={(e) => { e.stopPropagation(); setExpandMedia(null); }}>
-          {expandMedia.isVideo
-            ? <video src={expandMedia.url} controls autoPlay onClick={(e) => e.stopPropagation()} />
-            : <img src={expandMedia.url} alt="" onClick={(e) => e.stopPropagation()} />}
-          <button type="button" className="cpm-lightbox-x" aria-label="Close"><X size={16} /></button>
-        </div>
+        <MediaViewerModal
+          item={expandMedia}
+          initialAlt={expandMedia.alt || ""}
+          onClose={() => setExpandMedia(null)}
+          onSave={(alt) => {
+            const idx = expandMedia.idx;
+            if (idx == null || idx >= rowItems.length) return; // pending upload — nothing committed yet
+            const list = rowItems.map((it) => ({ url: it.url, kind: it.isVideo ? "video" : "image", ...(it.alt ? { alt: it.alt } : {}) }));
+            if (alt) list[idx].alt = alt; else delete list[idx].alt;
+            commitItems(list);
+          }}
+        />
       )}
 
       {editIdx != null && rowItems[editIdx] && (

@@ -2,6 +2,7 @@
 // to src/server/ai.js which wraps the Anthropic Messages API.
 
 import {
+  generateAltText,
   generateCaption,
   generateCaptionVariants,
   generateMonthlyStrategy,
@@ -23,6 +24,7 @@ const logger = createLogger("rf-social-studio-api");
 const INTENT_FEATURE = {
   caption: "aiCaptions",
   story_tips: "aiCaptions",
+  alt_text: "aiCaptions",
   variants: "aiVariants",
   learn_brand: "learnFromUrl",
   strategy: "aiStrategy",
@@ -67,6 +69,11 @@ export async function handleCaptionRequest(req, res, env, reqId, auth) {
     if (intent === "story_tips") {
       const tips = await generateStoryTips(env, body.board);
       return json(res, 200, { tips });
+    }
+
+    if (intent === "alt_text") {
+      const alt = await generateAltText(env, { imageUrl: body.imageUrl });
+      return json(res, 200, { alt });
     }
 
     const brandProfile = body.brandProfile && typeof body.brandProfile === "object" ? body.brandProfile : null;

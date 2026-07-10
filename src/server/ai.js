@@ -167,6 +167,24 @@ export async function generateCaption(env, { platform, prompt, brandProfile }) {
   return text.trim().slice(0, MAX_CAPTION_CHARS);
 }
 
+// Alt text for the media viewer: Claude vision reads the hosted image by
+// URL (Anthropic fetches it — our server never downloads the bytes).
+const MAX_ALT_CHARS = 1000;
+export async function generateAltText(env, { imageUrl }) {
+  const text = await callAnthropic(env, {
+    system:
+      "You write alt text for social media images. Describe the essential visual content " +
+      "for someone using a screen reader: subject, setting, mood. Aim for one or two " +
+      "sentences under 200 characters. No preamble, no quotes — return only the alt text.",
+    user: [
+      { type: "image", source: { type: "url", url: imageUrl } },
+      { type: "text", text: "Write the alt text for this image." },
+    ],
+    maxTokens: 300,
+  });
+  return text.trim().slice(0, MAX_ALT_CHARS);
+}
+
 // Single Anthropic call that returns one caption per requested
 // platform, tuned to platform conventions. Returns an array of
 // { platform, caption } — platforms that the model didn't produce a

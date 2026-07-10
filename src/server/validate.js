@@ -70,8 +70,16 @@ export function validateCaptionRequest(body) {
   }
 
   const intent = body.intent || "caption";
-  if (!["caption", "story_tips", "variants", "learn_brand", "strategy"].includes(intent)) {
+  if (!["caption", "story_tips", "variants", "learn_brand", "strategy", "alt_text"].includes(intent)) {
     errors.push(`Invalid intent: ${intent}`);
+  }
+
+  if (intent === "alt_text") {
+    if (typeof body.imageUrl !== "string" || !body.imageUrl.startsWith("https://")) {
+      errors.push("imageUrl must be an https url");
+    } else if (body.imageUrl.length > 2048) {
+      errors.push("imageUrl is too long");
+    }
   }
 
   if (intent === "strategy") {
