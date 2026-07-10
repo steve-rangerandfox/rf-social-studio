@@ -52,6 +52,14 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
   const [menuFor, setMenuFor] = useState(null);
   const [expand, setExpand] = useState(null); // { url, isVideo }
   const [editItem, setEditItem] = useState(null); // item id
+  // Customize-for-each-network step: one draft per selected channel,
+  // forked from the shared caption/media, edited independently, and
+  // created as one post per channel on Schedule Posts (Buffer flow).
+  const [mode, setMode] = useState("compose"); // "compose" | "customize"
+  const [drafts, setDrafts] = useState([]); // [{ channel, caption, firstComment, items }]
+  const [expandedIdx, setExpandedIdx] = useState(0);
+  const draftFileRef = useRef(null);
+  const [draftDragOver, setDraftDragOver] = useState(false);
   const [dateValue, setDateValue] = useState(() => {
     const y = safeDate.getFullYear();
     const m = String(safeDate.getMonth() + 1).padStart(2, "0");
@@ -218,8 +226,105 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
     setOpenPop(null);
   };
 
+  // ── Customize step ──────────────────────────────────────────────
+  const enterCustomize = () => {
+    if (channels.length === 0) return;
+    setDrafts((prev) => {
+      // Keep per-network edits when re-entering with the same channel set.
+      if (prev.length && prev.map((d) => d.channel).join() === channels.join()) return prev;
+      return channels.map((k) => ({ channel: k, caption, firstComment: "", items: [...items] }));
+    });
+    setExpandedIdx(0);
+    setMode("customize");
+  };
+
+  const setDraft = (idx, patch) => setDrafts((prev) => prev.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
+  const setDraftItems = (idx, updater) => setDrafts((prev) => prev.map((d, i) =>
+    (i === idx ? { ...d, items: typeof updater === "function" ? updater(d.items) : updater } : d)));
+
+  // Draft-scoped upload — same tile pipeline as the shared composer but
+  // writing into one draft's gallery.
+  const draftUpload = (idx, files, channel) => {
+    const videoFile = files.find((f) => f.type.startsWith("video/"));
+    const single = channel === "ig_story" || channel === "ig_reel";
+    const multi = !single && !videoFile;
+    const chosen = multi ? files.filter((f) => f.type.startsWith("image/")) : [videoFile || files[0]];
+    for (const file of chosen) {
+      let err0 = null;
+      try { checkFileSize(file); } catch (err) { err0 = err.message; }
+      const isVideo = file.type.startsWith("video/");
+      const blobUrl = URL.createObjectURL(file);
+      const id = "m" + Math.random().toString(36).slice(2, 8);
+      const tile = { id, url: blobUrl, publicUrl: null, uploading: !err0, progress: 0, isVideo, error: err0 };
+      setDraftItems(idx, (prev) => (multi ? [...prev, tile] : [tile]));
+      if (err0) continue;
+      uploadAssetWithProgress(file, (pr) => setDraftItems(idx, (prev) => prev.map((it) => (it.id === id ? { ...it, progress: pr } : it))))
+        .then((url) => setDraftItems(idx, (prev) => prev.map((it) => (it.id === id ? { ...it, publicUrl: url, uploading: false } : it))))
+        .catch((e) => setDraftItems(idx, (prev) => prev.map((it) => (it.id === id ? { ...it, uploading: false, error: e?.message || "Upload failed" } : it))));
+    }
+  };
+
+  const handleDraftFiles = async (idx, fileList) => {
+    const d = drafts[idx];
+    if (!d) return;
+    const files = Array.from(fileList || []).filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (!files.length) return;
+    const additions = await probeFiles(files);
+    const existing = d.items.map((it) => ({ kind: it.isVideo ? "video" : "image" }));
+    const plan = planUpload([d.channel], existing, additions);
+    if (!plan.ok) { setCapIssue({ files, plan, draftIdx: idx }); return; }
+    draftUpload(idx, files, d.channel);
+  };
+
+  const removeDraftItem = (idx, id) => setDraftItems(idx, (prev) => {
+    const it = prev.find((x) => x.id === id);
+    if (it?.url?.startsWith("blob:")) URL.revokeObjectURL(it.url);
+    return prev.filter((x) => x.id !== id);
+  });
+
+  const draftsUploading = drafts.some((d) => d.items.some((it) => it.uploading));
+
+  const draftMediaFields = (d) => {
+    const list = d.items.filter((x) => x.publicUrl).map((x) => ({ url: x.publicUrl, kind: x.isVideo ? "video" : "image" }));
+    const isCarousel = list.length >= 2;
+    const hasVideo = list.some((x) => x.kind === "video");
+    return {
+      mediaUrl: list[0]?.url || null,
+      mediaItems: list.length ? list : null,
+      mediaKind: isCarousel ? "carousel" : hasVideo ? "video" : list.length ? "image" : null,
+      thumbnailUrl: list.find((x) => x.kind !== "video")?.url || null,
+    };
+  };
+
+  // One post per channel — the scheduler already publishes per row, so
+  // customized posts need no new publish paths.
+  const scheduleAll = () => {
+    if (!drafts.length || draftsUploading) return;
+    drafts.forEach((d, i) => {
+      onCreate({
+        title: (d.caption || caption).trim().split("\n")[0].slice(0, 64) || "Untitled post",
+        caption: d.caption.trim(),
+        dateValue,
+        timeValue,
+        platform: d.channel,
+        platforms: [d.channel],
+        ...(tags.length ? { tags } : {}),
+        ...(d.firstComment.trim() ? { firstComment: d.firstComment.trim() } : {}),
+        ...draftMediaFields(d),
+        // Keep the window open for every post but the last (and for the
+        // last too when Create Another is checked).
+        createAnother: i < drafts.length - 1 || createAnother,
+      });
+    });
+    if (createAnother) {
+      setCaption(""); clearMedia(); setTags([]); setDrafts([]); setMode("compose");
+      captionRef.current?.focus();
+    }
+  };
+
+  const canSchedule = drafts.length > 0 && drafts.every((d) => d.caption.trim()) && dateValue && timeValue && !draftsUploading;
+
   const hasContent = !!caption.trim() || items.length > 0;
-  const canCreate = caption.trim() && channels.length > 0 && dateValue && timeValue && !uploading;
   const whenLabel = useMemo(() => {
     if (!dateValue || !timeValue) return "Pick a time";
     const d = new Date(`${dateValue}T${timeValue}:00`);
@@ -236,12 +341,12 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
     ...mediaFields(),
   });
 
+  // Enter (form submit) follows the Buffer flow: compose → customize
+  // step; customize → Schedule Posts.
   const submit = (event) => {
     event.preventDefault();
-    if (!canCreate) return;
-    const firstLine = caption.trim().split("\n")[0].slice(0, 64);
-    onCreate({ title: firstLine, ...payload(), createAnother });
-    if (createAnother) { setCaption(""); clearMedia(); setTags([]); captionRef.current?.focus(); }
+    if (mode === "compose") enterCustomize();
+    else scheduleAll();
   };
 
   // "Design it" path: create the post with whatever's filled in (no caption
@@ -272,6 +377,11 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
         {/* ── Header ── */}
         <div className="cpm-head">
           <div className="cpm-head-left">
+            {mode === "customize" && (
+              <button type="button" className="cpm-back" onClick={() => setMode("compose")} aria-label="Back">
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M10.5 3 5.5 8l5 5"/></svg>
+              </button>
+            )}
             <div className="cpm-title">Create Post</div>
             <div className="cpm-pop-anchor" ref={tagsRef}>
               <button type="button" className="cpm-chip" onClick={() => togglePop("tags")} aria-expanded={openPop === "tags"}>
@@ -333,6 +443,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
 
         <div className="cpm-body">
           {/* ── Composer ── */}
+          {mode === "compose" ? (
           <div className="cpm-left">
             {/* Channel avatars — click to toggle; + opens the searchable picker */}
             <div className="cpm-channels">
@@ -493,17 +604,102 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
               </button>
             </div>
           </div>
+          ) : (
+          /* ── Customize for each network: one editor per channel ── */
+          <div className="cpm-left cpm-custom">
+            {drafts.map((d, idx) => {
+              const isIG = d.channel.startsWith("ig_");
+              const max = d.channel === "linkedin" ? 3000 : 2200;
+              if (idx !== expandedIdx) {
+                const thumb = d.items[0];
+                return (
+                  <button key={idx} type="button" className="cpm-net-collapsed" onClick={() => setExpandedIdx(idx)}>
+                    <PlatformIcon platform={d.channel} size={18} />
+                    <span className="cpm-net-collapsed-txt">{d.caption.trim() || "No caption yet"}</span>
+                    {thumb && (thumb.isVideo
+                      ? <video src={thumb.url} muted playsInline />
+                      : <img src={thumb.url} alt="" />)}
+                  </button>
+                );
+              }
+              return (
+                <div key={idx} className={"cpm-net-editor" + (draftDragOver ? " drag" : "")}
+                  onDragOver={(e) => { e.preventDefault(); setDraftDragOver(true); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDraftDragOver(false); }}
+                  onDrop={(e) => { e.preventDefault(); setDraftDragOver(false); handleDraftFiles(idx, e.dataTransfer?.files); }}>
+                  {draftDragOver && (
+                    <div className="cpm-dropveil"><ImageIcon size={22} /><span>Drop files to upload</span></div>
+                  )}
+                  <div className="cpm-net-editor-head">
+                    <PlatformIcon platform={d.channel} size={18} />
+                    {isIG && (
+                      <div className="cpm-ig-type" role="radiogroup" aria-label="Instagram type">
+                        {[["ig_post", "Post"], ["ig_reel", "Reel"], ["ig_story", "Story"]].map(([key, label]) => (
+                          <label key={key} className={"cpm-radio" + (d.channel === key ? " on" : "")}>
+                            <input type="radio" name={`igtype-${idx}`} checked={d.channel === key} onChange={() => setDraft(idx, { channel: key })} />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <textarea className="cpm-txa cpm-txa-net" value={d.caption} placeholder="Write this network's caption…"
+                    onChange={(e) => setDraft(idx, { caption: e.target.value })} />
+                  <div className="cpm-tiles">
+                    {d.items.map((it) => (
+                      <div key={it.id} className={"cpm-tile" + (it.error ? " err" : "")}>
+                        {it.isVideo ? <video src={it.url} muted playsInline /> : <img src={it.url} alt="" />}
+                        {it.uploading && (
+                          <span className="cpm-tile-ring" style={{ "--p": Math.round(it.progress * 100) }}>
+                            <span className="cpm-tile-ring-n">{Math.round(it.progress * 100)}%</span>
+                          </span>
+                        )}
+                        {it.error && <span className="cpm-tile-err" title={it.error}>!</span>}
+                        <button type="button" className="cpm-media-rm" onClick={() => removeDraftItem(idx, it.id)} aria-label="Remove"><X size={9} /></button>
+                      </div>
+                    ))}
+                    <button type="button" className="cpm-tile cpm-tile-add" onClick={() => draftFileRef.current?.click()}>
+                      <ImageIcon size={17} />
+                      <span>Drag &amp; drop or <em>select a file</em></span>
+                    </button>
+                  </div>
+                  <div className="cpm-tools">
+                    <div className="cpm-tools-left">
+                      <button type="button" className="cpm-tool" onClick={() => draftFileRef.current?.click()} title="Add media"><Plus size={14} /></button>
+                      <button type="button" className="cpm-tool" onClick={() => setDraft(idx, { caption: d.caption + "#" })} title="Add hashtag">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M6 2 4.5 14M11.5 2 10 14M2.5 5.5h11M2 10.5h11"/></svg>
+                      </button>
+                    </div>
+                    <span className={"cpm-count" + (d.caption.length > max ? " over" : "")}>{max - d.caption.length}</span>
+                  </div>
+                  <div className="cpm-field-row">
+                    <label htmlFor={`fc-${idx}`}>First Comment</label>
+                    <input id={`fc-${idx}`} value={d.firstComment} placeholder="Your comment"
+                      onChange={(e) => setDraft(idx, { firstComment: e.target.value })} />
+                  </div>
+                </div>
+              );
+            })}
+            <input ref={draftFileRef} type="file" multiple accept="image/*,video/*,image/gif" hidden
+              onChange={(e) => { handleDraftFiles(expandedIdx, e.target.files); e.target.value = ""; }} />
+          </div>
+          )}
 
           {/* ── Preview rail ── */}
           {showPreview && (
             <div className="cpm-right">
               <div className="cpm-right-title">
-                Post Previews
+                {mode === "customize" && drafts[expandedIdx]
+                  ? `${PLATFORMS[drafts[expandedIdx].channel]?.label || "Post"} Preview`
+                  : "Post Previews"}
                 <span className="cpm-info" title="Previews approximate how each network renders your post.">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v3.6"/><circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/></svg>
                 </span>
               </div>
-              {channels.length === 0 || !hasContent ? (
+              {mode === "customize" && drafts[expandedIdx] ? (
+                <NetworkPreview platform={drafts[expandedIdx].channel} caption={drafts[expandedIdx].caption.trim()}
+                  items={drafts[expandedIdx].items.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo }))} />
+              ) : channels.length === 0 || !hasContent ? (
                 <PreviewEmptyState />
               ) : (
                 channels.map((k) => <NetworkPreview key={k} platform={k} caption={caption.trim()} items={items.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo }))} />)
@@ -514,10 +710,18 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
 
         {/* ── Footer ── */}
         <div className="cpm-foot">
-          <label className="cpm-another">
-            <input type="checkbox" checked={createAnother} onChange={(e) => setCreateAnother(e.target.checked)} />
-            Create Another
-          </label>
+          <div className="cpm-foot-left">
+            <label className="cpm-another">
+              <input type="checkbox" checked={createAnother} onChange={(e) => setCreateAnother(e.target.checked)} />
+              Create Another
+            </label>
+            {mode === "customize" && (
+              <button type="button" className="cpm-savedrafts" onClick={scheduleAll} disabled={!canSchedule}
+                title="Save one draft post per network">
+                Save Drafts
+              </button>
+            )}
+          </div>
           <div className="cpm-foot-right">
             <div className="cpm-pop-anchor" ref={whenRef}>
               <button type="button" className="cpm-when-btn" onClick={() => togglePop("when")} aria-expanded={openPop === "when"} title="Scheduled for (PT)">
@@ -537,10 +741,17 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                 </div>
               )}
             </div>
-            <button type="submit" className="btn btn-primary" disabled={!canCreate}
-              title={canCreate ? undefined : uploading ? "Media is still uploading" : "Write a caption and pick at least one channel"}>
-              Create post →
-            </button>
+            {mode === "compose" ? (
+              <button type="submit" className="btn btn-primary" disabled={channels.length === 0 || uploading}
+                title={channels.length === 0 ? "Pick at least one channel" : uploading ? "Media is still uploading" : "Fine-tune the caption and media per network"}>
+                Customize for each network →
+              </button>
+            ) : (
+              <button type="submit" className="btn btn-primary" disabled={!canSchedule}
+                title={canSchedule ? undefined : draftsUploading ? "Media is still uploading" : "Every network needs a caption"}>
+                Schedule Posts
+              </button>
+            )}
           </div>
         </div>
       </form>
@@ -567,7 +778,18 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
             startUpload(capIssue.files, capIssue.plan.remainingChannels);
             setCapIssue(null);
           }}
-          onReplace={() => { clearMedia(); startUpload(capIssue.files); setCapIssue(null); }}
+          onReplace={() => {
+            if (capIssue.draftIdx != null) {
+              const idx = capIssue.draftIdx;
+              const channel = drafts[idx]?.channel;
+              setDraftItems(idx, (prev) => { prev.forEach((it) => it.url?.startsWith("blob:") && URL.revokeObjectURL(it.url)); return []; });
+              if (channel) draftUpload(idx, capIssue.files, channel);
+            } else {
+              clearMedia();
+              startUpload(capIssue.files);
+            }
+            setCapIssue(null);
+          }}
           onCancel={() => setCapIssue(null)} />
       )}
     </div>
