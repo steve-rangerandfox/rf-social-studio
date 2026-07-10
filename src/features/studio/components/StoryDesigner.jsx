@@ -2383,7 +2383,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               </div>
               {pages.length > 1 && (
                 <button className="sd-slides-span" onClick={() => spanFileRef.current?.click()} title="Fit one image seamlessly across every canvas">
-                  <ImageIcon size={12}/> Fit image across {pages.length}
+                  <ImageIcon size={12}/> Fit across {pages.length}
                 </button>
               )}
             </div>
