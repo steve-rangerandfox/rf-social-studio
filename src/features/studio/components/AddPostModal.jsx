@@ -595,12 +595,11 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
             {/* One universal Design door — creates the post and opens the
                 designer with your uploaded images already in place. */}
             <div className="cpm-design-row">
-              <span className="cpm-design-label">Or design it:</span>
               <button type="button" className="dp2-design-btn" onClick={createAndOpen} disabled={uploading}
                 title={uploading ? "Waiting for images to finish uploading…" : "Create the post and open the designer — your uploaded images come with you"}
                 style={uploading ? { opacity: 0.5, cursor: "default" } : undefined}>
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M11.3 2.2 13.8 4.7 5.5 13H3v-2.5L11.3 2.2Z"/><path d="M9.8 3.7l2.5 2.5"/></svg>
-                {uploading ? "Uploading…" : "Design"}
+                {uploading ? "Uploading…" : "Open Designer"}
               </button>
             </div>
           </div>

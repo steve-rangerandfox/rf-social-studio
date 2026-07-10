@@ -2615,7 +2615,6 @@ input,textarea,select,button{font-family:inherit}
 
 /* "Or design it" — designer/carousel doors under the composer */
 .cpm-design-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.cpm-design-label{font:600 11px var(--font-body);color:var(--t-text-dim)}
 .dp2-design-btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--t-border);border-radius:var(--radius-pill);background:var(--t-surface);cursor:pointer;font:600 12px var(--font-body);color:var(--t-text);transition:border-color .12s,box-shadow .12s}
 .dp2-design-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:var(--shadow-xs)}
 
