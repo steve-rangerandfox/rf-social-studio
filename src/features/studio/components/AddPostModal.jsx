@@ -1,29 +1,46 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Close as X, ImageIcon, Plus } from "../../../components/icons/index.jsx";
+import { AIMark, CalendarIcon, Check, ChevronDown, Close as X, ImageIcon, LayoutTemplate, Plus, Search } from "../../../components/icons/index.jsx";
 import { NetworkPreview, PreviewEmptyState } from "./PostPreviews.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
-import { PLATFORMS, nowPT } from "../shared.js";
+import { AICaptionAssist } from "./AICaptionAssist.jsx";
+import { PLATFORMS, nowPT, suggestBestSlot } from "../shared.js";
+import { useStudio } from "../StudioContext.jsx";
 import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 import { planUpload } from "../capabilities.js";
 import { probeFiles } from "../media-probe.js";
 import { CapabilityDialog } from "./CapabilityDialog.jsx";
 
-// Buffer-style Create Post window: channels across the top, a big composer
-// with a drag-and-drop media card on the left, and a live per-network
-// preview rail on the right. Creating drops you straight into the post
-// editor (unless "Create another" is checked).
+// Buffer-parity Create Post window: title + Tags up top-left; Templates /
+// AI Assistant / Preview / expand on the right; avatar channel row with a
+// searchable picker; one big composer card with media tiles + a toolbar
+// (add / emoji / hashtag) inside it; live per-network previews on the
+// right; Next Available scheduling in the footer. Our one addition to the
+// Buffer flow: the Design door into the canvas designer.
+
+const CAPTION_TEMPLATES = [
+  { name: "Announcement", body: "Big news from the studio — {what}. {why it matters}. Full story at the link." },
+  { name: "Behind the scenes", body: "A peek behind the curtain on {project}. {process detail}. More soon." },
+  { name: "Motion tip", body: "Motion tip: {tip}. Try it on your next cut." },
+  { name: "Work showcase", body: "New work: {project} for {client}. {one-line concept}. Watch the full piece — link in bio." },
+];
+
+const EMOJI = ["🔥", "✨", "🎬", "🎉", "🚀", "💡", "👏", "❤️", "😂", "😍", "🙌", "👀", "🎯", "💪", "🌟", "⚡", "🏆", "📽️", "🎨", "🤝", "✅", "➡️", "👇", "💬"];
 
 export function AddPostModal({ initialDate, onClose, onCreate }) {
+  const { rows, connections, setShowConn } = useStudio();
   const captionRef = useRef(null);
   const fileRef = useRef(null);
-  const pickerRef = useRef(null);
   const safeDate = initialDate || nowPT();
 
   const [caption, setCaption] = useState("");
   const [channels, setChannels] = useState(["ig_post"]); // ordered — first is the main channel
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [createAnother, setCreateAnother] = useState(false);
+  const [tags, setTags] = useState([]);
+  const [tagInput, setTagInput] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
   // Media gallery: { id, url(blob), publicUrl, uploading, progress, isVideo, error }
   const [items, setItems] = useState([]);
   const [dragOver, setDragOver] = useState(false);
@@ -37,14 +54,29 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
   });
   const [timeValue, setTimeValue] = useState("09:00");
 
-  useEffect(() => { captionRef.current?.focus(); }, []);
+  // One popover open at a time (Buffer behavior); each has an anchor ref
+  // for outside-click dismissal.
+  const [openPop, setOpenPop] = useState(null); // "picker"|"tags"|"templates"|"emoji"|"when"|"addMenu"
+  const pickerRef = useRef(null);
+  const tagsRef = useRef(null);
+  const templatesRef = useRef(null);
+  const emojiRef = useRef(null);
+  const whenRef = useRef(null);
+  const addMenuRef = useRef(null);
+  const popRefs = useRef({ picker: pickerRef, tags: tagsRef, templates: templatesRef, emoji: emojiRef, when: whenRef, addMenu: addMenuRef });
+  const togglePop = (k) => setOpenPop((p) => (p === k ? null : k));
 
   useEffect(() => {
-    if (!pickerOpen) return;
-    const h = (e) => { if (pickerRef.current && !pickerRef.current.contains(e.target)) setPickerOpen(false); };
+    if (!openPop) return;
+    const h = (e) => {
+      const anchor = popRefs.current[openPop]?.current;
+      if (anchor && !anchor.contains(e.target)) setOpenPop(null);
+    };
     document.addEventListener("pointerdown", h);
     return () => document.removeEventListener("pointerdown", h);
-  }, [pickerOpen]);
+  }, [openPop]);
+
+  useEffect(() => { captionRef.current?.focus(); }, []);
 
   const toggleChannel = (key) => {
     setChannels((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
@@ -119,6 +151,40 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
   const capMax = useMemo(() => (
     channels.length && channels.every((k) => k === "linkedin") ? 3000 : 2200
   ), [channels]);
+  const nearLimit = caption.length > capMax * 0.88;
+
+  const insertAtCursor = (text) => {
+    const ta = captionRef.current;
+    const start = ta?.selectionStart ?? caption.length;
+    const end = ta?.selectionEnd ?? caption.length;
+    setCaption(caption.slice(0, start) + text + caption.slice(end));
+    requestAnimationFrame(() => {
+      if (!ta) return;
+      ta.focus();
+      const pos = start + text.length;
+      ta.setSelectionRange(pos, pos);
+    });
+  };
+
+  const applyTemplate = (body) => {
+    setCaption((prev) => (prev.trim() ? `${prev}\n\n${body}` : body));
+    setOpenPop(null);
+    captionRef.current?.focus();
+  };
+
+  const addTag = () => {
+    const t = tagInput.trim();
+    if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+    setTagInput("");
+  };
+
+  const useNextAvailable = () => {
+    const iso = suggestBestSlot(channels[0] || "ig_post", rows);
+    const d = new Date(iso);
+    setDateValue(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+    setTimeValue(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
+    setOpenPop(null);
+  };
 
   const hasContent = !!caption.trim() || items.length > 0;
   const canCreate = caption.trim() && channels.length > 0 && dateValue && timeValue && !uploading;
@@ -128,52 +194,106 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
     return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
   }, [dateValue, timeValue]);
 
+  const payload = () => ({
+    caption: caption.trim(),
+    dateValue,
+    timeValue,
+    platform: channels[0],
+    platforms: channels,
+    ...(tags.length ? { tags } : {}),
+    ...mediaFields(),
+  });
+
   const submit = (event) => {
     event.preventDefault();
     if (!canCreate) return;
     const firstLine = caption.trim().split("\n")[0].slice(0, 64);
-    onCreate({
-      title: firstLine,
-      caption: caption.trim(),
-      dateValue,
-      timeValue,
-      platform: channels[0],
-      platforms: channels,
-      ...mediaFields(),
-      createAnother,
-    });
-    if (createAnother) { setCaption(""); clearMedia(); captionRef.current?.focus(); }
+    onCreate({ title: firstLine, ...payload(), createAnother });
+    if (createAnother) { setCaption(""); clearMedia(); setTags([]); captionRef.current?.focus(); }
   };
 
   // "Design it" path: create the post with whatever's filled in (no caption
-  // required yet) and land directly in the story/canvas designer or the
-  // carousel builder for its media.
-  const createAndOpen = (tool) => {
+  // required yet) and land directly in the canvas designer with the
+  // uploaded images already seeded, one canvas each.
+  const createAndOpen = () => {
     if (channels.length === 0 || uploading) return;
     const trimmed = caption.trim();
     onCreate({
       title: trimmed.split("\n")[0].slice(0, 64) || "Untitled post",
-      caption: trimmed,
-      dateValue,
-      timeValue,
-      platform: channels[0],
-      platforms: channels,
-      ...mediaFields(),
-      ...(tool === "carousel" ? { openCarousel: true } : { openDesigner: true }),
+      ...payload(),
+      openDesigner: true,
     });
+  };
+
+  const filteredPlatforms = Object.entries(PLATFORMS).filter(([, pl]) =>
+    !pickerSearch.trim() || pl.label.toLowerCase().includes(pickerSearch.toLowerCase()) || pl.short.toLowerCase().includes(pickerSearch.toLowerCase()));
+
+  const connectNext = () => {
+    const k = Object.keys(connections).find((c) => !connections[c]) || "instagram";
+    setOpenPop(null);
+    setShowConn(k);
   };
 
   return (
     <div className="overlay" onClick={onClose}>
-      <form className="modal cpm" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+      <form className={"modal cpm" + (expanded ? " cpm-max" : "")} onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         {/* ── Header ── */}
         <div className="cpm-head">
-          <div className="cpm-title">Create Post</div>
+          <div className="cpm-head-left">
+            <div className="cpm-title">Create Post</div>
+            <div className="cpm-pop-anchor" ref={tagsRef}>
+              <button type="button" className="cpm-chip" onClick={() => togglePop("tags")} aria-expanded={openPop === "tags"}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2 2h5.6L14 8.4a1.4 1.4 0 0 1 0 2L10.4 14a1.4 1.4 0 0 1-2 0L2 7.6V2Z"/><circle cx="5.5" cy="5.5" r="1" fill="currentColor" stroke="none"/></svg>
+                Tags{tags.length > 0 ? ` · ${tags.length}` : ""}
+                <ChevronDown size={11} />
+              </button>
+              {openPop === "tags" && (
+                <div className="cpm-pop cpm-tags-pop">
+                  <div className="cpm-tags-row">
+                    <input value={tagInput} placeholder="Add a tag…"
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }} />
+                    <button type="button" className="btn btn-ghost cpm-tag-add" onClick={addTag}>Add</button>
+                  </div>
+                  {tags.length > 0 && (
+                    <div className="cpm-tag-chips">
+                      {tags.map((t) => (
+                        <span key={t} className="cpm-tag-chip">{t}
+                          <button type="button" onClick={() => setTags((prev) => prev.filter((x) => x !== t))} aria-label={`Remove ${t}`}><X size={8} /></button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
           <div className="cpm-head-actions">
+            <div className="cpm-pop-anchor" ref={templatesRef}>
+              <button type="button" className="cpm-hbtn" onClick={() => togglePop("templates")} aria-expanded={openPop === "templates"}>
+                <LayoutTemplate size={13} /> Templates
+              </button>
+              {openPop === "templates" && (
+                <div className="cpm-pop cpm-templates-pop">
+                  {CAPTION_TEMPLATES.map((t) => (
+                    <button key={t.name} type="button" className="cpm-template-row" onClick={() => applyTemplate(t.body)}>
+                      <span className="cpm-template-name">{t.name}</span>
+                      <span className="cpm-template-body">{t.body}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button type="button" className={"cpm-hbtn" + (aiOpen ? " on" : "")} onClick={() => setAiOpen((o) => !o)} aria-pressed={aiOpen}>
+              <AIMark size={13} /> AI Assistant
+            </button>
             <button type="button" className={"cpm-preview-toggle" + (showPreview ? " on" : "")}
               onClick={() => setShowPreview((v) => !v)} aria-pressed={showPreview}>
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg>
               Preview
+            </button>
+            <button type="button" className="m-x" onClick={() => setExpanded((v) => !v)} aria-label={expanded ? "Shrink" : "Expand"} aria-pressed={expanded}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M9.5 6.5 14 2m0 0h-4m4 0v4M6.5 9.5 2 14m0 0h4m-4 0v-4"/></svg>
             </button>
             <button type="button" className="m-x" onClick={onClose} aria-label="Close"><X size={15} /></button>
           </div>
@@ -182,35 +302,56 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
         <div className="cpm-body">
           {/* ── Composer ── */}
           <div className="cpm-left">
+            {/* Channel avatars — click to toggle; + opens the searchable picker */}
             <div className="cpm-channels">
-              <div className="dp-outlet-anchor" ref={pickerRef}>
-                <button type="button" className="cpm-channels-btn" onClick={() => setPickerOpen((o) => !o)}
-                  aria-haspopup="listbox" aria-expanded={pickerOpen}>
-                  <Plus size={13} /> Channels
+              {Object.keys(PLATFORMS).map((k) => (
+                <button key={k} type="button" className={"cpm-av" + (channels.includes(k) ? " on" : "")}
+                  onClick={() => toggleChannel(k)}
+                  title={`${PLATFORMS[k].label}${k === channels[0] ? " — main channel" : ""}`}
+                  aria-pressed={channels.includes(k)}>
+                  <PlatformIcon platform={k} size={18} />
+                  {channels.includes(k) && <span className="cpm-av-badge"><Check size={8} /></span>}
                 </button>
-                {pickerOpen && (
-                  <div className="dp-platform-popover" role="listbox">
-                    {Object.entries(PLATFORMS).map(([key, pl]) => (
+              ))}
+              <div className="cpm-pop-anchor" ref={pickerRef}>
+                <button type="button" className="cpm-av cpm-av-add" onClick={() => togglePop("picker")}
+                  aria-haspopup="listbox" aria-expanded={openPop === "picker"} title="Channels">
+                  <Plus size={14} />
+                </button>
+                {openPop === "picker" && (
+                  <div className="cpm-pop cpm-picker" role="listbox">
+                    <div className="cpm-picker-search">
+                      <Search size={13} />
+                      <input value={pickerSearch} placeholder="Search channels" onChange={(e) => setPickerSearch(e.target.value)} />
+                    </div>
+                    <div className="cpm-picker-head">
+                      <span>Channels</span>
+                      <button type="button" onClick={() => setChannels([])}>Deselect all</button>
+                    </div>
+                    {filteredPlatforms.map(([key, pl]) => (
                       <button key={key} type="button" role="option" aria-selected={channels.includes(key)}
-                        className={"dp-platform-option" + (channels.includes(key) ? " active" : "")}
+                        className={"cpm-picker-row" + (channels.includes(key) ? " active" : "")}
                         onClick={() => toggleChannel(key)}>
                         <PlatformIcon platform={key} size={16} />
-                        <span>{pl.short}</span>
-                        {channels.includes(key) && <Check size={12} className="dp-platform-check" />}
+                        <span>{pl.label}</span>
+                        <span className={"cpm-picker-check" + (channels.includes(key) ? " on" : "")}>
+                          {channels.includes(key) && <Check size={10} />}
+                        </span>
                       </button>
                     ))}
+                    <button type="button" className="cpm-picker-connect" onClick={connectNext}>
+                      <span className="cpm-picker-connect-plus"><Plus size={12} /></span> Connect a channel
+                    </button>
                   </div>
                 )}
               </div>
-              {channels.map((k) => (
-                <button key={k} type="button" className="dp-outlet-ic"
-                  onClick={() => toggleChannel(k)}
-                  title={`${PLATFORMS[k].label}${k === channels[0] ? " — main channel" : ""} · click to remove`}>
-                  <PlatformIcon platform={k} size={16} />
-                  <span className="dp-outlet-ic-x" aria-hidden="true"><X size={8} /></span>
-                </button>
-              ))}
             </div>
+
+            {aiOpen && (
+              <div className="cpm-ai">
+                <AICaptionAssist platform={channels[0] || "ig_post"} note={caption} onAccept={setCaption} variant="inline" />
+              </div>
+            )}
 
             <div className={"cpm-composer" + (dragOver ? " drag" : "")}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -220,11 +361,11 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                 <div className="cpm-dropveil"><ImageIcon size={22} /><span>Drop files to upload</span></div>
               )}
               <textarea ref={captionRef} className="cpm-txa" value={caption}
-                placeholder="Start writing your post…"
+                placeholder="Start writing or get inspired with Templates…"
                 onChange={(e) => setCaption(e.target.value)} />
               <input ref={fileRef} type="file" multiple={allowsMulti} accept="image/*,video/*,image/gif" hidden
                 onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
-              {/* Inline media tiles + always-present add tile (Buffer pattern) */}
+              {/* Media tiles + always-present add tile (Buffer pattern) */}
               <div className="cpm-tiles">
                 {items.map((it) => (
                   <div key={it.id} className={"cpm-tile" + (it.error ? " err" : "")}>
@@ -245,9 +386,44 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                   </button>
                 )}
               </div>
-              <div className="cpm-composer-foot">
-                <span className="cpm-tiles-hint">{items.length > 1 ? `${items.length} images · drag to reorder in the editor` : ""}</span>
-                <span className={"cpm-count" + (caption.length > capMax ? " over" : "")}>{caption.length} / {capMax}</span>
+              {/* In-composer toolbar (Buffer: + ▾ · emoji · #) */}
+              <div className="cpm-tools">
+                <div className="cpm-tools-left">
+                  <button type="button" className="cpm-tool" onClick={() => fileRef.current?.click()} title="Add media"><Plus size={14} /></button>
+                  <div className="cpm-pop-anchor" ref={addMenuRef}>
+                    <button type="button" className="cpm-tool cpm-tool-caret" onClick={() => togglePop("addMenu")} aria-expanded={openPop === "addMenu"} title="More ways to add">
+                      <ChevronDown size={12} />
+                    </button>
+                    {openPop === "addMenu" && (
+                      <div className="cpm-pop cpm-add-menu">
+                        <button type="button" onClick={() => { setOpenPop(null); fileRef.current?.click(); }}><ImageIcon size={13} /> Upload files</button>
+                        <button type="button" onClick={() => { setOpenPop(null); createAndOpen(); }} disabled={uploading}>
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M11.3 2.2 13.8 4.7 5.5 13H3v-2.5L11.3 2.2Z"/><path d="M9.8 3.7l2.5 2.5"/></svg>
+                          Design in canvas
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <span className="cpm-tools-sep" />
+                  <div className="cpm-pop-anchor" ref={emojiRef}>
+                    <button type="button" className="cpm-tool" onClick={() => togglePop("emoji")} aria-expanded={openPop === "emoji"} title="Emoji">
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="6.5"/><path d="M5.5 9.5s.9 1.5 2.5 1.5 2.5-1.5 2.5-1.5"/><circle cx="6" cy="6.3" r=".6" fill="currentColor" stroke="none"/><circle cx="10" cy="6.3" r=".6" fill="currentColor" stroke="none"/></svg>
+                    </button>
+                    {openPop === "emoji" && (
+                      <div className="cpm-pop cpm-emoji">
+                        {EMOJI.map((em) => (
+                          <button key={em} type="button" onClick={() => insertAtCursor(em)}>{em}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button type="button" className="cpm-tool" onClick={() => insertAtCursor("#")} title="Add hashtag">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M6 2 4.5 14M11.5 2 10 14M2.5 5.5h11M2 10.5h11"/></svg>
+                  </button>
+                </div>
+                {nearLimit && (
+                  <span className={"cpm-count" + (caption.length > capMax ? " over" : "")}>{caption.length} / {capMax}</span>
+                )}
               </div>
             </div>
 
@@ -255,7 +431,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                 designer with your uploaded images already in place. */}
             <div className="cpm-design-row">
               <span className="cpm-design-label">Or design it:</span>
-              <button type="button" className="dp2-design-btn" onClick={() => createAndOpen("designer")} disabled={uploading}
+              <button type="button" className="dp2-design-btn" onClick={createAndOpen} disabled={uploading}
                 title={uploading ? "Waiting for images to finish uploading…" : "Create the post and open the designer — your uploaded images come with you"}
                 style={uploading ? { opacity: 0.5, cursor: "default" } : undefined}>
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M11.3 2.2 13.8 4.7 5.5 13H3v-2.5L11.3 2.2Z"/><path d="M9.8 3.7l2.5 2.5"/></svg>
@@ -267,7 +443,12 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
           {/* ── Preview rail ── */}
           {showPreview && (
             <div className="cpm-right">
-              <div className="cpm-right-title">Post Previews</div>
+              <div className="cpm-right-title">
+                Post Previews
+                <span className="cpm-info" title="Previews approximate how each network renders your post.">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v3.6"/><circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/></svg>
+                </span>
+              </div>
               {channels.length === 0 || !hasContent ? (
                 <PreviewEmptyState />
               ) : (
@@ -281,13 +462,26 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
         <div className="cpm-foot">
           <label className="cpm-another">
             <input type="checkbox" checked={createAnother} onChange={(e) => setCreateAnother(e.target.checked)} />
-            Create another
+            Create Another
           </label>
           <div className="cpm-foot-right">
-            <div className="cpm-when" title="Scheduled for (PT)">
-              <input type="date" value={dateValue} onChange={(e) => setDateValue(e.target.value)} aria-label="Date" />
-              <input type="time" value={timeValue} onChange={(e) => setTimeValue(e.target.value)} aria-label="Time (PT)" />
-              <span className="cpm-when-label">{whenLabel}</span>
+            <div className="cpm-pop-anchor" ref={whenRef}>
+              <button type="button" className="cpm-when-btn" onClick={() => togglePop("when")} aria-expanded={openPop === "when"} title="Scheduled for (PT)">
+                <CalendarIcon size={13} />
+                {whenLabel}
+                <ChevronDown size={11} />
+              </button>
+              {openPop === "when" && (
+                <div className="cpm-pop cpm-when-pop">
+                  <button type="button" className="cpm-when-next" onClick={useNextAvailable}>
+                    <CalendarIcon size={13} /> Next Available
+                  </button>
+                  <div className="cpm-when-custom">
+                    <input type="date" value={dateValue} onChange={(e) => setDateValue(e.target.value)} aria-label="Date" />
+                    <input type="time" value={timeValue} onChange={(e) => setTimeValue(e.target.value)} aria-label="Time (PT)" />
+                  </div>
+                </div>
+              )}
             </div>
             <button type="submit" className="btn btn-primary" disabled={!canCreate}
               title={canCreate ? undefined : uploading ? "Media is still uploading" : "Write a caption and pick at least one channel"}>

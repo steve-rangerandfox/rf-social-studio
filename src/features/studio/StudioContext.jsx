@@ -626,7 +626,7 @@ export function StudioProvider({ children }) {
     setSelectedRowId(newRow.id);
   }, [currentUser, updateDocument, studioDoc.rows.length]);
 
-  const createPostDraft = ({ title, caption, dateValue, timeValue, platform, platforms, mediaUrl, thumbnailUrl, mediaItems, mediaKind, carouselFrameUrls, createAnother, openDesigner, openCarousel }) => {
+  const createPostDraft = ({ title, caption, dateValue, timeValue, platform, platforms, tags, mediaUrl, thumbnailUrl, mediaItems, mediaKind, carouselFrameUrls, createAnother, openDesigner, openCarousel }) => {
     const [targetYear, targetMonth, day] = dateValue.split("-").map(Number);
     const [hour, minute] = timeValue.split(":").map(Number);
     const iso = ptPickerToISO(targetYear, targetMonth - 1, day, hour, minute);
@@ -635,6 +635,7 @@ export function StudioProvider({ children }) {
       note: title,
       platform: platform || "ig_post",
       ...(Array.isArray(platforms) && platforms.length ? { platforms } : {}),
+      ...(Array.isArray(tags) && tags.length ? { tags } : {}),
       ...(caption ? { caption } : {}),
       ...(mediaUrl ? { mediaUrl } : {}),
       ...(thumbnailUrl ? { thumbnailUrl } : {}),
