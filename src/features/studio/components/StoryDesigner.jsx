@@ -1338,8 +1338,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       ctx.fillRect(0, 0, EXPORT_W, EXPORT_H);
     }
 
-    // Draw vector shapes (under text, mirroring the editor stack)
-    for (const el of els.filter(e => !e.locked && e.type === "shape")) {
+    // Per-type draw routines — invoked in ARRAY ORDER below, mirroring
+    // the editor's z-stack exactly.
+    const drawShapeEl = (el) => {
       const w = (el.width || 110) * (el.scale || 1) * SCALE;
       const h = (el.height || 110) * (el.scale || 1) * SCALE;
       ctx.save();
@@ -1357,7 +1358,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         ctx.strokeStyle = el.stroke || "#FFFFFF";
         ctx.lineWidth = Math.max((el.strokeWidth || 1) * SCALE, SCALE);
         ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
-        ctx.restore(); continue;
+        ctx.restore(); return;
       }
       // Rebuildable path (alignment strokes need it more than once), matching
       // ShapeSVG's unit geometry exactly — including the single closed arrow.
@@ -1398,10 +1399,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         ctx.restore();
       }
       ctx.restore();
-    }
+    };
 
-    // Draw text elements
-    for (const el of els.filter(e => !e.locked && e.type === "text")) {
+    const drawTextEl = (el) => {
       ctx.save();
       const x = el.x * SCALE;
       const y = el.y * SCALE;
@@ -1467,10 +1467,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       ctx.restore();
-    }
+    };
 
-    // Draw image / GIF elements
-    for (const el of els.filter(e => !e.locked && (e.type === "image" || e.mediaType === "image" || e.mediaType === "gif") && e.url && e.mediaType !== "video")) {
+    const drawImageEl = async (el) => {
       try {
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -1487,6 +1486,15 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         ctx.drawImage(img, el.x * SCALE, el.y * SCALE, (el.width || img.width) * scale * SCALE, (el.height || img.height) * scale * SCALE);
         ctx.restore();
       } catch { /* skip failed images */ }
+    };
+
+    // ONE ordered pass over the layer stack. The old grouped passes drew
+    // every image LAST, stamping uploads over any text/shape layered
+    // above them — the "my text isn't in the saved design" bug.
+    for (const el of els.filter(e => !e.locked)) {
+      if (el.type === "shape") drawShapeEl(el);
+      else if (el.type === "text") drawTextEl(el);
+      else if ((el.type === "image" || el.mediaType === "image" || el.mediaType === "gif") && el.url && el.mediaType !== "video") await drawImageEl(el);
     }
 
     return canvas;
