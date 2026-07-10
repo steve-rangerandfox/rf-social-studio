@@ -14,17 +14,20 @@ const emptyDefaultPage = () => [
 ];
 
 describe("seedPages", () => {
-  it("seeds one canvas per gallery item when there are no saved pages", () => {
+  it("seeds one canvas per gallery item as a MOVABLE element over a plain background", () => {
     const row = { mediaItems: [{ url: "a.png", kind: "image" }, { url: "b.png", kind: "image" }] };
     const pages = seedPages(row, makeDefault);
     expect(pages).toHaveLength(2);
-    expect(pages[0].elements[0]).toMatchObject({ id: "bg", url: "a.png", locked: true, mediaType: "image" });
-    expect(pages[1].elements[0]).toMatchObject({ id: "bg", url: "b.png" });
+    // Locked bg stays a plain fill; the image is a regular unlocked
+    // element the user can drag / scale (the "can't move my uploads" ask).
+    expect(pages[0].elements[0]).toMatchObject({ id: "bg", locked: true, url: null });
+    expect(pages[0].elements[1]).toMatchObject({ url: "a.png", locked: false, type: "image" });
+    expect(pages[1].elements[1]).toMatchObject({ url: "b.png", locked: false });
   });
 
-  it("marks video gallery items as video backgrounds", () => {
+  it("marks video gallery items as video elements", () => {
     const pages = seedPages({ mediaItems: [{ url: "v.mp4", kind: "video" }] }, makeDefault);
-    expect(pages[0].elements[0].mediaType).toBe("video");
+    expect(pages[0].elements[1].mediaType).toBe("video");
   });
 
   it("falls back to the default template with no gallery and no saved pages", () => {
@@ -40,7 +43,7 @@ describe("seedPages", () => {
     };
     const pages = seedPages(row, makeDefault);
     expect(pages).toHaveLength(1);
-    expect(pages[0].elements[0].url).toBe("a.png");
+    expect(pages[0].elements[1].url).toBe("a.png");
   });
 
   it("keeps saved pages that contain real media", () => {
@@ -63,9 +66,9 @@ describe("seedPages", () => {
     };
     const pages = seedPages(row, makeDefault);
     expect(pages).toHaveLength(3);
-    expect(pages[0].elements[0].url).toBe("a.png"); // saved page kept first
-    expect(pages[1].elements[0].url).toBe("b.png");
-    expect(pages[2].elements[0].url).toBe("c.png");
+    expect(pages[0].elements[0].url).toBe("a.png"); // saved page kept verbatim
+    expect(pages[1].elements[1].url).toBe("b.png"); // appended, movable
+    expect(pages[2].elements[1].url).toBe("c.png");
   });
 
   it("counts an image placed as a free element (not bg) as placed", () => {
@@ -89,6 +92,6 @@ describe("seedPages", () => {
   it("ignores gallery entries without a url", () => {
     const pages = seedPages({ mediaItems: [{ url: null }, { url: "a.png" }] }, makeDefault);
     expect(pages).toHaveLength(1);
-    expect(pages[0].elements[0].url).toBe("a.png");
+    expect(pages[0].elements[1].url).toBe("a.png");
   });
 });

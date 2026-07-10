@@ -899,14 +899,15 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
     }
   };
 
-  // The permanent right properties panel is selection-contextual: element
-  // inspector when something is selected, Background otherwise, with a
-  // fonts view the top bar's font button opens. Reset to the inspector
-  // whenever the selection changes.
+  // The right properties panel shows only while an element is selected
+  // (inspector, or the fonts view the top bar's font button opens).
+  // Canvas/background controls live in the left rail's Canvas tab —
+  // clicking the locked background opens it.
   const [propsView, setPropsView] = useState("inspector"); // "inspector" | "fonts"
   useEffect(() => {
     setPropsView("inspector");
-  }, [selectedId]);
+    if (selected?.locked) setSideTab("canvas");
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateEl  = (id, patch) => setElements(els => els.map(e => e.id === id ? { ...e, ...patch } : e));
   const deleteEl  = (id) => { pushElements(els => els.filter(e => e.id !== id)); setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; }); };
@@ -1739,6 +1740,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
             display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0",gap:6,
           }}>
             {[
+              { id:"canvas", icon:<Wallpaper size={26}/>, label:"Canvas" },
               { id:"elements", icon:<ImageIcon size={26}/>, label:"Elements" },
               { id:"text", icon:<Type size={26}/>, label:"Text" },
               { id:"uploads", icon:<Upload size={26}/>, label:"Uploads" },
@@ -1773,7 +1775,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 alignItems:"center",justifyContent:"space-between",flexShrink:0,
               }}>
                 <span style={{fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:T.text,fontFamily:"'JetBrains Mono',monospace"}}>
-                  {{elements:"Elements",text:"Text",uploads:"Uploads",templates:"Templates",layers:"Layers",ai:"AI Copilot"}[sideTab]}
+                  {{canvas:"Canvas",elements:"Elements",text:"Text",uploads:"Uploads",templates:"Templates",layers:"Layers",ai:"AI Copilot"}[sideTab]}
                 </span>
                 <button onClick={() => setSideTab(null)} title="Collapse" aria-label="Collapse panel"
                   style={{background:"transparent",border:"none",cursor:"pointer",color:T.textDim,padding:2,display:"flex"}}>
@@ -1783,6 +1785,39 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
               {/* Palette content */}
               <div style={{flex:1,overflowY:"auto",padding:"8px 10px",display:"flex",flexDirection:"column",gap:8}}>
+
+                {/* ── CANVAS tab — background color / gradient / image ── */}
+                {sideTab === "canvas" && (
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    <div className="inspector-group-title">Background</div>
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                      {["#080A0E","#09090b","#FFFFFF","#F4F4F5","#FF5A1F","#0A66C2","#10B981","#7C3AED","#BE185D"].map(c => (
+                        <button key={c} onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,fill:c,url:null,mediaType:'image'}:e))} title={c}
+                          style={{width:22,height:22,borderRadius:6,border:(elements.find(e=>e.locked)?.fill||"#080A0E")===c?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:c,cursor:"pointer",padding:0}}/>
+                      ))}
+                      <input type="color" value={elements.find(e=>e.locked)?.fill||"#080A0E"}
+                        onChange={e=>{const v=e.target.value;pushElements(els=>els.map(el=>el.locked?{...el,fill:v,url:null,mediaType:'image'}:el));}}
+                        style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom background color"/>
+                    </div>
+                    <div className="inspector-group-title" style={{marginTop:4}}>Gradients</div>
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+                      {CAROUSEL_GRADIENTS.map(g => (
+                        <button key={g} onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,fill:g,url:null,mediaType:'image'}:e))} title="Gradient background"
+                          style={{width:22,height:22,borderRadius:6,border:(elements.find(e=>e.locked)?.fill)===g?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:g,cursor:"pointer",padding:0}}/>
+                      ))}
+                    </div>
+                    <button onClick={()=>bgFileRef.current?.click()}
+                      style={{width:"100%",padding:"8px 12px",borderRadius:6,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub}}>
+                      <Wallpaper size={14}/> {elements.find(e=>e.id==="bg")?.url ? "Replace background image" : "Set background image"}
+                    </button>
+                    {elements.find(e=>e.locked)?.url && (
+                      <button onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,url:null,bgSpanId:undefined}:e))}
+                        style={{width:"100%",padding:"7px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:"transparent",cursor:"pointer",fontSize:11,fontWeight:600,color:T.textSub}}>
+                        Remove background image
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* ── ELEMENTS tab ── */}
                 {sideTab === "elements" && (
@@ -2019,11 +2054,13 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
             </div>
           )}
 
-          {/* ── PROPERTIES PANEL — permanent and selection-contextual:
-                 element inspector / Background / Fonts view. Rendered here
-                 (after the palette) but pinned to the FAR RIGHT of s-layout
-                 via CSS order, so the giant inspector JSX didn't have to
-                 move across the file. ── */}
+          {/* ── PROPERTIES PANEL — shows while an element is selected:
+                 inspector / Fonts view. Rendered here (after the palette)
+                 but pinned to the FAR RIGHT of s-layout via CSS order, so
+                 the giant inspector JSX didn't have to move across the
+                 file. Canvas/background controls live in the rail's
+                 Canvas tab. ── */}
+          {selected && !selected.locked && (
           <div className="sd-props">
             <div className="sd-props-head">
               {propsView === "fonts" ? (
@@ -2034,7 +2071,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                   <span>Fonts</span>
                 </>
               ) : (
-                <span>{selected && !selected.locked ? "Properties" : "Canvas"}</span>
+                <span>Properties</span>
               )}
             </div>
             <div className="sd-props-body">
@@ -2316,39 +2353,9 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                     )}
                   </>
                 )}
-                {propsView !== "fonts" && (!selected || selected.locked) && (
-                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                    <div className="inspector-group-title">Background</div>
-                    <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
-                      {["#080A0E","#09090b","#FFFFFF","#F4F4F5","#FF5A1F","#0A66C2","#10B981","#7C3AED","#BE185D"].map(c => (
-                        <button key={c} onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,fill:c,url:null,mediaType:'image'}:e))} title={c}
-                          style={{width:22,height:22,borderRadius:6,border:(elements.find(e=>e.locked)?.fill||"#080A0E")===c?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:c,cursor:"pointer",padding:0}}/>
-                      ))}
-                      <input type="color" value={elements.find(e=>e.locked)?.fill||"#080A0E"}
-                        onChange={e=>{const v=e.target.value;pushElements(els=>els.map(el=>el.locked?{...el,fill:v,url:null,mediaType:'image'}:el));}}
-                        style={{width:24,height:24,border:"none",background:"transparent",cursor:"pointer",padding:0}} title="Custom background color"/>
-                    </div>
-                    <div className="inspector-group-title" style={{marginTop:4}}>Gradients</div>
-                    <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
-                      {CAROUSEL_GRADIENTS.map(g => (
-                        <button key={g} onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,fill:g,url:null,mediaType:'image'}:e))} title="Gradient background"
-                          style={{width:22,height:22,borderRadius:6,border:(elements.find(e=>e.locked)?.fill)===g?`2px solid ${T.ink}`:`1px solid ${T.border}`,background:g,cursor:"pointer",padding:0}}/>
-                      ))}
-                    </div>
-                    <button onClick={()=>bgFileRef.current?.click()}
-                      style={{width:"100%",padding:"8px 12px",borderRadius:6,border:`1px dashed ${T.border2}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:600,color:T.textSub}}>
-                      <Wallpaper size={14}/> {elements.find(e=>e.id==="bg")?.url ? "Replace background image" : "Set background image"}
-                    </button>
-                    {elements.find(e=>e.locked)?.url && (
-                      <button onClick={()=>pushElements(els=>els.map(e=>e.locked?{...e,url:null,bgSpanId:undefined}:e))}
-                        style={{width:"100%",padding:"7px 12px",borderRadius:6,border:`1px solid ${T.border}`,background:"transparent",cursor:"pointer",fontSize:11,fontWeight:600,color:T.textSub}}>
-                        Remove background image
-                      </button>
-                    )}
-                  </div>
-                )}
             </div>
           </div>
+          )}
 
           {/* ── SLIDES PANEL — live thumb per canvas: click to edit, drag to
                  reorder, hover to delete. Replaces the bottom page strip. ── */}
