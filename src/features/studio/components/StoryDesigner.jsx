@@ -699,8 +699,16 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
 
   // Auto-save elements to parent row whenever they change.
   // Persist every page; keep storyElements = page 0 for scheduler/export.
+  // onUpdate goes through a latest-value ref (gotcha #2): StudioApp
+  // recreates the prop on every render, and with onUpdate in the deps
+  // this effect re-fired WITHOUT a pages change — including right after
+  // doPost's own update — and its invalidation branch nulled the frames
+  // doPost had just rendered. That was the "close says saving, then the
+  // design reverts" bug.
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
   useEffect(() => {
-    if (!onUpdate) return;
+    if (!onUpdateRef.current) return;
     layoutsRef.current[canvasPreset] = pages.map(p => p.elements);
     const patch = {
       storyPages: pages.map(p => p.elements),
@@ -717,12 +725,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         // The design changed after a render (this session or a prior one) — drop
         // the now-stale flattened frames so a re-render is required before publishing.
         renderedRef.current = false;
-        Object.assign(patch, { storyFrames: null, storyFrameUrls: null, storyFramesPosted: 0, storyFrameIds: null, mediaUrl: null, thumbnailUrl: null });
+        Object.assign(patch, { storyFrames: null, storyFrameUrls: null, storyFramesPosted: 0, storyFrameIds: null, carouselFrameUrls: null, mediaUrl: null, thumbnailUrl: null });
         if (postState === "done") setPostState("idle");
       }
     }
-    onUpdate(patch);
-  }, [pages, onUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
+    onUpdateRef.current(patch);
+  }, [pages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [selectedIds, setSelectedIds]  = useState(new Set());
   const [editingId,   setEditingId]   = useState(null);
@@ -1604,6 +1612,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         storyFrames: frames,
         storyFramesPosted: 0,
         storyFrameIds: [],
+        // Feed carousels publish from carouselFrameUrls (the scheduler's
+        // preferred source) — without this a designed ig_post carousel
+        // published the RAW uploads instead of the design.
+        carouselFrameUrls: frames.map((f) => f.url),
       });
       renderedRef.current = true; // a later canvas edit will invalidate these frames
       dirtyRef.current = false; // rendered frames now reflect every edit

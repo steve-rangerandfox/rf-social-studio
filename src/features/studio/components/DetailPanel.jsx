@@ -780,14 +780,20 @@ export function DetailPanel() {
               </section>
             </div>
 
-            {/* ── Preview rail ── */}
+            {/* ── Preview rail — designed frames (what actually publishes)
+                   win over the raw upload gallery when they exist ── */}
             {showPreview && (
               <div className="cpm-right">
-                <div className="cpm-right-title">Post Previews</div>
-                {(row.caption || "").trim() || displayMedia
-                  ? outlets.filter((k) => PLATFORMS[k]).map((k) => (
-                      <NetworkPreview key={k} platform={k} caption={(row.caption || "").trim()} items={galleryItems.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo }))} />
-                    ))
+                <div className="cpm-right-title">Post Previews{Array.isArray(row.storyFrames) && row.storyFrames.length > 0 ? " · designed" : ""}</div>
+                {(row.caption || "").trim() || displayMedia || (Array.isArray(row.storyFrames) && row.storyFrames.length > 0)
+                  ? (() => {
+                      const previewItems = Array.isArray(row.storyFrames) && row.storyFrames.length > 0
+                        ? row.storyFrames.map((f) => ({ previewUrl: f.url, isVideo: f.kind === "video" }))
+                        : galleryItems.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo }));
+                      return outlets.filter((k) => PLATFORMS[k]).map((k) => (
+                        <NetworkPreview key={k} platform={k} caption={(row.caption || "").trim()} items={previewItems} />
+                      ));
+                    })()
                   : <PreviewEmptyState />}
               </div>
             )}
