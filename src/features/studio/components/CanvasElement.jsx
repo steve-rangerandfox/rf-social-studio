@@ -94,7 +94,12 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
   const wrapperStyle = {
     left: data.x,
     top: data.y,
-    zIndex: isSelected ? 10 : 2,
+    // Selection must NOT jump the layer stack — array/DOM order is the
+    // z-order, and the ghost overlay already carries chrome + interaction
+    // above everything. Inline text editing is the one exception (the
+    // ghost steps aside, so the editable copy needs to win pointer events
+    // over anything overlapping it).
+    zIndex: isEditing ? 10 : 2,
     opacity: data.opacity ?? 1,
     // Selection chrome (outline + handles) renders at constant screen size:
     // this divisor carries everything that scales the wrap — the canvas zoom
