@@ -854,7 +854,13 @@ input,textarea,select,button{font-family:inherit}
    ghost copy here: content invisible (the clipped copy stays the
    visual), wrapper + chrome live, so transforms work past the canvas
    edge. The layer itself passes clicks through to the canvas. */
-.sd-ghost-layer{position:absolute;inset:0;pointer-events:none;z-index:45}
+.sd-ghost-layer{position:absolute;inset:0;pointer-events:none;z-index:45;
+  /* Punch the canvas rect OUT of the ghost layer (even-odd hole): inside
+     the canvas the REAL element stack paints the chrome and takes the
+     clicks in true layer order; the ghost only paints + hits OUTSIDE,
+     where the clipped canvas can't. Outer ring is huge so far-flung
+     elements stay covered. */
+  clip-path:polygon(evenodd, -1000% -1000%, 1100% -1000%, 1100% 1100%, -1000% 1100%, -1000% -1000%, 0 0, 0 100%, 100% 100%, 100% 0, 0 0)}
 .sd-ghost-layer .element-wrap{pointer-events:auto}
 .el-ghost > :not(.el-outline):not(.handle):not(.handle-rotate):not(.handle-rotate-line){visibility:hidden}
 .element-editing{cursor:text !important}
