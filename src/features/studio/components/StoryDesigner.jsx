@@ -2623,7 +2623,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                    editing machinery; clicking any other board activates it.
                    Each frame is sized to the ZOOMED dimensions so the scaled
                    canvases occupy real layout space and never overlap. ── */}
-            <div className={"sd-canvas-row" + (pages.length > 1 ? " multi" : "")} ref={canvasRowRef}>
+            <div className={"sd-canvas-row" + (pages.length > 1 ? " multi" : "")} ref={canvasRowRef}
+              onPointerDown={(e) => {
+                // Clicking the workspace void (not a canvas, board or ghost
+                // chrome) clears the selection, like every design tool.
+                if (e.target === e.currentTarget) { setSelectedIds(new Set()); setEditingId(null); }
+              }}>
             {pages.map((pg, i) => {
               const isActive = i === activePageIdx;
               const sp = spanInfoFor(i);
