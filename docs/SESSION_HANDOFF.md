@@ -26,9 +26,9 @@ Connected services (config lives in their dashboards, not the repo):
 ## 2. Working agreement / workflow
 
 - All work on branch `claude/relaxed-thompson-eqmpln`. Never push other branches.
-- Ship loop: commit → push → open PR → **squash-merge to `main`** (Vercel auto-deploys) → reset the branch: `git fetch origin main && git checkout -B claude/relaxed-thompson-eqmpln origin/main && git push -u origin claude/relaxed-thompson-eqmpln --force-with-lease`.
-- User says "deploy" (or has an established cadence of every fix going live) → do the full loop without asking.
-- Verify before every ship: `npm run build` · `npx vitest run` (124 tests as of PR #108) · `npx eslint src` (0 errors; a couple of pre-existing warnings are fine).
+- **Batched ship cadence** (changed 2026-07-12): commit per logical change and PUSH commits to the working branch as you go, but DON'T open a PR per change. Open + **squash-merge** ONE PR to `main` (Vercel auto-deploys) → reset the branch — at a **phase boundary**, when the user says **"deploy"**, or when a fix needs **live verification**. Why: CCD auto-archives the session whenever a PR it opened merges, so a PR-per-change loop archived the session on every push. Batching = ~one archive per phase instead of per change, while keeping PR history + deploys.
+- Ship-loop mechanics when merging: `git fetch origin main && git checkout -B claude/relaxed-thompson-eqmpln origin/main && git push -u origin claude/relaxed-thompson-eqmpln --force-with-lease`. Confirm the Vercel deploy reaches READY after each merge (a #124-era build died silently mid-clone — don't assume merge = deployed).
+- Verify before every ship: `npm run build` · `npx vitest run` (134 tests as of PR #131) · `npx eslint src` (0 errors; a couple of pre-existing warnings are fine).
 - Commit trailer: `Co-Authored-By: Claude <noreply@anthropic.com>`. Never put model IDs in repo artifacts.
 - GitHub access is via the GitHub MCP tools (no `gh` CLI in the remote env).
 - The user tests on the live site and reports with screenshots — expect visual bug reports; consider Playwright/Chromium (preinstalled in the remote env) to verify UI before shipping.

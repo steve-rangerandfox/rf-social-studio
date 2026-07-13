@@ -394,7 +394,10 @@ export function DetailPanel() {
   const clearMedia = () => {
     setPending([]);
     setMediaWarnings([]);
-    onChange({ mediaItems: null, mediaUrl: null, thumbnailUrl: null, mediaKind: null, carouselFrameUrls: null, ...(isReel ? { reelDuration: null } : {}) });
+    // Route through commitItems so "Remove all" ALSO clears the stale
+    // designer output (storyPages/frames) like every other gallery change.
+    commitItems([]);
+    onChange({ thumbnailUrl: null, ...(isReel ? { reelDuration: null } : {}) });
   };
 
   const submitComment = () => {
