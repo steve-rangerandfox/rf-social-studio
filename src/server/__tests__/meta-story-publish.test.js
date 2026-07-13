@@ -29,6 +29,7 @@ describe("publishInstagramPost — story frames", () => {
       .mockResolvedValueOnce(okJson({ id: "media-1" }));
 
     const res = await publishInstagramPost({
+      igUserId: "ig1",
       userToken: "tok",
       imageUrl: "https://cdn.example/story-frame-1.png",
       mediaType: "STORIES",
@@ -38,6 +39,13 @@ describe("publishInstagramPost — story frames", () => {
     expect(res).toEqual({ mediaId: "media-1" });
     // Exactly two calls: create + publish. A status poll would add a third.
     expect(fetchWithTimeout).toHaveBeenCalledTimes(2);
+
+    // Facebook-Login path: target graph.facebook.com/{ig-business-id}, NOT
+    // graph.instagram.com/me — publishing runs through the Page-linked IG
+    // business account node.
+    const createUrl = fetchWithTimeout.mock.calls[0][0];
+    expect(createUrl).toContain("graph.facebook.com");
+    expect(createUrl).toContain("/ig1/media");
 
     const create = bodyParams(fetchWithTimeout.mock.calls[0]);
     expect(create.media_type).toBe("STORIES");
@@ -52,6 +60,7 @@ describe("publishInstagramPost — story frames", () => {
       .mockResolvedValueOnce(okJson({ id: "media-2" }));          // publish
 
     const res = await publishInstagramPost({
+      igUserId: "ig1",
       userToken: "tok",
       videoUrl: "https://cdn.example/story.mp4",
       mediaType: "STORIES",
@@ -66,7 +75,7 @@ describe("publishInstagramPost — story frames", () => {
 
   it("throws when a story has neither an image nor a video URL", async () => {
     await expect(
-      publishInstagramPost({ userToken: "tok", mediaType: "STORIES" }),
+      publishInstagramPost({ igUserId: "ig1", userToken: "tok", mediaType: "STORIES" }),
     ).rejects.toThrow(/imageUrl or videoUrl required/);
     expect(fetchWithTimeout).not.toHaveBeenCalled();
   });
@@ -86,6 +95,7 @@ describe("publishInstagramCarousel", () => {
       .mockResolvedValueOnce(okJson({ id: "media-9" })); // publish
 
     const res = await publishInstagramCarousel({
+      igUserId: "ig1",
       userToken: "tok",
       imageUrls: ["https://cdn.example/s1.jpg", "https://cdn.example/s2.jpg", "https://cdn.example/s3.jpg"],
       caption: "Three notes",
@@ -93,6 +103,8 @@ describe("publishInstagramCarousel", () => {
 
     expect(res).toEqual({ mediaId: "media-9" });
     expect(fetchWithTimeout).toHaveBeenCalledTimes(5);
+    expect(fetchWithTimeout.mock.calls[0][0]).toContain("graph.facebook.com");
+    expect(fetchWithTimeout.mock.calls[0][0]).toContain("/ig1/media");
 
     // Children flagged as carousel items, in order.
     const child1 = bodyParams(fetchWithTimeout.mock.calls[0]);

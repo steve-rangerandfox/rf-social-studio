@@ -2,6 +2,10 @@ import { fetchWithTimeout } from "./http.js";
 
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.instagram.com/${GRAPH_API_VERSION}`;
+// Facebook-Login path: publishing runs through the Graph API against the
+// Page-linked IG business account node ({ig-user-id}/media), using the
+// Page access token — NOT graph.instagram.com/me.
+const FB_GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 // Permissions required for the Instagram API with Instagram Login.
 // User must approve all of these for publishing to work.
@@ -139,12 +143,15 @@ export async function fetchInstagramMedia(userToken, { limit = 30, after = null 
 // Step 2: Publish the container
 // Returns: { mediaId } from the publish step
 export async function publishInstagramPost({
-  userToken,
+  igUserId,    // IG business account id (the publish node on graph.facebook.com)
+  userToken,   // Page access token for that account
   imageUrl,    // public HTTPS URL of image (must be on a public CDN)
   videoUrl,    // optional, for VIDEO/REELS/STORIES
   caption,
   mediaType = "IMAGE", // "IMAGE" | "VIDEO" | "REELS" | "STORIES"
 }) {
+  if (!igUserId) throw new Error("igUserId required to publish");
+  const base = `${FB_GRAPH_BASE}/${igUserId}`;
   // Step 1: Create container
   const containerParams = new URLSearchParams({
     access_token: userToken,
@@ -180,7 +187,7 @@ export async function publishInstagramPost({
   if (caption) containerParams.set("caption", caption);
 
   const createRes = await fetchWithTimeout(
-    `${GRAPH_BASE}/me/media`,
+    `${base}/media`,
     { method: "POST", body: containerParams }
   );
   const createBody = await createRes.json();
@@ -197,7 +204,7 @@ export async function publishInstagramPost({
     while (attempts < 10) {
       await new Promise((r) => setTimeout(r, 2000));
       const statusRes = await fetchWithTimeout(
-        `${GRAPH_BASE}/${containerId}?fields=status_code&access_token=${encodeURIComponent(userToken)}`
+        `${FB_GRAPH_BASE}/${containerId}?fields=status_code&access_token=${encodeURIComponent(userToken)}`
       );
       const statusBody = await statusRes.json();
       if (statusBody.status_code === "FINISHED") break;
@@ -208,7 +215,7 @@ export async function publishInstagramPost({
 
   // Step 2: Publish
   const publishRes = await fetchWithTimeout(
-    `${GRAPH_BASE}/me/media_publish`,
+    `${base}/media_publish`,
     {
       method: "POST",
       body: new URLSearchParams({
@@ -230,10 +237,12 @@ export async function publishInstagramPost({
 //   2. one parent container (media_type=CAROUSEL, children=[ids])
 //   3. publish the parent container
 // imageUrls must be 2-10 public HTTPS image URLs.
-export async function publishInstagramCarousel({ userToken, imageUrls, caption }) {
+export async function publishInstagramCarousel({ igUserId, userToken, imageUrls, caption }) {
   if (!Array.isArray(imageUrls) || imageUrls.length < 2 || imageUrls.length > 10) {
     throw new Error("Carousels need between 2 and 10 images");
   }
+  if (!igUserId) throw new Error("igUserId required to publish");
+  const base = `${FB_GRAPH_BASE}/${igUserId}`;
 
   // Step 1: a child container per image.
   const childIds = [];
@@ -243,7 +252,7 @@ export async function publishInstagramCarousel({ userToken, imageUrls, caption }
       image_url: imageUrl,
       is_carousel_item: "true",
     });
-    const res = await fetchWithTimeout(`${GRAPH_BASE}/me/media`, { method: "POST", body: params });
+    const res = await fetchWithTimeout(`${base}/media`, { method: "POST", body: params });
     const data = await res.json();
     if (!res.ok || data.error) {
       throw new Error(data.error?.message || "Failed to create carousel item");
@@ -259,7 +268,7 @@ export async function publishInstagramCarousel({ userToken, imageUrls, caption }
   });
   if (caption) carouselParams.set("caption", caption);
 
-  const createRes = await fetchWithTimeout(`${GRAPH_BASE}/me/media`, { method: "POST", body: carouselParams });
+  const createRes = await fetchWithTimeout(`${base}/media`, { method: "POST", body: carouselParams });
   const createBody = await createRes.json();
   if (!createRes.ok || createBody.error) {
     throw new Error(createBody.error?.message || "Failed to create carousel container");
@@ -267,7 +276,7 @@ export async function publishInstagramCarousel({ userToken, imageUrls, caption }
 
   // Step 3: publish.
   const publishRes = await fetchWithTimeout(
-    `${GRAPH_BASE}/me/media_publish`,
+    `${base}/media_publish`,
     {
       method: "POST",
       body: new URLSearchParams({ creation_id: createBody.id, access_token: userToken }),
