@@ -691,13 +691,11 @@ export function DetailPanel() {
                           const isCurrent = row.status === k;
                           const currentIdx = STATUS_ORDER.indexOf(row.status);
                           const targetIdx = STATUS_ORDER.indexOf(k);
-                          const isBackward = targetIdx < currentIdx;
                           const isPosted = k === "posted";
                           const isForwardSkip = targetIdx > currentIdx + 1;
                           let itemAllowed = false;
                           let itemReason = "";
                           if (isCurrent) { itemReason = "Current status"; }
-                          else if (isBackward) { itemReason = "Cannot go backward"; }
                           else if (isPosted) { itemReason = "System only"; }
                           else if (isForwardSkip) { itemReason = "Cannot skip steps"; }
                           else { const check = canTransition(row.status, k, row, hasConnectedAccount); itemAllowed = check.allowed; itemReason = check.reason; }

@@ -1,5 +1,7 @@
-// StatusMachine — proper status transition system for Relay
-// Replaces the single-click cycle with validated, forward-only transitions.
+// StatusMachine — proper status transition system for Relay.
+// Forward transitions are strict (one step, gated); BACKWARD transitions
+// are allowed from any state except posted — pulling a scheduled post
+// back is the only way to stop the auto-publisher without deleting it.
 
 export const STATUS_ORDER = ['idea', 'draft', 'needs_review', 'approved', 'scheduled', 'posted'];
 
@@ -12,7 +14,8 @@ export const STATUS_ORDER = ['idea', 'draft', 'needs_review', 'approved', 'sched
  *   needs_review -> approved : requires explicit approval action
  *   approved -> scheduled    : requires scheduledAt AND a connected account
  *   scheduled -> posted      : system-only (never user-clickable)
- *   No backward transitions. No cycling past posted.
+ *   BACKWARD (any earlier state): allowed except from posted — going back
+ *   has no side effects; the scheduler only publishes status "scheduled".
  */
 export function canTransition(fromStatus, toStatus, row, hasConnectedAccount = false) {
   const fromIdx = STATUS_ORDER.indexOf(fromStatus);
@@ -28,14 +31,15 @@ export function canTransition(fromStatus, toStatus, row, hasConnectedAccount = f
     return { allowed: false, reason: "Already at this status" };
   }
 
-  // No backward transitions
-  if (toIdx < fromIdx) {
-    return { allowed: false, reason: "Backward transitions are not allowed" };
-  }
-
-  // Cannot move past posted
+  // Posted is terminal in BOTH directions — reality can't be un-posted.
   if (fromStatus === "posted") {
     return { allowed: false, reason: "Posted is a terminal status" };
+  }
+
+  // Backward: always allowed (any number of steps). Going back has no
+  // side effects — the scheduler only publishes rows at "scheduled".
+  if (toIdx < fromIdx) {
+    return { allowed: true, reason: `Move back to ${toStatus}` };
   }
 
   // Cannot skip statuses (must move one step at a time)
