@@ -233,8 +233,17 @@ export function DetailPanel() {
       mediaItems: list.length ? list : null,
       mediaUrl: list[0]?.url || null,
       mediaKind: isCarousel ? "carousel" : hasVideo ? "video" : list.length ? "image" : null,
-      // carouselFrameUrls is designer-rendered output only; the scheduler
-      // falls back to mediaItems for a raw multi-image post.
+      // Changing the raw gallery invalidates any prior designer output — the
+      // saved pages/frames were built on the OLD images. Clear them so the
+      // preview shows the new raw media and the designer re-seeds fresh from
+      // this gallery instead of appending onto stale canvases.
+      storyPages: null,
+      storyElements: null,
+      storyFrames: null,
+      storyFrameUrls: null,
+      storyFramesPosted: 0,
+      storyFrameIds: null,
+      carouselFrameUrls: null,
       // Thumbnail: keep a custom one; else first image; else leave for the
       // video poster capture below.
       ...(row.thumbnailUrl && list.some((it) => it.url === row.thumbnailUrl) ? {}
