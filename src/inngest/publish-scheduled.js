@@ -274,6 +274,7 @@ export const publishScheduledPosts = inngest.createFunction(
           if (isCarousel && carouselFrames.length >= 2) {
             try {
               const { mediaId } = await publishInstagramCarousel({
+                igUserId: tokenRecord.igUserId,
                 userToken: tokenRecord.igUserToken,
                 imageUrls: carouselFrames.slice(0, 10),
                 caption: row.caption || "",
@@ -325,6 +326,7 @@ export const publishScheduledPosts = inngest.createFunction(
               for (let i = startIdx; i < frames.length; i++) {
                 const frame = frames[i];
                 const { mediaId } = await publishInstagramPost({
+                  igUserId: tokenRecord.igUserId,
                   userToken: tokenRecord.igUserToken,
                   imageUrl: frame.kind === "video" ? undefined : frame.url,
                   videoUrl: frame.kind === "video" ? frame.url : undefined,
@@ -348,6 +350,7 @@ export const publishScheduledPosts = inngest.createFunction(
               const isVideo = mediaType === "REELS" || mediaType === "VIDEO";
               const single = frames[0].url;
               const { mediaId } = await publishInstagramPost({
+                igUserId: tokenRecord.igUserId,
                 userToken: tokenRecord.igUserToken,
                 imageUrl: isVideo ? undefined : single,
                 videoUrl: isVideo ? single : undefined,

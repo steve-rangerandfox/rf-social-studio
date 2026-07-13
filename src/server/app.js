@@ -323,11 +323,13 @@ async function handleInstagramPublish(req, res, env, reqId, auth) {
   try {
     const result = mediaType === "CAROUSEL"
       ? await publishInstagramCarousel({
+          igUserId: session.igUserId,
           userToken: session.igUserToken,
           imageUrls,
           caption,
         })
       : await publishInstagramPost({
+          igUserId: session.igUserId,
           userToken: session.igUserToken,
           imageUrl: mediaType === "IMAGE" ? mediaUrl : undefined,
           videoUrl: mediaType !== "IMAGE" ? videoUrl : undefined,
