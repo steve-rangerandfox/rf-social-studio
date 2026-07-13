@@ -7,6 +7,8 @@ import {
   makeDefaultElements,
   getReadinessChecks,
   formatRelativeStamp,
+  toPTDisplay,
+  MONTHS_SHORT,
 } from "../shared.js";
 import { TOAST } from "../copy.js";
 import { useStudio } from "../StudioContext.jsx";
@@ -24,6 +26,7 @@ import { probeFiles } from "../media-probe.js";
 import { CapabilityDialog } from "./CapabilityDialog.jsx";
 import { EditImageModal } from "./EditImageModal.jsx";
 import { MediaViewerModal } from "./MediaViewerModal.jsx";
+import { DateTimePicker } from "./DateTimePicker.jsx";
 
 // Buffer-style post editor window: channels + composer on the left, live
 // per-network previews on the right, publish controls in the footer.
@@ -59,8 +62,11 @@ export function DetailPanel() {
   // Tile interactions: lightbox + Edit Image modal (Buffer pattern)
   const [expandMedia, setExpandMedia] = useState(null); // { url, isVideo }
   const [editIdx, setEditIdx] = useState(null);
+  // Schedule (date & time) picker
+  const [isSchedulePickerOpen, setIsSchedulePickerOpen] = useState(false);
 
   const titleInputRef = useRef(null);
+  const scheduleRef = useRef(null);
   const mediaRef = useRef(null);
   const thumbRef = useRef(null);
   const approvalRef = useRef(null);
@@ -85,6 +91,7 @@ export function DetailPanel() {
     setPlatformDropdownOpen(false);
     setOutletPickerOpen(false);
     setCapIssue(null);
+    setIsSchedulePickerOpen(false);
   }, [selectedRowId]);
 
   // Restore originating focus on unmount
@@ -668,6 +675,24 @@ export function DetailPanel() {
               )}
 
               <AICaptionAssist platform={row.platform} note={row.note} caption={row.caption} onAccept={(t) => onChange({ caption: t })} variant="inline" />
+
+              {/* Schedule — date & time (PT), editable right here instead of
+                  only from the queue row */}
+              <section className="stage-section dp2-section">
+                <div className="stage-col-label">Schedule</div>
+                <div className="row-dropdown-anchor" ref={scheduleRef} onClick={(e) => e.stopPropagation()}>
+                  <button className="dt-badge dp2-schedule-btn" onClick={() => setIsSchedulePickerOpen((o) => !o)} title="Edit date & time (PT)">
+                    <Calendar size={13} />
+                    {(() => {
+                      const p = toPTDisplay(row.scheduledAt);
+                      return p ? `${MONTHS_SHORT[Number(p.month) - 1]} ${p.day}, ${p.hour}:${p.minute} ${p.ampm} PT` : "Set a date & time";
+                    })()}
+                  </button>
+                  {isSchedulePickerOpen && (
+                    <DateTimePicker isoValue={row.scheduledAt} onChange={(v) => onChange({ scheduledAt: v })} onClose={() => setIsSchedulePickerOpen(false)} anchorRef={scheduleRef} />
+                  )}
+                </div>
+              </section>
 
               {/* Approval / owner */}
               <section className="stage-section dp2-section">
