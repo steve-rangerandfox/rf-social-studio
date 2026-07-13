@@ -14,8 +14,9 @@ const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 // Permissions the "Manage messaging & content on Instagram" use case
 // grants — enough to list Pages, read the linked IG business account,
-// and publish content.
-export const FB_OAUTH_SCOPES = "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,business_management";
+// and publish content. NOT business_management: the use case doesn't
+// include it and the dialog hard-fails with "Invalid Scopes".
+export const FB_OAUTH_SCOPES = "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement";
 
 // Build the Facebook OAuth dialog URL. redirectUri must be a Valid OAuth
 // Redirect URI in the app's Facebook Login for Business settings.
