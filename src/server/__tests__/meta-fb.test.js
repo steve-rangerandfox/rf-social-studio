@@ -23,6 +23,10 @@ describe("buildFacebookAuthorizeUrl", () => {
       expect(FB_OAUTH_SCOPES).toContain(s);
     }
   });
+
+  it("never requests business_management — the use case doesn't grant it and the dialog rejects the whole request", () => {
+    expect(FB_OAUTH_SCOPES).not.toContain("business_management");
+  });
 });
 
 describe("pickInstagramBusinessAccount", () => {
