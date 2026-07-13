@@ -27,6 +27,7 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
   const [setupDetails, setSetupDetails] = useState(null); // { missing: [...], reason: string }
+  const [appError, setAppError] = useState(false); // popup bounced to Instagram's error page (bad app config)
 
   const isConnected = !!igConfig?.username;
   const connecting = phase === "connecting";
@@ -34,6 +35,7 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
   const startOAuth = async () => {
     setError("");
     setSetupDetails(null);
+    setAppError(false);
     setPhase("connecting");
 
     let authorizeUrl;
@@ -73,11 +75,17 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
     }
 
     let popupCheckTimer = null;
+    // Set once our callback posts back (success OR a real error). If the
+    // popup instead closes without ever posting, it bounced to Instagram's
+    // own error page (e.g. "Invalid platform app") — which never reaches
+    // our redirect, so app-config problems surface as a silent close.
+    let gotResult = false;
 
     const handleMessage = async (event) => {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type !== "rf_ig_oauth") return;
 
+      gotResult = true;
       window.removeEventListener("message", handleMessage);
       if (popupCheckTimer) clearInterval(popupCheckTimer);
 
@@ -109,6 +117,10 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
       if (popup.closed) {
         clearInterval(popupCheckTimer);
         window.removeEventListener("message", handleMessage);
+        // Closed without our callback ever posting back → Instagram
+        // rejected the app before returning. Point the user at the
+        // Meta/Vercel config rather than leaving a silent no-op.
+        if (!gotResult) setAppError(true);
         setPhase((current) => (current === "connecting" ? "idle" : current));
       }
     }, 500);
@@ -208,6 +220,22 @@ function IGOAuthPanel({ igConfig, igMedia, onSave, onMediaSync, onDisconnect }) 
           </li>
         </ol>
       </div>
+      {appError && (
+        <div className="cp-setup-error" role="alert">
+          <div className="cp-setup-error-title">Instagram rejected the app</div>
+          <div className="cp-setup-error-body">
+            Instagram closed the window without connecting (its &ldquo;Invalid platform app&rdquo; error). The credentials are set, but they aren&rsquo;t valid for Instagram Login. Check that:
+          </div>
+          <ul className="cp-setup-error-list">
+            <li><code>FB_APP_ID</code> / <code>FB_APP_SECRET</code> are the <strong>Instagram</strong> app ID &amp; secret from Meta&rsquo;s <em>&ldquo;Instagram → API setup with Instagram business login&rdquo;</em> product — not the Meta App ID in the dashboard header.</li>
+            <li>The redirect <code>https://www.rangerandfox-social.studio/instagram/oauth/callback</code> is whitelisted under that product&rsquo;s Business login settings.</li>
+            <li>You&rsquo;re connecting a <strong>Professional</strong> (Business or Creator) account, and you&rsquo;re an admin/tester while the app is in Development.</li>
+          </ul>
+          <div className="cp-setup-error-help">
+            Fix in <strong>Meta dashboard</strong> + <strong>Vercel → Environment Variables</strong>, then redeploy.
+          </div>
+        </div>
+      )}
       {setupDetails && (
         <div className="cp-setup-error" role="alert">
           <div className="cp-setup-error-title">Server isn't configured yet</div>
