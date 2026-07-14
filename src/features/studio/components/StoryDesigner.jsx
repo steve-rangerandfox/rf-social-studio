@@ -518,10 +518,6 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // that predated the drop).
   const elementsRef = useRef(elements);
   elementsRef.current = elements;
-  // Latest selection, so a drag that starts WITHOUT a fresh onSelect (dragging
-  // an already-selected element) still snapshots every selected element.
-  const selectedIdsRef = useRef(selectedIds);
-  selectedIdsRef.current = selectedIds;
   const historyRef = useRef(history);
   historyRef.current = history;
   const historyIndexRef = useRef(historyIndex);
@@ -738,6 +734,13 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   }, [pages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [selectedIds, setSelectedIds]  = useState(new Set());
+  // Latest selection, so a drag that starts WITHOUT a fresh onSelect (dragging
+  // an already-selected element) still snapshots every selected element.
+  // Lives HERE, directly after the state it mirrors — hoisting it into the
+  // refs block above would read selectedIds before its declaration (TDZ
+  // ReferenceError → the designer crashed on mount).
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
   const [editingId,   setEditingId]   = useState(null);
   // Convenience: single selectedId for backward compat in properties panel
   const selectedId = selectedIds.size === 1 ? [...selectedIds][0] : null;
