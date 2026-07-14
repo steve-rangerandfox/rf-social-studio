@@ -8,6 +8,27 @@ const GRAPH_BASE = `https://graph.instagram.com/${GRAPH_API_VERSION}`;
 // "Unsupported request - method type: get".
 const IG_OAUTH_BASE = "https://graph.instagram.com";
 
+// Call an IG token endpoint (/access_token, /refresh_access_token). Meta's
+// docs say GET, but the live API currently rejects GET with "Unsupported
+// request - method type: get" and wants the params POSTed as a form body.
+// Try GET (docs) first; on a method-refused error, retry as POST — so this
+// works no matter which method Meta is honoring at the moment.
+async function igTokenRequest(path, params) {
+  const qs = new URLSearchParams(params).toString();
+  let res = await fetchWithTimeout(`${IG_OAUTH_BASE}/${path}?${qs}`);
+  let data = await res.json().catch(() => ({}));
+
+  const methodRefused = !res.ok && /method type/i.test(data.error?.message || "");
+  if (methodRefused) {
+    res = await fetchWithTimeout(`${IG_OAUTH_BASE}/${path}`, {
+      method: "POST",
+      body: new URLSearchParams(params),
+    });
+    data = await res.json().catch(() => ({}));
+  }
+  return { res, data };
+}
+
 // Permissions required for the Instagram API with Instagram Login.
 // User must approve all of these for publishing to work.
 export const IG_OAUTH_SCOPES = "instagram_business_basic,instagram_business_content_publish";
@@ -51,14 +72,11 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
   }
 
   // Step 2: long-lived token (60 days)
-  const longUrl = `${IG_OAUTH_BASE}/access_token?` + new URLSearchParams({
+  const { res: longRes, data: longData } = await igTokenRequest("access_token", {
     grant_type: "ig_exchange_token",
     client_secret: appSecret,
     access_token: shortData.access_token,
-  }).toString();
-
-  const longRes = await fetchWithTimeout(longUrl);
-  const longData = await longRes.json().catch(() => ({}));
+  });
   if (!longRes.ok || longData.error || !longData.access_token) {
     const detail = longData.error?.message || JSON.stringify(longData).slice(0, 300);
     throw new Error(`IG long-token exchange failed [status ${longRes.status}]: ${detail}`);
@@ -75,13 +93,10 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
 // refreshed as long as they have not expired.
 // Returns: { accessToken, expiresIn }
 export async function refreshInstagramToken(userToken) {
-  const url = `${IG_OAUTH_BASE}/refresh_access_token?` + new URLSearchParams({
+  const { res, data: body } = await igTokenRequest("refresh_access_token", {
     grant_type: "ig_refresh_token",
     access_token: userToken,
-  }).toString();
-
-  const res = await fetchWithTimeout(url);
-  const body = await res.json();
+  });
   if (!res.ok || body.error) {
     throw new Error(body.error?.message || "Instagram token refresh failed");
   }

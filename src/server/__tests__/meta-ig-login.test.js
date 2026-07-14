@@ -46,4 +46,22 @@ describe("exchangeCodeForInstagramToken", () => {
     expect(longUrl).toContain("https://graph.instagram.com/access_token");
     expect(longUrl).not.toContain("/v21.0/access_token");
   });
+
+  it("falls back to POST when the live API refuses GET on the long-token endpoint", async () => {
+    fetchWithTimeout
+      // Step 1 short-lived
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "short", user_id: 42 }) })
+      // Step 2 GET — refused with the observed "method type: get" error
+      .mockResolvedValueOnce({ ok: false, json: async () => ({ error: { message: "Unsupported request - method type: get" } }) })
+      // Step 2 retry as POST — succeeds
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "long", expires_in: 5184000 }) });
+
+    const out = await exchangeCodeForInstagramToken({ appId: "1", appSecret: "s", code: "c", redirectUri: "https://x/cb" });
+    expect(out.accessToken).toBe("long");
+
+    // The GET was tried, then the same endpoint retried as POST with a body.
+    expect(fetchWithTimeout.mock.calls[1][1]).toBeUndefined();
+    expect(fetchWithTimeout.mock.calls[2][0]).toBe("https://graph.instagram.com/access_token");
+    expect(fetchWithTimeout.mock.calls[2][1].method).toBe("POST");
+  });
 });
