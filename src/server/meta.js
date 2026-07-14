@@ -44,9 +44,10 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
     method: "POST",
     body: shortBody,
   });
-  const shortData = await shortRes.json();
-  if (!shortRes.ok || shortData.error) {
-    throw new Error(shortData.error?.message || shortData.error_message || "Instagram token exchange failed");
+  const shortData = await shortRes.json().catch(() => ({}));
+  if (!shortRes.ok || shortData.error || shortData.error_type || !shortData.access_token) {
+    const detail = shortData.error?.message || shortData.error_message || JSON.stringify(shortData).slice(0, 300);
+    throw new Error(`IG short-token exchange failed [status ${shortRes.status}]: ${detail}`);
   }
 
   // Step 2: long-lived token (60 days)
@@ -57,9 +58,10 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
   }).toString();
 
   const longRes = await fetchWithTimeout(longUrl);
-  const longData = await longRes.json();
-  if (!longRes.ok || longData.error) {
-    throw new Error(longData.error?.message || "Instagram long-lived token exchange failed");
+  const longData = await longRes.json().catch(() => ({}));
+  if (!longRes.ok || longData.error || !longData.access_token) {
+    const detail = longData.error?.message || JSON.stringify(longData).slice(0, 300);
+    throw new Error(`IG long-token exchange failed [status ${longRes.status}]: ${detail}`);
   }
 
   return {
