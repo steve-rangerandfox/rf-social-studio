@@ -110,6 +110,11 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
   return {
     accessToken: long?.access_token || grant.access_token,
     userId: String(grant.user_id),
+    // Scopes the connecting account actually granted. If this is missing
+    // instagram_business_content_publish, the account/app can log in but
+    // can't publish — the usual cause of a "connected but nothing works".
+    grantedScopes: grant.permissions || "",
+    grantedUserId: String(grant.user_id || ""),
     expiresIn: long?.expires_in || 60 * 60, // short-lived tokens last 1 hour
     longLived: Boolean(long),
     longTokenDiag,

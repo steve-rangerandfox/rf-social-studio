@@ -131,6 +131,14 @@ export async function handleInstagramExchange(req, res, env, reqId) {
       redirectUri: env.igRedirectUri,
     });
 
+    // Record which account + scopes actually came back, so a "connected but
+    // nothing works" report can be diagnosed from the log alone.
+    logger("info", reqId, "ig_grant", {
+      grantedUserId: token.grantedUserId,
+      grantedScopes: token.grantedScopes,
+      longLived: token.longLived,
+    });
+
     // Long-lived upgrade is best-effort; when it fails we connect with the
     // 1-hour short token and log what Meta returned (redacted) to fix it.
     if (!token.longLived) {
