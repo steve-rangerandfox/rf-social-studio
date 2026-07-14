@@ -131,6 +131,12 @@ export async function handleInstagramExchange(req, res, env, reqId) {
       redirectUri: env.igRedirectUri,
     });
 
+    // Long-lived upgrade is best-effort; when it fails we connect with the
+    // 1-hour short token and log what Meta returned (redacted) to fix it.
+    if (!token.longLived) {
+      logger("warn", reqId, "ig_long_token_unavailable", token.longTokenDiag || {});
+    }
+
     const profile = await fetchInstagramProfile(token.accessToken);
 
     const expiresAt = Date.now() + token.expiresIn * 1000;
