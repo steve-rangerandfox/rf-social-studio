@@ -110,6 +110,11 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
   return {
     accessToken: long?.access_token || grant.access_token,
     userId: String(grant.user_id),
+    // Scopes the connecting account actually granted. If this is missing
+    // instagram_business_content_publish, the account/app can log in but
+    // can't publish — the usual cause of a "connected but nothing works".
+    grantedScopes: grant.permissions || "",
+    grantedUserId: String(grant.user_id || ""),
     expiresIn: long?.expires_in || 60 * 60, // short-lived tokens last 1 hour
     longLived: Boolean(long),
     longTokenDiag,
@@ -144,6 +149,12 @@ export async function fetchInstagramProfile(userToken) {
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body.error) {
     const err = new Error(`IG profile fetch failed [status ${res.status}]: ${body.error?.message || "no body"}`);
+    // "Unsupported request" across graph.instagram.com with a valid IGAA
+    // token = the connected account can't use the API — in practice, a
+    // PERSONAL account (must be Professional: Business or Creator).
+    if (/unsupported request/i.test(body.error?.message || "")) {
+      err.code = "IG_NOT_PROFESSIONAL";
+    }
     // Discriminator: if graph.instagram.com refuses this token wholesale,
     // check whether graph.facebook.com/me accepts it — that tells us which
     // platform the token was actually minted for.

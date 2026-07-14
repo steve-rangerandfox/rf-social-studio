@@ -28,7 +28,7 @@ Connected services (config lives in their dashboards, not the repo):
 - All work on branch `claude/relaxed-thompson-eqmpln`. Never push other branches.
 - **Batched ship cadence** (changed 2026-07-12): commit per logical change and PUSH commits to the working branch as you go, but DON'T open a PR per change. Open + **squash-merge** ONE PR to `main` (Vercel auto-deploys) → reset the branch — at a **phase boundary**, when the user says **"deploy"**, or when a fix needs **live verification**. Why: CCD auto-archives the session whenever a PR it opened merges, so a PR-per-change loop archived the session on every push. Batching = ~one archive per phase instead of per change, while keeping PR history + deploys.
 - Ship-loop mechanics when merging: `git fetch origin main && git checkout -B claude/relaxed-thompson-eqmpln origin/main && git push -u origin claude/relaxed-thompson-eqmpln --force-with-lease`. Confirm the Vercel deploy reaches READY after each merge (a #124-era build died silently mid-clone — don't assume merge = deployed).
-- Verify before every ship: `npm run build` · `npx vitest run` (134 tests as of PR #131) · `npx eslint src` (0 errors; a couple of pre-existing warnings are fine).
+- Verify before every ship: `npm run build` · `npx vitest run` (141 tests as of PR #143) · `npx eslint src` (0 errors; a couple of pre-existing warnings are fine).
 - Commit trailer: `Co-Authored-By: Claude <noreply@anthropic.com>`. Never put model IDs in repo artifacts.
 - GitHub access is via the GitHub MCP tools (no `gh` CLI in the remote env).
 - The user tests on the live site and reports with screenshots — expect visual bug reports; consider Playwright/Chromium (preinstalled in the remote env) to verify UI before shipping.
@@ -69,6 +69,7 @@ Connected services (config lives in their dashboards, not the repo):
 5. **Selection chrome**: divides by `--sd-zoom` = canvas zoom × element scale. Any new chrome dimension needs the same `calc(Npx/var(--sd-zoom,1))` treatment.
 6. **Animations on positioned popovers**: never animate `transform` on elements that use transform for centering (use `fIn` opacity fade).
 7. **Save pipeline**: serialized; conflicts merge per-row by `updatedAt`. Don't add parallel `saveStudioDocument` callers.
+8. **Instagram connect (burned a full day, PRs #137–#143)**: Relay uses "Instagram API with Instagram business login" — env `IG_APP_ID`/`IG_APP_SECRET` must be the **Instagram App ID/Secret** from the Instagram product's "API setup with Instagram login" (the Meta/Facebook app credentials give "Invalid platform app"). If EVERY `graph.instagram.com` call fails with `Unsupported request - method type: get/post` on a valid IGAA token, the code is fine — the connected IG account is **not a Professional account** (or isn't added under the product's "Generate access tokens"). Server now returns `IG_NOT_PROFESSIONAL` for this. Also: the OAuth popup callback scripts must stay EXTERNAL files (`public/oauth-callback*.js`) — the site CSP has no `unsafe-inline`, an inline script hangs the popup silently.
 
 ## 6. Shipped state (PRs #60–#97, all merged)
 
