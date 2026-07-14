@@ -68,6 +68,7 @@ function Harness() {
         <div id="committed">COMMITTED: [{elements[0].content}]</div>
         <div id="editing-state">EDITING: {String(editingId)}</div>
         <div id="selected">SELECTED: [{[...selectedIds].join(",")}]</div>
+        <div id="pos">POS t1: ({Math.round(elements[0].x)},{Math.round(elements[0].y)})</div>
         <div id="churn">CHURN: {churn}</div>
       </div>
       <button id="outside-btn" style={{ marginTop: 8 }}>outside button</button>
