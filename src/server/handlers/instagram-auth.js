@@ -17,13 +17,13 @@ import { appendResponseCookie, errorJson, json, readJsonBody } from "../http.js"
 import { saveIGToken } from "../ig-token-store.js";
 import { clearCookie, setInstagramSession } from "../instagram-session.js";
 import { createLogger, sanitizeLogValue } from "../log.js";
-import { validateCanonicalRedirectUri } from "../meta.js";
 import {
-  buildFacebookAuthorizeUrl,
-  exchangeCodeForFacebookToken,
-  resolveInstagramBusinessAccount,
-  FB_OAUTH_SCOPES,
-} from "../meta-fb.js";
+  buildInstagramAuthorizeUrl,
+  exchangeCodeForInstagramToken,
+  fetchInstagramProfile,
+  validateCanonicalRedirectUri,
+  IG_OAUTH_SCOPES,
+} from "../meta.js";
 import { requireRequestAuth } from "../middleware.js";
 
 const logger = createLogger("rf-social-studio-api");
@@ -34,14 +34,14 @@ export async function handleInstagramStart(req, res, env, reqId) {
     return;
   }
 
-  const envCheck = ensureEnv(env, ["fbAppId", "fbAppSecret", "fbRedirectUri", "sessionSecret"]);
+  const envCheck = ensureEnv(env, ["igAppId", "igAppSecret", "igRedirectUri", "sessionSecret"]);
   if (!envCheck.ok) {
     return errorJson(res, 500, "SERVER_ERROR", "Instagram OAuth is not configured", { missing: envCheck.missing });
   }
 
-  if (!validateCanonicalRedirectUri(env.fbRedirectUri)) {
+  if (!validateCanonicalRedirectUri(env.igRedirectUri)) {
     logger("error", reqId, "ig_redirect_uri_invalid", {
-      redirectUri: sanitizeLogValue(env.fbRedirectUri),
+      redirectUri: sanitizeLogValue(env.igRedirectUri),
     });
     return errorJson(res, 500, "SERVER_ERROR", "Instagram redirect URI is invalid");
   }
@@ -67,22 +67,22 @@ export async function handleInstagramStart(req, res, env, reqId) {
   );
 
   return json(res, 200, {
-    authorizeUrl: buildFacebookAuthorizeUrl({
-      appId: env.fbAppId,
-      redirectUri: env.fbRedirectUri,
+    authorizeUrl: buildInstagramAuthorizeUrl({
+      appId: env.igAppId,
+      redirectUri: env.igRedirectUri,
       state,
     }),
-    scopes: FB_OAUTH_SCOPES,
+    scopes: IG_OAUTH_SCOPES,
   });
 }
 
 export async function handleInstagramExchange(req, res, env, reqId) {
-  const envCheck = ensureEnv(env, ["fbAppId", "fbAppSecret", "fbRedirectUri", "sessionSecret"]);
+  const envCheck = ensureEnv(env, ["igAppId", "igAppSecret", "igRedirectUri", "sessionSecret"]);
   if (!envCheck.ok) {
     return errorJson(res, 500, "SERVER_ERROR", "Instagram OAuth is not configured", { missing: envCheck.missing });
   }
 
-  if (!validateCanonicalRedirectUri(env.fbRedirectUri)) {
+  if (!validateCanonicalRedirectUri(env.igRedirectUri)) {
     return errorJson(res, 500, "SERVER_ERROR", "Instagram redirect URI is invalid");
   }
 
@@ -122,32 +122,26 @@ export async function handleInstagramExchange(req, res, env, reqId) {
   clearCookie(res, IG_OAUTH_STATE_COOKIE, env, req);
 
   try {
-    // Facebook-Login path: code → long-lived USER token, then resolve the
-    // IG business account linked to one of the user's Pages. We publish
-    // through that account with the PAGE access token.
-    const token = await exchangeCodeForFacebookToken({
-      appId: env.fbAppId,
-      appSecret: env.fbAppSecret,
+    // Instagram business login: code → short-lived → long-lived IG user
+    // token. Publishing runs on graph.instagram.com as that account.
+    const token = await exchangeCodeForInstagramToken({
+      appId: env.igAppId,
+      appSecret: env.igAppSecret,
       code: code.trim(),
-      redirectUri: env.fbRedirectUri,
+      redirectUri: env.igRedirectUri,
     });
 
-    const ig = await resolveInstagramBusinessAccount(token.accessToken);
+    const profile = await fetchInstagramProfile(token.accessToken);
 
     const expiresAt = Date.now() + token.expiresIn * 1000;
     const session = {
       ownerUserId: auth.userId,
-      igUserId: ig.igUserId,
-      // Publishing uses the PAGE token (never expires while the user token
-      // is valid); the long-lived user token is kept for re-resolution.
-      igUserToken: ig.pageAccessToken,
-      fbUserToken: token.accessToken,
-      pageId: ig.pageId,
-      pageName: ig.pageName,
-      igUsername: ig.igUsername,
-      igAccountType: "BUSINESS",
-      igProfilePictureUrl: ig.igProfilePictureUrl || null,
-      igMediaCount: null,
+      igUserId: token.userId,
+      igUserToken: token.accessToken,
+      igUsername: profile.username,
+      igAccountType: profile.accountType || "BUSINESS",
+      igProfilePictureUrl: profile.profilePictureUrl || null,
+      igMediaCount: profile.mediaCount ?? null,
       expiresAt,
       connectedAt: Date.now(),
     };
@@ -157,9 +151,9 @@ export async function handleInstagramExchange(req, res, env, reqId) {
     // Persist for the scheduled publishing worker (no session cookie there).
     saveIGToken(env, {
       ownerUserId: auth.userId,
-      igUserId: ig.igUserId,
-      igUserToken: ig.pageAccessToken,
-      igUsername: ig.igUsername,
+      igUserId: token.userId,
+      igUserToken: token.accessToken,
+      igUsername: profile.username,
       expiresAt,
     }).catch((err) =>
       logger("warn", reqId, "ig_token_store_failed", { error: sanitizeLogValue(err.message) })
@@ -167,18 +161,14 @@ export async function handleInstagramExchange(req, res, env, reqId) {
 
     return json(res, 200, {
       account: {
-        username: ig.igUsername,
-        mediaCount: null,
-        profilePictureUrl: ig.igProfilePictureUrl || null,
-        accountType: "BUSINESS",
+        username: profile.username,
+        mediaCount: profile.mediaCount ?? null,
+        profilePictureUrl: profile.profilePictureUrl || null,
+        accountType: profile.accountType || "BUSINESS",
         expiresAt,
       },
     });
   } catch (error) {
-    // Surface the "no linked IG business account" case distinctly.
-    if (error.code === "IG_NO_BUSINESS_ACCOUNT") {
-      return errorJson(res, 400, "IG_NO_BUSINESS_ACCOUNT", error.message);
-    }
     logger("error", reqId, "instagram_exchange_failed", {
       error: sanitizeLogValue(error.message),
     });
