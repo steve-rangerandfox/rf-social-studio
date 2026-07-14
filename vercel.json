@@ -3,6 +3,7 @@
     "api/captions.js": { "memory": 256, "maxDuration": 30 },
     "api/ig-oauth.js": { "memory": 128, "maxDuration": 15 },
     "api/ig-posts.js": { "memory": 256, "maxDuration": 15 },
+    "api/ig-publish.js": { "memory": 256, "maxDuration": 90 },
     "api/li-oauth.js": { "memory": 128, "maxDuration": 15 },
     "api/li-publish.js": { "memory": 256, "maxDuration": 15 },
     "api/studio-document.js": { "memory": 256, "maxDuration": 10 },
