@@ -215,15 +215,16 @@ export async function fetchInstagramMedia(userToken, { limit = 30, after = null 
 // Step 2: Publish the container
 // Returns: { mediaId } from the publish step
 export async function publishInstagramPost({
-  igUserId,    // IG professional account id (the publish node)
-  userToken,   // that account's Instagram user access token
+  userToken,   // the account's Instagram user access token
   imageUrl,    // public HTTPS URL of image (must be on a public CDN)
   videoUrl,    // optional, for VIDEO/REELS/STORIES
   caption,
   mediaType = "IMAGE", // "IMAGE" | "VIDEO" | "REELS" | "STORIES"
 }) {
-  if (!igUserId) throw new Error("igUserId required to publish");
-  const base = `${GRAPH_BASE}/${igUserId}`;
+  // Publish node is /me — the token identifies the account. The OAuth
+  // exchange's user_id is an APP-SCOPED id, not a graph node: POSTing to
+  // /{that-id}/media fails with "Object with ID ... does not exist".
+  const base = `${GRAPH_BASE}/me`;
   // Step 1: Create container
   const containerParams = new URLSearchParams({
     access_token: userToken,
@@ -309,12 +310,12 @@ export async function publishInstagramPost({
 //   2. one parent container (media_type=CAROUSEL, children=[ids])
 //   3. publish the parent container
 // imageUrls must be 2-10 public HTTPS image URLs.
-export async function publishInstagramCarousel({ igUserId, userToken, imageUrls, caption }) {
+export async function publishInstagramCarousel({ userToken, imageUrls, caption }) {
   if (!Array.isArray(imageUrls) || imageUrls.length < 2 || imageUrls.length > 10) {
     throw new Error("Carousels need between 2 and 10 images");
   }
-  if (!igUserId) throw new Error("igUserId required to publish");
-  const base = `${GRAPH_BASE}/${igUserId}`;
+  // /me — see publishInstagramPost: the stored id is app-scoped, not a node.
+  const base = `${GRAPH_BASE}/me`;
 
   // Step 1: a child container per image.
   const childIds = [];
