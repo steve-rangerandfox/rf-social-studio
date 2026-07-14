@@ -121,12 +121,21 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
   // Focus contentEditable when entering edit mode
   useEffect(() => {
     if (isEditing && editRef.current) {
+      // Seed the DOM text ONCE, then let the contentEditable own it while
+      // editing (JSX renders no child in edit mode). Rendering data.content
+      // as a React child instead lets any mid-edit re-render (toolbar click,
+      // auto-save, selection change) reset the DOM back to the old text and
+      // lose the user's typing — which blur then commits, so edits "revert".
+      editRef.current.innerText = data.content || '';
       editRef.current.focus();
       // Place cursor at end
       const sel = window.getSelection();
       sel.selectAllChildren(editRef.current);
       sel.collapseToEnd();
     }
+    // Intentionally depends on isEditing only — re-seeding on data.content
+    // changes would fight the user's live typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]);
 
   // Track video time for seek bar
@@ -446,10 +455,12 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
             cursor: isEditing ? 'text' : 'move',
           }}
         >
-          {isEditing || !data.listStyle
-            ? data.content
-            : String(data.content || '').split('\n').map((ln, i) =>
-                (data.listStyle === 'number' ? `${i + 1}. ` : '\u2022 ') + ln).join('\n')}
+          {isEditing
+            ? null // DOM owns the text while editing (seeded in the focus effect)
+            : !data.listStyle
+              ? data.content
+              : String(data.content || '').split('\n').map((ln, i) =>
+                  (data.listStyle === 'number' ? `${i + 1}. ` : '\u2022 ') + ln).join('\n')}
         </div>
       ) : isVideo ? (
         <div className="video-el">
