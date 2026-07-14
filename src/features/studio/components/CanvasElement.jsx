@@ -72,6 +72,11 @@ export function fitMediaBox(width, height, maxWidth, maxHeight) {
 export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, onContextMenu, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H, bgSpanTotal, bgSpanIndex, ghost = false }) {
   const videoRef = useRef(null);
   const editRef = useRef(null);
+  // Live text while editing, kept in a ref so it survives DOM clobbering:
+  // clicking out clears editingId, which re-renders the box with the OLD
+  // data.content back in the DOM BEFORE blur fires — so reading innerText on
+  // blur returned the pre-edit text. The ref holds what was actually typed.
+  const liveTextRef = useRef('');
   const [muted, setMuted] = useState(true);
   const [dropHover, setDropHover] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
@@ -127,6 +132,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
       // auto-save, selection change) reset the DOM back to the old text and
       // lose the user's typing — which blur then commits, so edits "revert".
       editRef.current.innerText = data.content || '';
+      liveTextRef.current = data.content || '';
       editRef.current.focus();
       // Place cursor at end
       const sel = window.getSelection();
@@ -414,11 +420,12 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
           ref={editRef}
           contentEditable={isEditing}
           suppressContentEditableWarning
+          onInput={() => { liveTextRef.current = editRef.current?.innerText ?? ''; }}
           onBlur={() => {
-            if (isEditing && editRef.current) {
-              onUpdate({ content: editRef.current.innerText });
-              onStopEdit();
-            }
+            // Commit the ref (what was typed), NOT innerText — the DOM may have
+            // already been reset to the old text by an editingId-clear re-render.
+            onUpdate({ content: liveTextRef.current });
+            onStopEdit();
           }}
           onKeyDown={(e) => {
             if (!isEditing) return;
