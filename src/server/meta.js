@@ -273,17 +273,7 @@ export async function publishInstagramPost({
   // For videos, we may need to wait for processing. Poll status briefly.
   // Image stories publish synchronously, so only poll when a video is involved.
   if (isVideoContainer) {
-    let attempts = 0;
-    while (attempts < 10) {
-      await new Promise((r) => setTimeout(r, 2000));
-      const statusRes = await fetchWithTimeout(
-        `${GRAPH_BASE}/${containerId}?fields=status_code&access_token=${encodeURIComponent(userToken)}`
-      );
-      const statusBody = await statusRes.json();
-      if (statusBody.status_code === "FINISHED") break;
-      if (statusBody.status_code === "ERROR") throw new Error("Media processing failed");
-      attempts++;
-    }
+    await waitForContainer(containerId, userToken);
   }
 
   // Step 2: Publish
@@ -303,6 +293,23 @@ export async function publishInstagramPost({
   }
 
   return { mediaId: publishBody.id };
+}
+
+// Poll a media container until Meta finishes processing it. Publishing a
+// container that is still IN_PROGRESS fails with "Media ID is not available"
+// — which is how the live carousel test died: children + parent created
+// fine, but media_publish fired before the parent finished.
+async function waitForContainer(containerId, userToken, { attempts = 15, intervalMs = 2000 } = {}) {
+  for (let i = 0; i < attempts; i++) {
+    const res = await fetchWithTimeout(
+      `${GRAPH_BASE}/${containerId}?fields=status_code&access_token=${encodeURIComponent(userToken)}`
+    );
+    const body = await res.json().catch(() => ({}));
+    if (body.status_code === "FINISHED") return;
+    if (body.status_code === "ERROR") throw new Error("Media processing failed");
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  // Fall through and let media_publish give the definitive answer.
 }
 
 // Publish a multi-image carousel. IG requires the three-step flow:
@@ -346,6 +353,9 @@ export async function publishInstagramCarousel({ userToken, imageUrls, caption }
   if (!createRes.ok || createBody.error) {
     throw new Error(createBody.error?.message || "Failed to create carousel container");
   }
+
+  // Carousel parents process asynchronously too — wait before publishing.
+  await waitForContainer(createBody.id, userToken);
 
   // Step 3: publish.
   const publishRes = await fetchWithTimeout(

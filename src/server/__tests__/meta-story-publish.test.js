@@ -90,8 +90,9 @@ describe("publishInstagramCarousel", () => {
       .mockResolvedValueOnce(okJson({ id: "child-1" }))
       .mockResolvedValueOnce(okJson({ id: "child-2" }))
       .mockResolvedValueOnce(okJson({ id: "child-3" }))
-      .mockResolvedValueOnce(okJson({ id: "parent-1" })) // parent container
-      .mockResolvedValueOnce(okJson({ id: "media-9" })); // publish
+      .mockResolvedValueOnce(okJson({ id: "parent-1" }))              // parent container
+      .mockResolvedValueOnce(okJson({ status_code: "FINISHED" }))     // processing poll
+      .mockResolvedValueOnce(okJson({ id: "media-9" }));              // publish
 
     const res = await publishInstagramCarousel({
       igUserId: "ig1",
@@ -101,7 +102,7 @@ describe("publishInstagramCarousel", () => {
     });
 
     expect(res).toEqual({ mediaId: "media-9" });
-    expect(fetchWithTimeout).toHaveBeenCalledTimes(5);
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(6);
     expect(fetchWithTimeout.mock.calls[0][0]).toContain("graph.instagram.com");
     expect(fetchWithTimeout.mock.calls[0][0]).toContain("/me/media");
 
@@ -116,8 +117,12 @@ describe("publishInstagramCarousel", () => {
     expect(parent.children).toBe("child-1,child-2,child-3");
     expect(parent.caption).toBe("Three notes");
 
+    // The parent is polled until FINISHED before publish — publishing an
+    // IN_PROGRESS container fails with "Media ID is not available".
+    expect(fetchWithTimeout.mock.calls[4][0]).toContain("/parent-1?fields=status_code");
+
     // Publish targets the parent container.
-    const publish = bodyParams(fetchWithTimeout.mock.calls[4]);
+    const publish = bodyParams(fetchWithTimeout.mock.calls[5]);
     expect(publish.creation_id).toBe("parent-1");
   });
 
