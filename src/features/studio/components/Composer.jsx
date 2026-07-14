@@ -98,7 +98,76 @@ export function Composer({ row, onClose, onPosted, postNow, onOpenCarousel }) {
         return;
       }
 
+      // No files attached in THIS modal — publish the media already stored on
+      // the row (post-editor uploads / designer renders are public URLs).
+      // Mirrors the scheduler's resolution: designer frames first, then the
+      // raw gallery. Without this, "Post now" on any post built in the editor
+      // dead-ended at "Add media before publishing".
       if (files.length === 0) {
+        const gallery = Array.isArray(row?.mediaItems) ? row.mediaItems.filter((it) => it?.url) : [];
+        const galleryImages = gallery.filter((it) => it.kind !== "video").map((it) => it.url);
+        const galleryVideo = gallery.find((it) => it.kind === "video")?.url || null;
+
+        if (plat === "ig_story") {
+          // One publish per designed frame (image or video), like the scheduler.
+          const frames = (Array.isArray(row?.storyFrames) ? row.storyFrames.filter((f) => f?.url) : [])
+            .map((f) => ({ url: f.url, kind: f.kind === "video" ? "video" : "image" }));
+          if (!frames.length && (row?.mediaUrl || galleryImages[0] || galleryVideo)) {
+            const u = row?.mediaUrl || galleryImages[0] || galleryVideo;
+            frames.push({ url: u, kind: row?.mediaKind === "video" || u === galleryVideo ? "video" : "image" });
+          }
+          if (frames.length) {
+            setSt("publishing");
+            let last = null;
+            for (const f of frames) {
+              last = await publishToInstagram({
+                caption: "",
+                mediaUrl: f.kind === "video" ? undefined : f.url,
+                videoUrl: f.kind === "video" ? f.url : undefined,
+                mediaType: "STORIES",
+                rowId: row?.id,
+              });
+            }
+            setSt("done");
+            onPosted?.({ mediaId: last.mediaId, mediaUrl: frames[0].url });
+            return;
+          }
+        } else if (plat === "ig_post") {
+          const urls = Array.isArray(row?.carouselFrameUrls) && row.carouselFrameUrls.length
+            ? row.carouselFrameUrls.filter(Boolean)
+            : galleryImages;
+          if (urls.length >= 2) {
+            setSt("publishing");
+            const result = await publishToInstagram({ caption: caption.trim(), imageUrls: urls, mediaType: "CAROUSEL", rowId: row?.id });
+            setSt("done");
+            onPosted?.({ mediaId: result.mediaId, mediaUrl: result.permalink || urls[0] });
+            return;
+          }
+          const single = urls[0] || row?.mediaUrl || galleryVideo;
+          if (single) {
+            const isVid = single === galleryVideo || row?.mediaKind === "video";
+            setSt("publishing");
+            const result = await publishToInstagram({
+              caption: caption.trim(),
+              mediaUrl: isVid ? undefined : single,
+              videoUrl: isVid ? single : undefined,
+              mediaType: isVid ? "VIDEO" : "IMAGE",
+              rowId: row?.id,
+            });
+            setSt("done");
+            onPosted?.({ mediaId: result.mediaId, mediaUrl: single });
+            return;
+          }
+        } else if (plat === "ig_reel") {
+          const vid = galleryVideo || (row?.mediaKind === "video" ? row?.mediaUrl : null);
+          if (vid) {
+            setSt("publishing");
+            const result = await publishToInstagram({ caption: caption.trim(), videoUrl: vid, mediaType: "REELS", rowId: row?.id });
+            setSt("done");
+            onPosted?.({ mediaId: result.mediaId, mediaUrl: vid });
+            return;
+          }
+        }
         throw new Error("Add media before publishing");
       }
 
