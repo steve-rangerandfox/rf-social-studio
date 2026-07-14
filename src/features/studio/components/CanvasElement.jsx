@@ -211,32 +211,47 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
   const handleDrag = (e) => {
     if (isEditing) return;
     e.preventDefault(); e.stopPropagation();
-    onSelect(data.id, e.shiftKey);
+    const startShift = e.shiftKey;
+    // Shift is overloaded: on a CLICK it toggles selection, on a DRAG it locks
+    // the axis. So decide selection by whether this becomes a drag:
+    //  - not selected → select now (shift adds, plain replaces) so a drag
+    //    moves the right element and handles show immediately.
+    //  - already selected → leave the selection so a multi-select drags as a
+    //    group; a plain/shift CLICK (no drag) is resolved in onUp below.
+    const wasSelected = isSelected;
+    if (!wasSelected) onSelect(data.id, startShift);
     if (data.locked) return; // locked (background): selectable, but not draggable
     const startMouseX = e.clientX, startMouseY = e.clientY;
     const startX = data.x, startY = data.y;
+    let moved = false;
     const onMove = (mv) => {
-      let nx = startX + (mv.clientX - startMouseX) / zoom;
-      let ny = startY + (mv.clientY - startMouseY) / zoom;
+      if (!moved && Math.hypot(mv.clientX - startMouseX, mv.clientY - startMouseY) > 2) moved = true;
+      let dx = (mv.clientX - startMouseX) / zoom;
+      let dy = (mv.clientY - startMouseY) / zoom;
+      // Holding shift while dragging locks movement to the dominant axis —
+      // a perfectly straight horizontal or vertical line.
+      let lockX = false, lockY = false;
+      if (mv.shiftKey) {
+        if (Math.abs(dx) >= Math.abs(dy)) { dy = 0; lockY = true; }
+        else { dx = 0; lockX = true; }
+      }
+      if (onDragAll) { onDragAll(dx, dy); return; } // move the whole selection
+      let nx = startX + dx, ny = startY + dy;
       if (snapEnabled && siblings) {
         const snap = computeSnap({ ...data, x: nx, y: ny }, siblings, canvasW, canvasH);
-        if (snap.x !== null) nx = snap.x;
-        if (snap.y !== null) ny = snap.y;
+        if (snap.x !== null && !lockX) nx = snap.x; // never let snap break the lock
+        if (snap.y !== null && !lockY) ny = snap.y;
         if (onGuides) onGuides(snap.guides);
       }
-      // Multi-select: move all selected elements together
-      if (onDragAll) {
-        const dx = (mv.clientX - startMouseX) / zoom;
-        const dy = (mv.clientY - startMouseY) / zoom;
-        onDragAll(dx, dy);
-      } else {
-        onUpdate({ x: nx, y: ny });
-      }
+      onUpdate({ x: nx, y: ny });
     };
     const onUp = () => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
       if (onGuides) onGuides([]);
+      // A CLICK (no drag) on an already-selected element: shift toggles it off,
+      // plain collapses the multi-select down to just this one.
+      if (!moved && wasSelected) onSelect(data.id, startShift);
     };
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup', onUp);
