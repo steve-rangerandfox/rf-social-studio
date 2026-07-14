@@ -209,9 +209,10 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
   }, [data, mediaWidth, mediaHeight, mediaScale, onUpdate]);
 
   const handleDrag = (e) => {
-    if (data.locked || isEditing) return;
+    if (isEditing) return;
     e.preventDefault(); e.stopPropagation();
     onSelect(data.id, e.shiftKey);
+    if (data.locked) return; // locked (background): selectable, but not draggable
     const startMouseX = e.clientX, startMouseY = e.clientY;
     const startX = data.x, startY = data.y;
     const onMove = (mv) => {
@@ -397,7 +398,7 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
       data-elid={data.id}
       style={wrapperStyle}
       onPointerDown={isEditing ? undefined : handleDrag}
-      onClick={(e) => { e.stopPropagation(); onSelect(data.id, e.shiftKey); }}
+      onClick={(e) => e.stopPropagation()}
       onDoubleClick={(e) => {
         e.stopPropagation();
         if (data.type === 'text' && !isEditing && onStartEdit) onStartEdit();
