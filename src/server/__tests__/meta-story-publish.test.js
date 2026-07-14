@@ -40,11 +40,11 @@ describe("publishInstagramPost — story frames", () => {
     // Exactly two calls: create + publish. A status poll would add a third.
     expect(fetchWithTimeout).toHaveBeenCalledTimes(2);
 
-    // Instagram-Login path: publishing targets graph.instagram.com as the
-    // authenticated professional account.
+    // Instagram-Login path: publish node is /me — the token identifies the
+    // account. The stored user_id is app-scoped and NOT a graph node.
     const createUrl = fetchWithTimeout.mock.calls[0][0];
     expect(createUrl).toContain("graph.instagram.com");
-    expect(createUrl).toContain("/ig1/media");
+    expect(createUrl).toContain("/me/media");
 
     const create = bodyParams(fetchWithTimeout.mock.calls[0]);
     expect(create.media_type).toBe("STORIES");
@@ -103,7 +103,7 @@ describe("publishInstagramCarousel", () => {
     expect(res).toEqual({ mediaId: "media-9" });
     expect(fetchWithTimeout).toHaveBeenCalledTimes(5);
     expect(fetchWithTimeout.mock.calls[0][0]).toContain("graph.instagram.com");
-    expect(fetchWithTimeout.mock.calls[0][0]).toContain("/ig1/media");
+    expect(fetchWithTimeout.mock.calls[0][0]).toContain("/me/media");
 
     // Children flagged as carousel items, in order.
     const child1 = bodyParams(fetchWithTimeout.mock.calls[0]);
