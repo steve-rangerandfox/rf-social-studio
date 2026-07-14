@@ -1,9 +1,9 @@
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components, react-hooks/refs */
 // DEV-ONLY harness: mounts the real CanvasElement in StoryDesigner's exact
 // wiring (outside pointerdown clears editingId + selection) to reproduce the
 // "text edit reverts on click-out" bug in isolation. Served only by the Vite
 // dev server via /dev-harness.html — not part of any prod build input.
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { CanvasElement } from "../features/studio/components/CanvasElement.jsx";
 import "../features/studio/studio.css";
@@ -38,6 +38,23 @@ function Harness() {
     }
   };
 
+  // StoryDesigner's multi-drag wiring (refs + onDragStart snapshot).
+  const elementsRef = useRef(elements); elementsRef.current = elements;
+  const selectedIdsRef = useRef(selectedIds); selectedIdsRef.current = selectedIds;
+  const dragStartRef = useRef({});
+  const initMultiDrag = () => {
+    const starts = {};
+    selectedIdsRef.current.forEach((id) => {
+      const el = elementsRef.current.find((e) => e.id === id);
+      if (el && !el.locked) starts[id] = { x: el.x, y: el.y };
+    });
+    dragStartRef.current = starts;
+  };
+  const multiDrag = (dx, dy) => {
+    const starts = dragStartRef.current;
+    setElements((els) => els.map((e) => (starts[e.id] ? { ...e, x: starts[e.id].x + dx, y: starts[e.id].y + dy } : e)));
+  };
+
   return (
     <div style={{ padding: 24 }}>
       <div
@@ -55,6 +72,8 @@ function Harness() {
             data={el}
             isSelected={selectedIds.has(el.id)}
             onSelect={(id, shiftKey) => handleSelect(el.id, shiftKey)}
+            onDragStart={initMultiDrag}
+            onDragAll={selectedIds.size > 1 && selectedIds.has(el.id) ? multiDrag : undefined}
             onUpdate={(p) => updateEl(el.id, p)}
             isEditing={editingId === el.id}
             onStartEdit={() => { setSelectedIds(new Set([el.id])); setEditingId(el.id); }}
@@ -68,7 +87,7 @@ function Harness() {
         <div id="committed">COMMITTED: [{elements[0].content}]</div>
         <div id="editing-state">EDITING: {String(editingId)}</div>
         <div id="selected">SELECTED: [{[...selectedIds].join(",")}]</div>
-        <div id="pos">POS t1: ({Math.round(elements[0].x)},{Math.round(elements[0].y)})</div>
+        <div id="pos">POS t1: ({Math.round(elements[0].x)},{Math.round(elements[0].y)}) t2: ({Math.round(elements[1].x)},{Math.round(elements[1].y)})</div>
         <div id="churn">CHURN: {churn}</div>
       </div>
       <button id="outside-btn" style={{ marginTop: 8 }}>outside button</button>

@@ -518,6 +518,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // that predated the drop).
   const elementsRef = useRef(elements);
   elementsRef.current = elements;
+  // Latest selection, so a drag that starts WITHOUT a fresh onSelect (dragging
+  // an already-selected element) still snapshots every selected element.
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
   const historyRef = useRef(history);
   historyRef.current = history;
   const historyIndexRef = useRef(historyIndex);
@@ -983,9 +987,12 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
   // Multi-drag: store start positions for all selected elements
   const dragStartRef = useRef({});
   const initMultiDrag = () => {
+    // Read the LIVE selection + elements (refs), not render-time closures —
+    // this runs at drag-start (onDragStart), which may fire in the same event
+    // as the selecting click, before its setState has flushed.
     const starts = {};
-    selectedIds.forEach(id => {
-      const el = elements.find(e => e.id === id);
+    selectedIdsRef.current.forEach(id => {
+      const el = elementsRef.current.find(e => e.id === id);
       if (el && !el.locked) starts[id] = { x: el.x, y: el.y };
     });
     dragStartRef.current = starts;
@@ -2695,7 +2702,8 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
                 ))}
                 {elements.filter(e=>!e.locked).map(el=>(
                   <CanvasElement key={el.id} data={el} isSelected={selectedIds.has(el.id)}
-                    onSelect={(id, shiftKey)=>{handleSelect(el.id, shiftKey);initMultiDrag();if(editingId&&editingId!==el.id)setEditingId(null);}}
+                    onSelect={(id, shiftKey)=>{handleSelect(el.id, shiftKey);if(editingId&&editingId!==el.id)setEditingId(null);}}
+                    onDragStart={initMultiDrag}
                     onUpdate={p=>updateEl(el.id,p)}
                     onDragAll={selectedIds.size > 1 && selectedIds.has(el.id) ? multiDrag : undefined}
                     onDropReplace={replaceMedia}
@@ -2744,7 +2752,8 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               <div className="sd-ghost-layer">
                 {elements.filter((el) => !el.locked && selectedIds.has(el.id) && editingId !== el.id).map((el) => (
                   <CanvasElement key={"ghost-" + el.id} data={el} ghost isSelected
-                    onSelect={(id, shiftKey) => { handleSelect(el.id, shiftKey); initMultiDrag(); if (editingId && editingId !== el.id) setEditingId(null); }}
+                    onSelect={(id, shiftKey) => { handleSelect(el.id, shiftKey); if (editingId && editingId !== el.id) setEditingId(null); }}
+                    onDragStart={initMultiDrag}
                     onUpdate={(p) => updateEl(el.id, p)}
                     onDragAll={selectedIds.size > 1 && selectedIds.has(el.id) ? multiDrag : undefined}
                     onDropReplace={replaceMedia}
