@@ -23,6 +23,7 @@ import { NetworkPreview, PreviewEmptyState } from "./PostPreviews.jsx";
 import { MediaGallery } from "./MediaGallery.jsx";
 import { planUpload } from "../capabilities.js";
 import { probeFiles } from "../media-probe.js";
+import { captureVideoPoster } from "../video-poster.js";
 import { CapabilityDialog } from "./CapabilityDialog.jsx";
 import { EditImageModal } from "./EditImageModal.jsx";
 import { MediaViewerModal } from "./MediaViewerModal.jsx";
@@ -205,29 +206,6 @@ export function DetailPanel() {
     if (["bmp", "tiff", "tif", "webp"].includes(ext)) warnings.push(`${ext.toUpperCase()} may not be supported -- consider JPG or PNG`);
     return warnings;
   };
-
-  // Grab a poster frame from a local video blob and upload it, so a video
-  // post has a thumbnail for the queue / grid / publish previews. Best-effort.
-  const captureVideoPoster = (blobUrl) => new Promise((resolve) => {
-    try {
-      const vid = document.createElement("video");
-      vid.muted = true;
-      vid.crossOrigin = "anonymous";
-      vid.src = blobUrl;
-      vid.onloadeddata = () => { try { vid.currentTime = Math.min(0.1, (vid.duration || 1) / 2); } catch { resolve(null); } };
-      vid.onseeked = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = vid.videoWidth || 1080;
-          canvas.height = vid.videoHeight || 1080;
-          canvas.getContext("2d").drawImage(vid, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
-        } catch { resolve(null); }
-      };
-      vid.onerror = () => resolve(null);
-      setTimeout(() => resolve(null), 4000);
-    } catch { resolve(null); }
-  });
 
   // Persist the whole hosted gallery + every field the previews and the
   // scheduler read from it. IG posts with ≥2 images publish as a native
@@ -809,8 +787,8 @@ export function DetailPanel() {
                 {(row.caption || "").trim() || displayMedia || (Array.isArray(row.storyFrames) && row.storyFrames.length > 0)
                   ? (() => {
                       const previewItems = Array.isArray(row.storyFrames) && row.storyFrames.length > 0
-                        ? row.storyFrames.map((f) => ({ previewUrl: f.url, isVideo: f.kind === "video" }))
-                        : galleryItems.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo }));
+                        ? row.storyFrames.map((f) => ({ previewUrl: f.url, isVideo: f.kind === "video", posterUrl: f.kind === "video" ? row.thumbnailUrl : undefined }))
+                        : galleryItems.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo, posterUrl: it.isVideo ? row.thumbnailUrl : undefined }));
                       return outlets.filter((k) => PLATFORMS[k]).map((k) => (
                         <NetworkPreview key={k} platform={k} caption={(row.caption || "").trim()} items={previewItems} />
                       ));

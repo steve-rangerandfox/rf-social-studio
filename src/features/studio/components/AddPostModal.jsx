@@ -8,6 +8,7 @@ import { useStudio } from "../StudioContext.jsx";
 import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 import { planUpload } from "../capabilities.js";
 import { probeFiles } from "../media-probe.js";
+import { captureVideoPoster } from "../video-poster.js";
 import { CapabilityDialog } from "./CapabilityDialog.jsx";
 import { EditImageModal } from "./EditImageModal.jsx";
 import { MediaViewerModal } from "./MediaViewerModal.jsx";
@@ -122,6 +123,19 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
       uploadAssetWithProgress(file, (pr) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, progress: pr } : it))))
         .then((url) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, publicUrl: url, uploading: false } : it))))
         .catch((e) => setItems((prev) => prev.map((it) => (it.id === id ? { ...it, uploading: false, error: e?.message || "Upload failed" } : it))));
+      // Video: capture + host a poster frame so the queue/grid/previews have
+      // a thumbnail (video-only posts otherwise commit thumbnailUrl null and
+      // show blank tiles). Best-effort, in parallel with the video upload.
+      if (isVideo) {
+        captureVideoPoster(blobUrl).then(async (posterBlob) => {
+          if (!posterBlob) return;
+          try {
+            const posterFile = new File([posterBlob], `poster-${Date.now()}.jpg`, { type: "image/jpeg" });
+            const posterUrl = await uploadAssetWithProgress(posterFile, () => {});
+            setItems((prev) => prev.map((it) => (it.id === id ? { ...it, posterUrl } : it)));
+          } catch { /* poster is best-effort */ }
+        });
+      }
     }
   };
 
@@ -183,7 +197,11 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
       mediaKind: isCarousel ? "carousel" : hasVideo ? "video" : list.length ? "image" : null,
       // carouselFrameUrls stays a designer-render artifact; the scheduler
       // falls back to mediaItems for raw multi-image posts.
-      thumbnailUrl: list.find((i) => i.kind !== "video")?.url || null,
+      // Thumbnail: first image, else the captured video poster — a video-only
+      // post must not commit thumbnailUrl null (blank queue/grid tiles).
+      thumbnailUrl: list.find((i) => i.kind !== "video")?.url
+        || items.find((i) => i.isVideo && i.posterUrl)?.posterUrl
+        || null,
     };
   };
   const uploading = items.some((i) => i.uploading);
@@ -516,7 +534,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                     role="button" tabIndex={0}
                     onClick={() => setExpand({ url: it.publicUrl || it.url, isVideo: it.isVideo, id: it.id, alt: it.alt || "" })}
                     onKeyDown={(e) => { if (e.key === "Enter") setExpand({ url: it.publicUrl || it.url, isVideo: it.isVideo, id: it.id, alt: it.alt || "" }); }}>
-                    {it.isVideo ? <video src={it.url} muted playsInline /> : <img src={it.url} alt="" />}
+                    {it.isVideo ? <video src={it.url} poster={it.posterUrl || undefined} muted playsInline /> : <img src={it.url} alt="" />}
                     {it.uploading && (
                       <span className="cpm-tile-ring" style={{ "--p": Math.round(it.progress * 100) }}>
                         <span className="cpm-tile-ring-n">{Math.round(it.progress * 100)}%</span>
@@ -648,7 +666,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                   <div className="cpm-tiles">
                     {d.items.map((it) => (
                       <div key={it.id} className={"cpm-tile" + (it.error ? " err" : "")}>
-                        {it.isVideo ? <video src={it.url} muted playsInline /> : <img src={it.url} alt="" />}
+                        {it.isVideo ? <video src={it.url} poster={it.posterUrl || undefined} muted playsInline /> : <img src={it.url} alt="" />}
                         {it.uploading && (
                           <span className="cpm-tile-ring" style={{ "--p": Math.round(it.progress * 100) }}>
                             <span className="cpm-tile-ring-n">{Math.round(it.progress * 100)}%</span>
@@ -698,11 +716,11 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
               </div>
               {mode === "customize" && drafts[expandedIdx] ? (
                 <NetworkPreview platform={drafts[expandedIdx].channel} caption={drafts[expandedIdx].caption.trim()}
-                  items={drafts[expandedIdx].items.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo }))} />
+                  items={drafts[expandedIdx].items.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo, posterUrl: it.posterUrl }))} />
               ) : channels.length === 0 || !hasContent ? (
                 <PreviewEmptyState />
               ) : (
-                channels.map((k) => <NetworkPreview key={k} platform={k} caption={caption.trim()} items={items.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo }))} />)
+                channels.map((k) => <NetworkPreview key={k} platform={k} caption={caption.trim()} items={items.map((it) => ({ previewUrl: it.url, isVideo: it.isVideo, posterUrl: it.posterUrl }))} />)
               )}
             </div>
           )}
