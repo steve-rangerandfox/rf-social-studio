@@ -177,12 +177,15 @@ export function getInstagramAuthorizeUrl() {
   return requestJson("/api/ig-oauth", { method: "GET" });
 }
 
-// Exchange code for IG token + return account directly (no page selection step)
+// Exchange code for IG token + return account directly (no page selection step).
+// retries:0 — the OAuth state cookie is single-use (cleared on the first
+// exchange attempt), so any retry fails state validation and masks the real
+// error. One shot only.
 export function exchangeInstagramCode({ code, state }) {
   return requestJson("/api/ig-oauth", {
     method: "POST",
     body: JSON.stringify({ code, state }),
-  });
+  }, { retries: 0 });
 }
 
 // Disconnect (unchanged)

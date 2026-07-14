@@ -2,6 +2,11 @@ import { fetchWithTimeout } from "./http.js";
 
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.instagram.com/${GRAPH_API_VERSION}`;
+// The OAuth token endpoints (/access_token, /refresh_access_token) are NOT
+// graph nodes — they must be called version-less. A /v21.0/ prefix makes
+// Instagram treat "v21.0" as a node id and reject the GET with
+// "Unsupported request - method type: get".
+const IG_OAUTH_BASE = "https://graph.instagram.com";
 
 // Permissions required for the Instagram API with Instagram Login.
 // User must approve all of these for publishing to work.
@@ -45,7 +50,7 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
   }
 
   // Step 2: long-lived token (60 days)
-  const longUrl = `${GRAPH_BASE}/access_token?` + new URLSearchParams({
+  const longUrl = `${IG_OAUTH_BASE}/access_token?` + new URLSearchParams({
     grant_type: "ig_exchange_token",
     client_secret: appSecret,
     access_token: shortData.access_token,
@@ -68,7 +73,7 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
 // refreshed as long as they have not expired.
 // Returns: { accessToken, expiresIn }
 export async function refreshInstagramToken(userToken) {
-  const url = `${GRAPH_BASE}/refresh_access_token?` + new URLSearchParams({
+  const url = `${IG_OAUTH_BASE}/refresh_access_token?` + new URLSearchParams({
     grant_type: "ig_refresh_token",
     access_token: userToken,
   }).toString();
