@@ -10,7 +10,8 @@ import "../features/studio/studio.css";
 
 function Harness() {
   const [elements, setElements] = useState([
-    { id: "t1", type: "text", content: "Heading", x: 40, y: 60, fontSize: 32, color: "#ff2fa0", fontFamily: "Arial", fontWeight: 700 },
+    { id: "t1", type: "text", content: "Heading", x: 40, y: 40, fontSize: 32, color: "#ff2fa0", fontFamily: "Arial", fontWeight: 700 },
+    { id: "t2", type: "text", content: "Static", x: 40, y: 220, fontSize: 32, color: "#3fd", fontFamily: "Arial", fontWeight: 700 },
   ]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [editingId, setEditingId] = useState(null);
@@ -24,7 +25,19 @@ function Harness() {
     setChurn((c) => c + 1);
   };
 
-  const el = elements[0];
+  // StoryDesigner's exact handleSelect (shift toggles, plain replaces).
+  const handleSelect = (id, shiftKey) => {
+    if (shiftKey) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    } else {
+      setSelectedIds(new Set([id]));
+    }
+  };
+
   return (
     <div style={{ padding: 24 }}>
       <div
@@ -32,26 +45,29 @@ function Harness() {
         role="img"
         aria-label="canvas background"
         onPointerDown={(e) => {
-          // StoryDesigner's sd-canvas-row handler: click outside deselects
           if (e.target === e.currentTarget) { setSelectedIds(new Set()); setEditingId(null); }
         }}
         style={{ position: "relative", width: 400, height: 400, background: "#333", overflow: "hidden" }}
       >
-        <CanvasElement
-          data={el}
-          isSelected={selectedIds.has(el.id)}
-          onSelect={() => setSelectedIds(new Set([el.id]))}
-          onUpdate={(p) => updateEl(el.id, p)}
-          isEditing={editingId === el.id}
-          onStartEdit={() => { setSelectedIds(new Set([el.id])); setEditingId(el.id); }}
-          onStopEdit={() => setEditingId(null)}
-          siblings={elements}
-          canvasW={400} canvasH={400}
-        />
+        {elements.map((el) => (
+          <CanvasElement
+            key={el.id}
+            data={el}
+            isSelected={selectedIds.has(el.id)}
+            onSelect={(id, shiftKey) => handleSelect(el.id, shiftKey)}
+            onUpdate={(p) => updateEl(el.id, p)}
+            isEditing={editingId === el.id}
+            onStartEdit={() => { setSelectedIds(new Set([el.id])); setEditingId(el.id); }}
+            onStopEdit={() => setEditingId(null)}
+            siblings={elements}
+            canvasW={400} canvasH={400}
+          />
+        ))}
       </div>
       <div style={{ marginTop: 16, fontSize: 14 }}>
-        <div id="committed">COMMITTED: [{el.content}]</div>
+        <div id="committed">COMMITTED: [{elements[0].content}]</div>
         <div id="editing-state">EDITING: {String(editingId)}</div>
+        <div id="selected">SELECTED: [{[...selectedIds].join(",")}]</div>
         <div id="churn">CHURN: {churn}</div>
       </div>
       <button id="outside-btn" style={{ marginTop: 8 }}>outside button</button>
