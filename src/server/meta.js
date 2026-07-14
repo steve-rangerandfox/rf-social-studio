@@ -98,8 +98,9 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
         error: longData.error?.message || JSON.stringify(longData).slice(0, 200),
         shortKeys: Object.keys(shortData).join(","),
         wrapped: Array.isArray(shortData.data),
-        tokenPrefix: String(grant.access_token).slice(0, 5),
-        tokenLen: String(grant.access_token).length,
+        // NOT named "token*" — the log sanitizer redacts those keys.
+        grantHead: String(grant.access_token).slice(0, 5),
+        grantLen: String(grant.access_token).length,
       };
     }
   } catch (err) {
@@ -140,9 +141,23 @@ export async function fetchInstagramProfile(userToken) {
   const url = `${GRAPH_BASE}/me?fields=${fields}&access_token=${encodeURIComponent(userToken)}`;
 
   const res = await fetchWithTimeout(url);
-  const body = await res.json();
+  const body = await res.json().catch(() => ({}));
   if (!res.ok || body.error) {
-    throw new Error(body.error?.message || "Instagram profile fetch failed");
+    const err = new Error(`IG profile fetch failed [status ${res.status}]: ${body.error?.message || "no body"}`);
+    // Discriminator: if graph.instagram.com refuses this token wholesale,
+    // check whether graph.facebook.com/me accepts it — that tells us which
+    // platform the token was actually minted for.
+    try {
+      const fbRes = await fetchWithTimeout(
+        `https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${encodeURIComponent(userToken)}`
+      );
+      const fbBody = await fbRes.json().catch(() => ({}));
+      err.discriminator = {
+        fbGraphStatus: fbRes.status,
+        fbGraphResult: fbBody.error?.message || (fbBody.id ? "TOKEN VALID ON FACEBOOK GRAPH" : JSON.stringify(fbBody).slice(0, 150)),
+      };
+    } catch { /* discriminator is best-effort */ }
+    throw err;
   }
 
   return {

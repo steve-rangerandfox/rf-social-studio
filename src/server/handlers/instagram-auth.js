@@ -177,6 +177,7 @@ export async function handleInstagramExchange(req, res, env, reqId) {
   } catch (error) {
     logger("error", reqId, "instagram_exchange_failed", {
       error: sanitizeLogValue(error.message),
+      ...(error.discriminator || {}),
     });
     return errorJson(res, 502, "IG_API_ERROR", "Instagram OAuth exchange failed");
   }
