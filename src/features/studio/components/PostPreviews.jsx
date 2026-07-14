@@ -3,6 +3,7 @@ import { Bookmark, ChevronLeft, ChevronRight, Heart, ImageIcon, MessageSquare, M
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { PLATFORMS } from "../shared.js";
 import { useStudio } from "../StudioContext.jsx";
+import { autoplayMutedVideo } from "../video-poster.js";
 
 // Avatar for the IG previews: the connected account's profile picture if we
 // have it, else initials derived from the handle.
@@ -29,7 +30,7 @@ function MediaFrame({ items, className, showCounter }) {
   return (
     <div className={className + " cpm-frame"}>
       {active.isVideo
-        ? <video src={active.previewUrl} poster={active.posterUrl || undefined} muted loop playsInline autoPlay />
+        ? <video ref={autoplayMutedVideo} src={active.previewUrl} poster={active.posterUrl || undefined} muted loop playsInline autoPlay />
         : <img src={active.previewUrl} alt="" />}
       {multi && (
         <>
@@ -87,7 +88,7 @@ function StoryPreview({ items, handle, avatarUrl }) {
       <div className="igs-media">
         {active
           ? (active.isVideo
-            ? <video src={active.previewUrl} poster={active.posterUrl || undefined} controls playsInline preload="metadata" />
+            ? <video ref={autoplayMutedVideo} src={active.previewUrl} poster={active.posterUrl || undefined} controls playsInline preload="metadata" />
             : <img src={active.previewUrl} alt="" />)
           : <div className="cpm-story-empty"><ImageIcon size={20} /></div>}
       </div>
@@ -114,7 +115,7 @@ function ReelPreview({ caption, items, handle, avatarUrl }) {
       <div className="igr-media">
         {active
           ? (active.isVideo
-            ? <video src={active.previewUrl} poster={active.posterUrl || undefined} muted loop playsInline autoPlay controls />
+            ? <video ref={autoplayMutedVideo} src={active.previewUrl} poster={active.posterUrl || undefined} muted loop playsInline autoPlay controls />
             : <img src={active.previewUrl} alt="" />)
           : <div className="cpm-story-empty"><ImageIcon size={20} /></div>}
       </div>

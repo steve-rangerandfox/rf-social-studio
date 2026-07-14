@@ -8,7 +8,7 @@ import { useStudio } from "../StudioContext.jsx";
 import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
 import { planUpload } from "../capabilities.js";
 import { probeFiles } from "../media-probe.js";
-import { captureVideoPoster } from "../video-poster.js";
+import { captureVideoPoster, autoplayMutedVideo } from "../video-poster.js";
 import { CapabilityDialog } from "./CapabilityDialog.jsx";
 import { EditImageModal } from "./EditImageModal.jsx";
 import { MediaViewerModal } from "./MediaViewerModal.jsx";
@@ -534,7 +534,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                     role="button" tabIndex={0}
                     onClick={() => setExpand({ url: it.publicUrl || it.url, isVideo: it.isVideo, id: it.id, alt: it.alt || "" })}
                     onKeyDown={(e) => { if (e.key === "Enter") setExpand({ url: it.publicUrl || it.url, isVideo: it.isVideo, id: it.id, alt: it.alt || "" }); }}>
-                    {it.isVideo ? <video src={it.url} poster={it.posterUrl || undefined} muted playsInline /> : <img src={it.url} alt="" />}
+                    {it.isVideo ? <video ref={autoplayMutedVideo} src={it.url} poster={it.posterUrl || undefined} muted playsInline /> : <img src={it.url} alt="" />}
                     {it.uploading && (
                       <span className="cpm-tile-ring" style={{ "--p": Math.round(it.progress * 100) }}>
                         <span className="cpm-tile-ring-n">{Math.round(it.progress * 100)}%</span>
@@ -635,7 +635,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                     <PlatformIcon platform={d.channel} size={18} />
                     <span className="cpm-net-collapsed-txt">{d.caption.trim() || "No caption yet"}</span>
                     {thumb && (thumb.isVideo
-                      ? <video src={thumb.url} muted playsInline />
+                      ? <video ref={autoplayMutedVideo} src={thumb.url} poster={thumb.posterUrl || undefined} muted playsInline />
                       : <img src={thumb.url} alt="" />)}
                   </button>
                 );
@@ -666,7 +666,7 @@ export function AddPostModal({ initialDate, onClose, onCreate }) {
                   <div className="cpm-tiles">
                     {d.items.map((it) => (
                       <div key={it.id} className={"cpm-tile" + (it.error ? " err" : "")}>
-                        {it.isVideo ? <video src={it.url} poster={it.posterUrl || undefined} muted playsInline /> : <img src={it.url} alt="" />}
+                        {it.isVideo ? <video ref={autoplayMutedVideo} src={it.url} poster={it.posterUrl || undefined} muted playsInline /> : <img src={it.url} alt="" />}
                         {it.uploading && (
                           <span className="cpm-tile-ring" style={{ "--p": Math.round(it.progress * 100) }}>
                             <span className="cpm-tile-ring-n">{Math.round(it.progress * 100)}%</span>
