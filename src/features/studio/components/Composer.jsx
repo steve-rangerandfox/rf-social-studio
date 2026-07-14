@@ -8,7 +8,9 @@ import { CaptionEditor } from "./CaptionEditor.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 
 export function Composer({ row, onClose, onPosted, postNow, onOpenCarousel }) {
-  const [plat,    setPlat]    = useState(row?.platform==="ig_story"?"ig_post":row?.platform||"ig_post");
+  // Do NOT coerce ig_story → ig_post: that legacy line published stories as
+  // regular feed posts. The row-media path publishes stories per frame.
+  const [plat,    setPlat]    = useState(row?.platform||"ig_post");
   const [caption, setCaption] = useState(row?.caption||"");
   const [files,   setFiles]   = useState([]);
   const [fileUrls,setFileUrls]= useState([]);

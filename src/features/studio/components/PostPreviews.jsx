@@ -29,7 +29,7 @@ function MediaFrame({ items, className, showCounter }) {
   return (
     <div className={className + " cpm-frame"}>
       {active.isVideo
-        ? <video src={active.previewUrl} muted loop playsInline autoPlay />
+        ? <video src={active.previewUrl} poster={active.posterUrl || undefined} muted loop playsInline autoPlay />
         : <img src={active.previewUrl} alt="" />}
       {multi && (
         <>
@@ -87,7 +87,7 @@ function StoryPreview({ items, handle, avatarUrl }) {
       <div className="igs-media">
         {active
           ? (active.isVideo
-            ? <video src={active.previewUrl} controls playsInline preload="metadata" />
+            ? <video src={active.previewUrl} poster={active.posterUrl || undefined} controls playsInline preload="metadata" />
             : <img src={active.previewUrl} alt="" />)
           : <div className="cpm-story-empty"><ImageIcon size={20} /></div>}
       </div>
@@ -114,7 +114,7 @@ function ReelPreview({ caption, items, handle, avatarUrl }) {
       <div className="igr-media">
         {active
           ? (active.isVideo
-            ? <video src={active.previewUrl} muted loop playsInline autoPlay controls />
+            ? <video src={active.previewUrl} poster={active.posterUrl || undefined} muted loop playsInline autoPlay controls />
             : <img src={active.previewUrl} alt="" />)
           : <div className="cpm-story-empty"><ImageIcon size={20} /></div>}
       </div>
