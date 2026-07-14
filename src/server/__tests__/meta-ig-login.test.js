@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { buildInstagramAuthorizeUrl, IG_OAUTH_SCOPES } from "../meta.js";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("../http.js", () => ({ fetchWithTimeout: vi.fn() }));
+import { fetchWithTimeout } from "../http.js";
+import { buildInstagramAuthorizeUrl, IG_OAUTH_SCOPES, exchangeCodeForInstagramToken } from "../meta.js";
 
 // Business Login for Instagram — the Instagram-branded consent screen
 // (Buffer-style). client_id must be the INSTAGRAM App ID from the Instagram
@@ -23,5 +26,24 @@ describe("buildInstagramAuthorizeUrl", () => {
     }
     expect(IG_OAUTH_SCOPES).not.toContain("pages_");
     expect(IG_OAUTH_SCOPES).not.toContain("business_management");
+  });
+});
+
+describe("exchangeCodeForInstagramToken", () => {
+  beforeEach(() => fetchWithTimeout.mockReset());
+
+  it("calls the long-lived token endpoint version-LESS (a /v21.0/ prefix breaks it)", async () => {
+    fetchWithTimeout
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "short", user_id: 42 }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "long", expires_in: 5184000 }) });
+
+    await exchangeCodeForInstagramToken({ appId: "1", appSecret: "s", code: "c", redirectUri: "https://x/cb" });
+
+    // Step 1: short-lived POST to api.instagram.com.
+    expect(fetchWithTimeout.mock.calls[0][0]).toBe("https://api.instagram.com/oauth/access_token");
+    // Step 2: long-lived GET to graph.instagram.com WITHOUT a version segment.
+    const longUrl = fetchWithTimeout.mock.calls[1][0];
+    expect(longUrl).toContain("https://graph.instagram.com/access_token");
+    expect(longUrl).not.toContain("/v21.0/access_token");
   });
 });
