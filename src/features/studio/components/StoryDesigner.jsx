@@ -1675,6 +1675,10 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); duplicateSelected(); return; }
       if (mod && (e.key === 'c' || e.key === 'C') && !inField && selectedIds.size > 0) { e.preventDefault(); copySelected(); return; }
+      // Paste as a real shortcut — the OS 'paste' event only fires reliably
+      // when focus is in an editable field, so Ctrl+V on the canvas was a
+      // no-op. This pastes onto whichever canvas is currently open.
+      if (mod && (e.key === 'v' || e.key === 'V') && !inField && designerClipboard.length) { e.preventDefault(); pasteClipboard(); return; }
       if ((e.key==='Backspace'||e.key==='Delete') && selectedIds.size > 0 && !inField) deleteSelected();
       if (e.key==='Escape') { setSelectedIds(new Set()); setCtxMenu(null); }
       // Figma shape shortcuts (plain keys, guarded against typing contexts)
@@ -1685,18 +1689,18 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
         else if (e.key === 'o' || e.key === 'O') { e.preventDefault(); addShape('ellipse'); }
       }
     };
-    // Paste rides the real clipboard event (not a Ctrl+V keydown) so an image
-    // copied from another site or the desktop pastes straight onto the canvas
-    // through the normal upload pipeline; with no media in the OS clipboard it
-    // falls back to the internal element clipboard.
+    // The real clipboard event handles ONLY external media (an image copied
+    // from another site or the desktop) — it pastes straight onto the canvas
+    // through the upload pipeline. Internal element paste is handled by the
+    // Ctrl+V keydown above (the OS paste event is unreliable off-field), so
+    // it must NOT also paste here or a Ctrl+V would duplicate the element.
     const onPaste = (e) => {
       if (editingId) return;
       const el = document.activeElement;
       if (el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable) return;
       const files = Array.from(e.clipboardData?.files || []);
       const media = files.find(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
-      if (media) { e.preventDefault(); addMedia(media); return; }
-      if (designerClipboard.length) { e.preventDefault(); pasteClipboard(); }
+      if (media) { e.preventDefault(); addMedia(media); }
     };
     window.addEventListener('keydown',h);
     window.addEventListener('paste', onPaste);
@@ -2783,6 +2787,7 @@ export function StoryDesigner({ row, onClose, onUpdate }) {
               {[
                 ["Duplicate", () => duplicateSelected()],
                 ["Copy", () => copySelected()],
+                ...(designerClipboard.length ? [["Paste", () => pasteClipboard()]] : []),
                 ["Bring to front", () => reorderZ(ctxMenu.id, "front")],
                 ["Bring forward", () => reorderZ(ctxMenu.id, "forward")],
                 ["Send backward", () => reorderZ(ctxMenu.id, "backward")],
