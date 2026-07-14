@@ -48,9 +48,9 @@ export function buildInstagramAuthorizeUrl({ appId, redirectUri, state }) {
   return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
 }
 
-// Exchange an OAuth code for a short-lived IG user token, then upgrade
-// it to a long-lived token (60 days).
-// Returns: { accessToken, userId, expiresIn (seconds) }
+// Exchange an OAuth code for a short-lived IG user token, then (best-effort)
+// upgrade it to a long-lived token (60 days).
+// Returns: { accessToken, userId, expiresIn (seconds), longLived, longTokenDiag }
 export async function exchangeCodeForInstagramToken({ appId, appSecret, code, redirectUri }) {
   // Step 1: short-lived token (POST form to api.instagram.com)
   const shortBody = new URLSearchParams({
@@ -66,26 +66,52 @@ export async function exchangeCodeForInstagramToken({ appId, appSecret, code, re
     body: shortBody,
   });
   const shortData = await shortRes.json().catch(() => ({}));
-  if (!shortRes.ok || shortData.error || shortData.error_type || !shortData.access_token) {
+  // Business-login docs show the payload wrapped in a data array
+  // ({ data: [{ access_token, user_id, permissions }] }); live responses have
+  // also been seen flat. Accept both.
+  const grant = shortData.access_token
+    ? shortData
+    : (Array.isArray(shortData.data) ? shortData.data[0] : null) || {};
+  if (!shortRes.ok || shortData.error || shortData.error_type || !grant.access_token) {
     const detail = shortData.error?.message || shortData.error_message || JSON.stringify(shortData).slice(0, 300);
     throw new Error(`IG short-token exchange failed [status ${shortRes.status}]: ${detail}`);
   }
 
-  // Step 2: long-lived token (60 days)
-  const { res: longRes, data: longData } = await igTokenRequest("access_token", {
-    grant_type: "ig_exchange_token",
-    client_secret: appSecret,
-    access_token: shortData.access_token,
-  });
-  if (!longRes.ok || longData.error || !longData.access_token) {
-    const detail = longData.error?.message || JSON.stringify(longData).slice(0, 300);
-    throw new Error(`IG long-token exchange failed [status ${longRes.status}]: ${detail}`);
+  // Step 2: long-lived token (60 days). BEST-EFFORT — graph.instagram.com
+  // currently rejects this exchange with "Unsupported request" for both GET
+  // and POST (docs say GET). Rather than fail the whole connect, fall back
+  // to the 1-hour short-lived token and surface redacted diagnostics so the
+  // server log captures what Meta actually returned.
+  let long = null;
+  let longTokenDiag = null;
+  try {
+    const { res: longRes, data: longData } = await igTokenRequest("access_token", {
+      grant_type: "ig_exchange_token",
+      client_secret: appSecret,
+      access_token: grant.access_token,
+    });
+    if (longRes.ok && longData.access_token) {
+      long = longData;
+    } else {
+      longTokenDiag = {
+        status: longRes.status,
+        error: longData.error?.message || JSON.stringify(longData).slice(0, 200),
+        shortKeys: Object.keys(shortData).join(","),
+        wrapped: Array.isArray(shortData.data),
+        tokenPrefix: String(grant.access_token).slice(0, 5),
+        tokenLen: String(grant.access_token).length,
+      };
+    }
+  } catch (err) {
+    longTokenDiag = { thrown: err.message };
   }
 
   return {
-    accessToken: longData.access_token,
-    userId: String(shortData.user_id),
-    expiresIn: longData.expires_in || 60 * 24 * 60 * 60, // default 60 days
+    accessToken: long?.access_token || grant.access_token,
+    userId: String(grant.user_id),
+    expiresIn: long?.expires_in || 60 * 60, // short-lived tokens last 1 hour
+    longLived: Boolean(long),
+    longTokenDiag,
   };
 }
 

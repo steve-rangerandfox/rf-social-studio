@@ -58,10 +58,35 @@ describe("exchangeCodeForInstagramToken", () => {
 
     const out = await exchangeCodeForInstagramToken({ appId: "1", appSecret: "s", code: "c", redirectUri: "https://x/cb" });
     expect(out.accessToken).toBe("long");
+    expect(out.longLived).toBe(true);
 
     // The GET was tried, then the same endpoint retried as POST with a body.
     expect(fetchWithTimeout.mock.calls[1][1]).toBeUndefined();
     expect(fetchWithTimeout.mock.calls[2][0]).toBe("https://graph.instagram.com/access_token");
     expect(fetchWithTimeout.mock.calls[2][1].method).toBe("POST");
+  });
+
+  it("connects with the 1-hour short token when the long exchange fails on both methods", async () => {
+    const refuse = (m) => ({ ok: false, json: async () => ({ error: { message: `Unsupported request - method type: ${m}` } }) });
+    fetchWithTimeout
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "short", user_id: 42 }) })
+      .mockResolvedValueOnce(refuse("get"))
+      .mockResolvedValueOnce(refuse("post"));
+
+    const out = await exchangeCodeForInstagramToken({ appId: "1", appSecret: "s", code: "c", redirectUri: "https://x/cb" });
+    expect(out.accessToken).toBe("short");
+    expect(out.longLived).toBe(false);
+    expect(out.expiresIn).toBe(3600);
+    expect(out.longTokenDiag.tokenPrefix).toBe("short");
+  });
+
+  it("accepts the documented data-array short-token response shape", async () => {
+    fetchWithTimeout
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ access_token: "wrapped", user_id: "77", permissions: "x" }] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "long", expires_in: 5184000 }) });
+
+    const out = await exchangeCodeForInstagramToken({ appId: "1", appSecret: "s", code: "c", redirectUri: "https://x/cb" });
+    expect(out.userId).toBe("77");
+    expect(out.accessToken).toBe("long");
   });
 });
