@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Close as X, ImageIcon } from "../../../components/icons/index.jsx";
+import { autoplayMutedVideo } from "../video-poster.js";
 
 // Buffer-style media tile row for a post: one row of large tiles — click
 // to expand, hover for edit/remove, drag to reorder, dashed tile to add.
@@ -35,7 +36,7 @@ export function MediaGallery({ items, onReorder, onRemove, onAdd, onOpen, onEdit
           onDrop={(e) => { e.preventDefault(); e.stopPropagation(); drop(i); }}
           onClick={() => onOpen?.(it, i)}
         >
-          {it.isVideo ? <video src={it.url} muted playsInline /> : <img src={it.url} alt="" />}
+          {it.isVideo ? <video ref={autoplayMutedVideo} src={it.url} poster={it.posterUrl || undefined} muted playsInline /> : <img src={it.url} alt="" />}
           <span className="mg-thumb-n">{i + 1}</span>
           {it.uploading && <span className="mg-thumb-up" />}
           <button type="button" className="cpm-media-rm" onClick={(e) => { e.stopPropagation(); onRemove(i); }} aria-label={`Remove item ${i + 1}`}>
