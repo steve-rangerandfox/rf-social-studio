@@ -15,9 +15,21 @@ function isConfigured(env) {
   return Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);
 }
 
+// A comped user (owner/staff, listed in COMP_TEAM_USER_IDS) resolves to a
+// synthetic active Studio subscription — no Stripe row needed. Returns null
+// for everyone else. Pure, so it's unit-testable without Supabase.
+export function compSubscription(env, ownerUserId) {
+  if (ownerUserId && env?.compTeamUserIds?.has(ownerUserId)) {
+    return { owner_user_id: ownerUserId, plan: "team", status: "active", comp: true };
+  }
+  return null;
+}
+
 // Loads the subscription row for a user. Returns null when no row
 // exists — callers should treat that as the free tier.
 export async function loadSubscription(env, ownerUserId) {
+  const comped = compSubscription(env, ownerUserId);
+  if (comped) return comped;
   if (!isConfigured(env) || !ownerUserId) return null;
   const client = await getClient(env);
   const { data, error } = await client

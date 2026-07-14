@@ -28,9 +28,16 @@ export function loadServerEnv(source = process.env) {
   // IG_REDIRECT_URI / FB_REDIRECT_URI both map to the same canonical redirect URL.
   const igRedirectUri = source.IG_REDIRECT_URI || source.FB_REDIRECT_URI || "";
 
+  // Clerk user IDs comped to the Studio (team) plan — the owner + staff.
+  // Case-sensitive (Clerk ids are `user_...`), so NOT splitCsv (it lowercases).
+  const compTeamUserIds = new Set(
+    String(source.COMP_TEAM_USER_IDS || "").split(",").map((s) => s.trim()).filter(Boolean),
+  );
+
   return {
     nodeEnv: source.NODE_ENV || "development",
     allowedOrigins,
+    compTeamUserIds,
     clerkJwtKey: source.CLERK_JWT_KEY || "",
     clerkIssuer: source.CLERK_ISSUER || "",
     sessionSecret: source.SESSION_SECRET || "",
