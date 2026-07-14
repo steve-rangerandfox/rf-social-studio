@@ -69,7 +69,7 @@ export function fitMediaBox(width, height, maxWidth, maxHeight) {
   };
 }
 
-export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, onContextMenu, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H, bgSpanTotal, bgSpanIndex, ghost = false }) {
+export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll, onDragStart, snapEnabled, siblings, onGuides, isEditing, onStartEdit, onStopEdit, onDropReplace, onContextMenu, zoom = 1, canvasW = CANVAS_W, canvasH = CANVAS_H, bgSpanTotal, bgSpanIndex, ghost = false }) {
   const videoRef = useRef(null);
   const editRef = useRef(null);
   // Live text while editing, kept in a ref so it survives DOM clobbering:
@@ -221,6 +221,10 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
     const wasSelected = isSelected;
     if (!wasSelected) onSelect(data.id, startShift);
     if (data.locked) return; // locked (background): selectable, but not draggable
+    // Snapshot group start-positions NOW, at drag-start, from the live
+    // selection — not piggybacked on onSelect (which doesn't fire when the
+    // dragged element was already selected), so no member is left behind.
+    if (onDragStart) onDragStart();
     const startMouseX = e.clientX, startMouseY = e.clientY;
     const startX = data.x, startY = data.y;
     let moved = false;
