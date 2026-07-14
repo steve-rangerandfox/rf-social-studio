@@ -179,6 +179,12 @@ export async function handleInstagramExchange(req, res, env, reqId) {
       error: sanitizeLogValue(error.message),
       ...(error.discriminator || {}),
     });
+    if (error.code === "IG_NOT_PROFESSIONAL") {
+      return errorJson(
+        res, 400, "IG_NOT_PROFESSIONAL",
+        "This Instagram account can't use the API. Make sure it's a Professional account (Business or Creator) — switch in the Instagram app under Settings → Account type — then try connecting again.",
+      );
+    }
     return errorJson(res, 502, "IG_API_ERROR", "Instagram OAuth exchange failed");
   }
 }

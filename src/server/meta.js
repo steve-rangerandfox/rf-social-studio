@@ -144,6 +144,12 @@ export async function fetchInstagramProfile(userToken) {
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body.error) {
     const err = new Error(`IG profile fetch failed [status ${res.status}]: ${body.error?.message || "no body"}`);
+    // "Unsupported request" across graph.instagram.com with a valid IGAA
+    // token = the connected account can't use the API — in practice, a
+    // PERSONAL account (must be Professional: Business or Creator).
+    if (/unsupported request/i.test(body.error?.message || "")) {
+      err.code = "IG_NOT_PROFESSIONAL";
+    }
     // Discriminator: if graph.instagram.com refuses this token wholesale,
     // check whether graph.facebook.com/me accepts it — that tells us which
     // platform the token was actually minted for.
