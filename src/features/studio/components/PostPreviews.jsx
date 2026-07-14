@@ -2,6 +2,17 @@ import React, { useState } from "react";
 import { Bookmark, ChevronLeft, ChevronRight, Heart, ImageIcon, MessageSquare, MoreHorizontal, Repeat as Repeat2, Send, ThumbsUp } from "../../../components/icons/index.jsx";
 import { PlatformIcon } from "./PlatformIcon.jsx";
 import { PLATFORMS } from "../shared.js";
+import { useStudio } from "../StudioContext.jsx";
+
+// Avatar for the IG previews: the connected account's profile picture if we
+// have it, else initials derived from the handle.
+function Avatar({ url, handle, className }) {
+  if (url) {
+    return <span className={className}><img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%", display: "block" }} /></span>;
+  }
+  const initials = (handle || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "IG";
+  return <span className={className}>{initials}</span>;
+}
 
 // Product-accurate per-network previews (Buffer-style rail). Shared by the
 // Create Post window and the post editor. `items` is [{ previewUrl, isVideo }]
@@ -33,12 +44,12 @@ function MediaFrame({ items, className, showCounter }) {
 }
 
 // Instagram feed post — header, media, action row, likes, caption.
-function FeedPreview({ caption, items }) {
+function FeedPreview({ caption, items, handle, avatarUrl }) {
   return (
     <div className="igp">
       <div className="igp-head">
-        <span className="igp-avatar">RF</span>
-        <b className="igp-name">rangerandfox</b>
+        <Avatar url={avatarUrl} handle={handle} className="igp-avatar" />
+        <b className="igp-name">{handle}</b>
         <MoreHorizontal size={15} className="igp-more" />
       </div>
       <MediaFrame items={items} className="igp-media" showCounter />
@@ -49,14 +60,14 @@ function FeedPreview({ caption, items }) {
         <Bookmark size={19} className="igp-save" />
       </div>
       <div className="igp-likes">128 likes</div>
-      {caption && <div className="igp-caption"><b>rangerandfox</b> {caption}</div>}
+      {caption && <div className="igp-caption"><b>{handle}</b> {caption}</div>}
       <div className="igp-time">2 hours ago</div>
     </div>
   );
 }
 
 // Instagram story — tall frame, segment progress, playable video, message bar.
-function StoryPreview({ items }) {
+function StoryPreview({ items, handle, avatarUrl }) {
   const [idx, setIdx] = useState(0);
   const cur = Math.min(idx, Math.max(items.length - 1, 0));
   const active = items[cur];
@@ -67,8 +78,8 @@ function StoryPreview({ items }) {
       <div className="igs-top">
         <div className="igs-progress">{(multi ? items : [1]).map((_, i) => <span key={i} className={i <= cur ? "on" : ""} />)}</div>
         <div className="igs-head">
-          <span className="igp-avatar sm">RF</span>
-          <span className="igs-name">rangerandfox</span>
+          <Avatar url={avatarUrl} handle={handle} className="igp-avatar sm" />
+          <span className="igs-name">{handle}</span>
           <span className="igs-time">21h</span>
           <svg className="igs-mute" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M2.5 6v4h2.5L9 13V3L5 6H2.5Z" fill="currentColor" stroke="none"/><path d="M11.5 6.5l3 3M14.5 6.5l-3 3"/></svg>
         </div>
@@ -96,7 +107,7 @@ function StoryPreview({ items }) {
 }
 
 // Reel / TikTok — vertical frame with the right-side action rail.
-function ReelPreview({ caption, items, handle }) {
+function ReelPreview({ caption, items, handle, avatarUrl }) {
   const active = items[0];
   return (
     <div className="igr">
@@ -116,7 +127,7 @@ function ReelPreview({ caption, items, handle }) {
         <span className="igr-album">{active && !active.isVideo ? <img src={active.previewUrl} alt="" /> : <span className="igr-album-fill" />}</span>
       </div>
       <div className="igr-foot">
-        <span className="igp-avatar sm">RF</span>
+        <Avatar url={avatarUrl} handle={handle} className="igp-avatar sm" />
         <span className="igs-name">{handle}</span>
       </div>
       {caption && <div className="igr-caption">{caption}</div>}
@@ -128,6 +139,10 @@ export function NetworkPreview({ platform, caption, media, items }) {
   const p = PLATFORMS[platform];
   const list = Array.isArray(items) && items.length ? items : media ? [media] : [];
   const hasMedia = list.length > 0;
+  // IG previews show the CONNECTED account, not a hardcoded handle.
+  const { igConfig } = useStudio();
+  const igHandle = igConfig?.username || "your_handle";
+  const igAvatar = igConfig?.profilePictureUrl || null;
 
   let body;
   if (platform === "linkedin" || platform === "facebook") {
@@ -151,11 +166,13 @@ export function NetworkPreview({ platform, caption, media, items }) {
       </div>
     );
   } else if (platform === "ig_story") {
-    body = <StoryPreview items={list} />;
-  } else if (platform === "ig_reel" || platform === "tiktok") {
-    body = <ReelPreview caption={caption} items={list} handle="rangerandfox" />;
+    body = <StoryPreview items={list} handle={igHandle} avatarUrl={igAvatar} />;
+  } else if (platform === "ig_reel") {
+    body = <ReelPreview caption={caption} items={list} handle={igHandle} avatarUrl={igAvatar} />;
+  } else if (platform === "tiktok") {
+    body = <ReelPreview caption={caption} items={list} handle="your_handle" avatarUrl={null} />;
   } else {
-    body = <FeedPreview caption={caption} items={list} />;
+    body = <FeedPreview caption={caption} items={list} handle={igHandle} avatarUrl={igAvatar} />;
   }
 
   return (
