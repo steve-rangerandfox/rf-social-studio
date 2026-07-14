@@ -2,16 +2,14 @@ import { fetchWithTimeout } from "./http.js";
 
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.instagram.com/${GRAPH_API_VERSION}`;
-// Facebook-Login path: publishing runs through the Graph API against the
-// Page-linked IG business account node ({ig-user-id}/media), using the
-// Page access token — NOT graph.instagram.com/me.
-const FB_GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 // Permissions required for the Instagram API with Instagram Login.
 // User must approve all of these for publishing to work.
 export const IG_OAUTH_SCOPES = "instagram_business_basic,instagram_business_content_publish";
 
-// Build the Instagram OAuth authorize URL.
+// Build the Instagram OAuth authorize URL (Business Login for Instagram —
+// the Instagram-branded consent screen; appId must be the INSTAGRAM App ID
+// from the Instagram product config, not the Meta/Facebook app id).
 // redirectUri should be the canonical URL registered in the Meta dashboard.
 export function buildInstagramAuthorizeUrl({ appId, redirectUri, state }) {
   const params = new URLSearchParams({
@@ -21,7 +19,7 @@ export function buildInstagramAuthorizeUrl({ appId, redirectUri, state }) {
     scope: IG_OAUTH_SCOPES,
     response_type: "code",
   });
-  return `https://api.instagram.com/oauth/authorize?${params.toString()}`;
+  return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
 }
 
 // Exchange an OAuth code for a short-lived IG user token, then upgrade
@@ -143,15 +141,15 @@ export async function fetchInstagramMedia(userToken, { limit = 30, after = null 
 // Step 2: Publish the container
 // Returns: { mediaId } from the publish step
 export async function publishInstagramPost({
-  igUserId,    // IG business account id (the publish node on graph.facebook.com)
-  userToken,   // Page access token for that account
+  igUserId,    // IG professional account id (the publish node)
+  userToken,   // that account's Instagram user access token
   imageUrl,    // public HTTPS URL of image (must be on a public CDN)
   videoUrl,    // optional, for VIDEO/REELS/STORIES
   caption,
   mediaType = "IMAGE", // "IMAGE" | "VIDEO" | "REELS" | "STORIES"
 }) {
   if (!igUserId) throw new Error("igUserId required to publish");
-  const base = `${FB_GRAPH_BASE}/${igUserId}`;
+  const base = `${GRAPH_BASE}/${igUserId}`;
   // Step 1: Create container
   const containerParams = new URLSearchParams({
     access_token: userToken,
@@ -204,7 +202,7 @@ export async function publishInstagramPost({
     while (attempts < 10) {
       await new Promise((r) => setTimeout(r, 2000));
       const statusRes = await fetchWithTimeout(
-        `${FB_GRAPH_BASE}/${containerId}?fields=status_code&access_token=${encodeURIComponent(userToken)}`
+        `${GRAPH_BASE}/${containerId}?fields=status_code&access_token=${encodeURIComponent(userToken)}`
       );
       const statusBody = await statusRes.json();
       if (statusBody.status_code === "FINISHED") break;
@@ -242,7 +240,7 @@ export async function publishInstagramCarousel({ igUserId, userToken, imageUrls,
     throw new Error("Carousels need between 2 and 10 images");
   }
   if (!igUserId) throw new Error("igUserId required to publish");
-  const base = `${FB_GRAPH_BASE}/${igUserId}`;
+  const base = `${GRAPH_BASE}/${igUserId}`;
 
   // Step 1: a child container per image.
   const childIds = [];
