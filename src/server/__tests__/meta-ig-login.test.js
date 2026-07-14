@@ -77,7 +77,7 @@ describe("exchangeCodeForInstagramToken", () => {
     expect(out.accessToken).toBe("short");
     expect(out.longLived).toBe(false);
     expect(out.expiresIn).toBe(3600);
-    expect(out.longTokenDiag.tokenPrefix).toBe("short");
+    expect(out.longTokenDiag.grantHead).toBe("short");
   });
 
   it("accepts the documented data-array short-token response shape", async () => {
