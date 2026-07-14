@@ -420,10 +420,20 @@ export function CanvasElement({ data, isSelected, onSelect, onUpdate, onDragAll,
           ref={editRef}
           contentEditable={isEditing}
           suppressContentEditableWarning
-          onInput={() => { liveTextRef.current = editRef.current?.innerText ?? ''; }}
+          onInput={() => {
+            // Commit on EVERY keystroke. Blur is not a reliable commit point:
+            // clicking the empty canvas clears editingId first, the re-render
+            // flips contentEditable off, and Chrome then drops focus WITHOUT
+            // firing blur — so a blur-only commit silently loses the edit
+            // (reproduced in dev-harness). Live commit is safe because the
+            // JSX renders no child while editing, so this re-render can't
+            // clobber the DOM text being typed.
+            liveTextRef.current = editRef.current?.innerText ?? '';
+            onUpdate({ content: liveTextRef.current });
+          }}
           onBlur={() => {
-            // Commit the ref (what was typed), NOT innerText — the DOM may have
-            // already been reset to the old text by an editingId-clear re-render.
+            // Belt-and-braces: commit the ref (idempotent after onInput) and
+            // exit edit mode on the paths where blur DOES fire.
             onUpdate({ content: liveTextRef.current });
             onStopEdit();
           }}
