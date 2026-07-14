@@ -282,15 +282,19 @@ function StudioShell() {
         />
       )}
 
+      {/* Scoped boundary: a designer crash closes the designer — it must
+          not take down the whole studio (root boundary). */}
       {story && (
-        <Suspense fallback={<LoadingShell variant="overlay" label="Loading designer" />}>
-          <StoryDesigner
-            row={story}
-            onClose={() => { const id = story?.id; setStory(null); if (id) setSelectedRowId(id); }}
-            onSave={els => update(story.id, { storyElements: els })}
-            onUpdate={patch => update(story.id, patch)}
-          />
-        </Suspense>
+        <ErrorBoundary scope="Designer" onReset={() => setStory(null)}>
+          <Suspense fallback={<LoadingShell variant="overlay" label="Loading designer" />}>
+            <StoryDesigner
+              row={story}
+              onClose={() => { const id = story?.id; setStory(null); if (id) setSelectedRowId(id); }}
+              onSave={els => update(story.id, { storyElements: els })}
+              onUpdate={patch => update(story.id, patch)}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
 
       {showConn && (
