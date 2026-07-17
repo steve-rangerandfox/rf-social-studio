@@ -10,22 +10,36 @@ import {
   setApiUserId,
 } from "../../lib/api-client.js";
 import {
+  acceptServerSnapshot,
+  advanceBaselineOnSave,
   appendAuditEntries,
   applyRowPatch,
+  changedTopLevelDomains,
   createAuditEntry,
   createDefaultBrandProfile,
   createNewRow,
   exportStudioData,
+  getDirtyDomains,
+  hydrateSyncRecord,
+  isSameDocumentContent,
+  loadIdbDocumentRaw,
   loadStudioDocument,
-  loadStudioDocumentAsync,
+  loadSyncRecord,
+  markDirtyDomains,
   markRowDeleted,
+  mergeRecoveredIdbDocument,
   mergeStudioDocuments,
   normalizeBrandProfile,
+  normalizeDocument,
   persistStudioDocument,
+  persistStudioDocumentDurably,
+  reconcileSaveConflict,
+  setSyncRecordIntegrityHandler,
+  flushScopedPersist,
   flushStudioPersist,
   restoreDeletedRow,
 } from "./document-store.js";
-import { addToSyncQueue, getSyncQueue, clearSyncQueue } from "../../lib/idb-store.js";
+import { addToSyncQueue, getSyncQueueByScope, deleteSyncEntry } from "../../lib/idb-store.js";
 import { useToast } from "../../components/Toaster.jsx";
 import {
   ACCENTS,
@@ -117,15 +131,46 @@ export function StudioProvider({ children }) {
     lastSavedAt: studioDoc.lastSavedAt,
     error: null,
   }));
-  const documentVersionRef = useRef(null);
-  const setDocumentVersion = (v) => { documentVersionRef.current = v; };
-  // Latest-doc ref for the serialized save pipeline: server saves always send
-  // the freshest state, and conflict/poll merges never work from a stale copy.
-  const latestDocRef = useRef(studioDoc);
-  latestDocRef.current = studioDoc;
-  const saveInFlightRef = useRef(false);
-  const saveDirtyRef = useRef(false);
-  const conflictRunRef = useRef(0);
+  // ─── Per-scope synchronization runtime (scope-owned coordinator) ───
+  // ONE canonical runtime per scope, kept in a map keyed by storage scope, so
+  // returning to A reuses A's runtime + its single lane (no second concurrent A
+  // runtime). Async operations CAPTURE their originating runtime; they finalize
+  // that runtime's DURABLE per-scope state (using its own latest doc + dirty
+  // metadata) even after a switch, but touch React state / active controls only
+  // while the runtime is still active.
+  const makeRuntime = (scope) => ({
+    scope,
+    version: loadSyncRecord(scope).version, // accepted server version (refined by readiness)
+    // Seed from this scope's OWN stored document (or a fresh default), NEVER the
+    // active studioDoc — creating runtime B while A is active must not seed B
+    // with A's document.
+    latestDoc: loadStudioDocument(scope),
+    // Canonical ACCEPTED server state, kept separate from the installed local
+    // overlay: normalized server content after fetch/poll, the exact accepted
+    // result.document after every successful save, or null when the server has
+    // confirmed absence. The lane prepares queued writes against it and dedups
+    // the live save against it — never against the local overlay itself.
+    acceptedDoc: null,
+    initialFetchDone: false,                 // initial server state established?
+    hydrated: false,                         // sync-record hydration complete (dirty may persist immediately)
+    ready: null,                             // combined local-recovery readiness promise
+    laneBusy: false,                         // the single outbound lane is running
+    laneDirty: false,                        // a pump was requested while the lane was busy
+    pendingDirty: new Set(),                  // domains dirtied before hydration completed
+    conflictRuns: 0,
+  });
+  const runtimesRef = useRef(new Map());     // scope -> canonical runtime
+  const getRuntime = (scope) => {
+    let rt = runtimesRef.current.get(scope);
+    if (!rt) { rt = makeRuntime(scope); runtimesRef.current.set(scope, rt); }
+    return rt;
+  };
+  const activeRuntimeRef = useRef(null);
+  if (activeRuntimeRef.current === null) activeRuntimeRef.current = getRuntime(storageScope);
+  // Mirror the latest document onto the ACTIVE runtime every render (captures the
+  // freshest doc even on the switch render, before the scope-load effect swaps).
+  activeRuntimeRef.current.latestDoc = studioDoc;
+  const isActive = (rt) => activeRuntimeRef.current === rt;
   const [pendingDelete, setPendingDelete] = useState(null);
   const [pendingUndo, setPendingUndo] = useState(null);
   const [tokenBannerDismissed, setTokenBannerDismissed] = useState(false);
@@ -241,144 +286,369 @@ export function StudioProvider({ children }) {
   ), [rows, year]);
   const maxMonthCount = useMemo(() => Math.max(...monthCounts, 1), [monthCounts]);
 
+  // ─── Combined local-recovery readiness (one promise per runtime) ───
+  // Runtime readiness = revision-aware sync-record hydration + pre-hydration
+  // dirty merge + raw IndexedDB document recovery (provenance-aware) installed
+  // into rt.latestDoc + scoped persistence. All outbound work (ensureInitialized,
+  // queue drain, live save, polling) awaits this before touching the server, so
+  // no write can happen before local recovery completes.
+  const buildReadiness = (rt) => (async () => {
+    // Capture the recovery BASE at readiness start: the IDB candidate is
+    // classified against this snapshot, so edits made while the (possibly
+    // deferred) IDB load is pending are never mistaken for recovered content.
+    const recoveryBase = rt.latestDoc;
+    try { await hydrateSyncRecord(rt.scope); } catch { /* localStorage/in-memory stands */ }
+    rt.hydrated = true; // set before the merge so a concurrent edit persists directly too (idempotent)
+    // Merge domains dirtied before hydration finished at a higher revision.
+    if (rt.pendingDirty.size) { try { await markDirtyDomains(rt.scope, [...rt.pendingDirty]); } catch { /* integrity surfaced separately */ } }
+    rt.version = loadSyncRecord(rt.scope).version;
+    // Raw IDB recovery: install a genuinely newer local snapshot's dirty domains.
+    let idbRaw = null;
+    try { idbRaw = await loadIdbDocumentRaw(rt.scope); } catch { idbRaw = null; }
+    if (idbRaw && idbRaw.lastSavedAt && (!recoveryBase.lastSavedAt || idbRaw.lastSavedAt > recoveryBase.lastSavedAt)) {
+      // 1. Recover the IDB candidate against the captured BASE using durable
+      //    dirty metadata (provenance + explicit dirty, as before).
+      const recovered = mergeRecoveredIdbDocument(recoveryBase, idbRaw, getDirtyDomains(rt.scope));
+      // 2. OVERLAY runtime mutations made while recovery was pending: any
+      //    top-level domain that changed between the base and the CURRENT
+      //    rt.latestDoc wins over the recovered value; rows merge by updatedAt.
+      const mutatedSince = changedTopLevelDomains(recoveryBase, rt.latestDoc);
+      const finalDoc = mergeStudioDocuments(recovered, rt.latestDoc, { dirtyDomains: mutatedSince });
+      if (!isSameDocumentContent(finalDoc, rt.latestDoc)) {
+        rt.latestDoc = finalDoc;
+        if (isActive(rt)) setStudioDoc(finalDoc);
+        // Readiness cannot complete successfully until the recovered/overlaid
+        // document is DURABLE. On failure, preserve the recovered dirty metadata
+        // and surface the scoped integrity error.
+        const durable = await persistStudioDocumentDurably({ ...finalDoc, lastSavedAt: finalDoc.lastSavedAt || null }, rt.scope);
+        if (!durable) {
+          const recoveredDirty = [...new Set([...getDirtyDomains(rt.scope), ...mutatedSince])];
+          if (recoveredDirty.length) markDirtyDomains(rt.scope, recoveredDirty);
+          if (isActive(rt)) {
+            setSaveState((current) => ({
+              ...current,
+              status: "error",
+              error: "Save integrity at risk — recovered changes could not be stored durably.",
+            }));
+          }
+        }
+      }
+    }
+  })();
+
+  // ─── Outbound lane (one per scope: replay drain, then a single live save) ───
+  // Finalize a successful write:
+  //   1. advance version + clear synced dirty (against the runtime's OWN latest
+  //      doc, so in-flight edits stay dirty);
+  //   2. set rt.acceptedDoc to the EXACT accepted result.document — the local
+  //      overlay installed below is never marked accepted merely because this
+  //      older write succeeded;
+  //   3. install the visible/local doc = merge(acceptedDoc, rt.latestDoc) with
+  //      only REMAINING dirty domains winning and rows by updatedAt;
+  //   4. await BOTH sync-record durability and installed-document durability —
+  //      throws if either reached no durable store, so the caller can gate
+  //      queue acknowledgement on it.
+  const finalizeWriteSuccess = async (rt, { sentDocument, savedVersion, sentDirty, acceptedDocument }) => {
+    const recDurable = advanceBaselineOnSave(rt.scope, { sentDocument, savedVersion, sentDirty, currentDocument: rt.latestDoc });
+    if (savedVersion != null) rt.version = savedVersion;
+    // acceptedDocument is the server's canonical accepted content (its returned
+    // document when present, else the sent doc) — NOT merely what we sent, so a
+    // field the server canonicalized propagates into acceptedDoc + the overlay.
+    rt.acceptedDoc = acceptedDocument || sentDocument;
+    const remainingDirty = getDirtyDomains(rt.scope);
+    const installed = mergeStudioDocuments(rt.acceptedDoc, rt.latestDoc, { dirtyDomains: remainingDirty });
+    rt.latestDoc = installed;
+    const docDurable = persistStudioDocumentDurably(
+      { ...installed, lastSavedAt: installed.lastSavedAt || new Date().toISOString() },
+      rt.scope,
+    );
+    if (isActive(rt)) setStudioDoc(installed);
+    const [recOk, docOk] = await Promise.all([
+      Promise.resolve(recDurable).catch(() => false),
+      docDurable,
+    ]);
+    if (!recOk || !docOk) throw new Error("finalization not durable");
+  };
+
+  // Establish server state for the runtime (retryable). Awaits combined readiness
+  // first, so the merge sees the fully recovered local doc. A transient GET
+  // failure leaves initialFetchDone false so a later trigger retries; local
+  // docs/dirty/queue are all retained.
+  const ensureInitialized = async (rt) => {
+    if (rt.ready) await rt.ready; // full local recovery before any server op
+    if (rt.initialFetchDone) return true;
+    if (!isActive(rt)) return false;
+    let payload;
+    try {
+      payload = await fetchStudioDocument();
+    } catch (error) {
+      if (error?.message === "Studio persistence is not configured") {
+        rt.initialFetchDone = true; // definitive: no server persistence
+        return true;
+      }
+      return false; // transient — retry on the next trigger
+    }
+    if (!isActive(rt)) return false;
+    if (!payload?.document) {
+      // Confirmed absence: acceptedDocument = null + accepted null version
+      // (retaining dirty) so the next write uses the server's create-only
+      // null-version contract.
+      rt.acceptedDoc = null;
+      rt.version = null;
+      acceptServerSnapshot(rt.scope, { version: null });
+      rt.initialFetchDone = true;
+      return true;
+    }
+    // Normalize and ESTABLISH the accepted server document, then merge (explicit
+    // dirty domains) and INSTALL as rt.latestDoc before setStudioDoc/persist so
+    // the lane only ever sees the merged doc.
+    rt.acceptedDoc = normalizeDocument(payload.document);
+    const merged = mergeStudioDocuments(rt.acceptedDoc, rt.latestDoc, { dirtyDomains: getDirtyDomains(rt.scope) });
+    rt.version = payload.version ?? null;
+    rt.latestDoc = merged;
+    rt.initialFetchDone = true;
+    acceptServerSnapshot(rt.scope, { version: payload.version ?? null });
+    setStudioDoc(merged);
+    persistStudioDocument(
+      { ...merged, lastSavedAt: payload.updatedAt || payload.document.lastSavedAt || null },
+      rt.scope,
+    );
+    setSaveState({ status: "saved", lastSavedAt: payload.updatedAt || payload.document.lastSavedAt || null, error: null });
+    return true;
+  };
+
+  // Drain this scope's queue oldest-first; stop at the first unresolved entry so
+  // a newer live save can never bypass it. Returns true only on a clean drain.
+  const drainQueue = async (rt) => {
+    const queue = await getSyncQueueByScope(rt.scope);
+    for (const entry of queue) {
+      if (entry.scope !== rt.scope) continue; // defensive
+      if (entry.type !== "save" || !entry.document) return false; // malformed -> unresolved, stop
+      // Prepare the write against the ACCEPTED server document BEFORE the first
+      // attempt: captured dirty domains may win, rows merge by updatedAt, and
+      // every non-dirty domain stays server-owned — so a stale/generated queued
+      // snapshot can never overwrite the server even when its stored version
+      // happens to match the current one. The write itself uses the runtime's
+      // CURRENT accepted version, not the entry's stored one.
+      const entryDirty = Array.isArray(entry.dirtyDomains) ? entry.dirtyDomains : [];
+      const prepared = rt.acceptedDoc
+        ? mergeStudioDocuments(rt.acceptedDoc, entry.document, { dirtyDomains: entryDirty })
+        : entry.document; // confirmed absence -> the entry creates the document
+      const result = await reconcileSaveConflict({
+        document: prepared,
+        version: rt.version,
+        dirtyDomains: entryDirty,
+        fetchDoc: () => fetchStudioDocument(),
+        saveDoc: (doc, ver) => saveStudioDocument(doc, ver),
+        isScopeValid: () => isActive(rt), // never START a write/fetch under a switched scope
+      });
+      if (!result.ok) return false; // unresolved (conflict-exhausted / scope-changed / network) -> stop
+      try {
+        await finalizeWriteSuccess(rt, { sentDocument: result.document, savedVersion: result.version, sentDirty: entryDirty, acceptedDocument: result.acceptedDocument });
+      } catch {
+        // Finalization not durable -> surface the scoped integrity error (active
+        // scope only), retain the entry, stop later replay.
+        if (isActive(rt)) {
+          setSaveState((current) => ({
+            ...current,
+            status: "error",
+            error: "Save integrity at risk — unsynced changes could not be stored durably.",
+          }));
+        }
+        return false;
+      }
+      await deleteSyncEntry(entry.id); // ack ONLY after durable finalization
+    }
+    return true;
+  };
+
+  // After a clean drain, send the latest document once on the resulting version
+  // with the current dirty domains. Never before the server's existence is known.
+  const liveSave = async (rt) => {
+    if (rt.version == null && !rt.initialFetchDone) return; // create-only gate
+    const savedAt = new Date().toISOString();
+    const nextDocument = { ...(rt.latestDoc || {}), lastSavedAt: savedAt };
+    const sentDirty = getDirtyDomains(rt.scope);
+    // Dedup against the ACCEPTED server document (structural, ignoring
+    // lastSavedAt): when the local overlay carries no divergence and nothing is
+    // dirty, there is nothing to send — an unchanged initial fetch or an idle
+    // re-pump never causes a redundant server write.
+    if (rt.acceptedDoc && sentDirty.length === 0 && isSameDocumentContent(rt.latestDoc, rt.acceptedDoc)) return;
+    let result;
+    try {
+      result = await reconcileSaveConflict({
+        document: nextDocument,
+        version: rt.version,
+        dirtyDomains: sentDirty,
+        fetchDoc: () => fetchStudioDocument(),
+        saveDoc: (doc, ver) => saveStudioDocument(doc, ver),
+        isScopeValid: () => isActive(rt),
+      });
+    } catch (error) {
+      if (error?.message === "Studio persistence is not configured" || error?.message === "user context is required") {
+        if (isActive(rt)) setSaveState({ status: "saved", lastSavedAt: savedAt, error: null });
+        return;
+      }
+      if (error?.retryable) {
+        // Offline/transient: queue the edit for replay; retain local + dirty.
+        addToSyncQueue({ type: "save", document: nextDocument, scope: rt.scope, version: rt.version, dirtyDomains: sentDirty }).catch(() => {});
+        if (isActive(rt)) setSaveState({ status: "offline", lastSavedAt: savedAt, error: "Offline - changes saved locally and will sync when reconnected." });
+      } else if (isActive(rt)) {
+        setSaveState({ status: "error", lastSavedAt: savedAt, error: "Server persistence failed. Local browser copy is still available." });
+      }
+      return;
+    }
+    if (!result.ok) {
+      // Retain local document + dirty metadata. Only the ACTIVE scope surfaces a
+      // status; a stale-scope failure never touches another scope's UI.
+      if (isActive(rt) && result.reason === "retry-exhausted") {
+        setSaveState({ status: "conflict", lastSavedAt: savedAt, error: "Unresolved version conflict - your local changes are kept. Edit again to retry." });
+      }
+      return;
+    }
+    try {
+      // Install the accepted result.document (server-side non-dirty changes) while
+      // keeping remaining dirty domains + newer rows.
+      await finalizeWriteSuccess(rt, { sentDocument: nextDocument, savedVersion: result.version, sentDirty, acceptedDocument: result.acceptedDocument });
+    } catch {
+      if (isActive(rt)) setSaveState({ status: "error", lastSavedAt: savedAt, error: "Save integrity at risk — unsynced changes could not be stored durably." });
+      return;
+    }
+    if (isActive(rt)) {
+      setSaveState({ status: "saved", lastSavedAt: result.payload?.updatedAt || savedAt, error: null });
+    }
+  };
+
+  // The single outbound lane. Live save and replay never write concurrently for
+  // a scope; polling is only allowed while the lane is idle.
+  const pumpLane = async (rt) => {
+    if (rt.laneBusy) { rt.laneDirty = true; return; }
+    rt.laneBusy = true;
+    try {
+      // Establish server state first (retryable, after full local recovery). Only
+      // then may the lane drain the queue and perform the single live save.
+      const ready = await ensureInitialized(rt);
+      if (!ready) return; // init unavailable — retain everything; a later trigger retries
+      const drained = await drainQueue(rt);
+      if (drained) await liveSave(rt); // one live save after a clean drain
+    } catch {
+      // transient; a later trigger re-pumps
+    } finally {
+      rt.laneBusy = false;
+      if (rt.laneDirty && isActive(rt)) { rt.laneDirty = false; pumpLane(rt); }
+    }
+  };
+
   // ─── Effects ─────────────────────────────────────────────────────
+  // Scoped save-integrity error: only the ACTIVE runtime's failure alters the
+  // visible save state (a stale inactive-scope failure must not touch it).
   useEffect(() => {
-    const scopedDocument = loadStudioDocument(storageScope);
+    setSyncRecordIntegrityHandler((failScope) => {
+      const active = activeRuntimeRef.current;
+      if (active && active.scope === failScope) {
+        setSaveState((current) => ({
+          ...current,
+          status: "error",
+          error: "Save integrity at risk — unsynced changes could not be stored durably.",
+        }));
+      }
+    });
+    return () => setSyncRecordIntegrityHandler(null);
+  }, []);
+
+  useEffect(() => {
+    // Persist the OUTGOING scope's latest document DURABLY (localStorage
+    // synchronously; immediate IndexedDB when localStorage fails) and flush its
+    // pending debounced IDB write BEFORE replacing it, so an edit made just
+    // before an account switch (inside the debounce window) survives on return
+    // even when localStorage is unavailable.
+    const prevRt = activeRuntimeRef.current;
+    if (prevRt && prevRt.scope !== storageScope && prevRt.latestDoc) {
+      try {
+        persistStudioDocumentDurably({ ...prevRt.latestDoc, lastSavedAt: new Date().toISOString() }, prevRt.scope);
+        flushScopedPersist(prevRt.scope);
+      } catch { /* best-effort */ }
+    }
+
     setApiUserId(userId || "", userId ? () => getToken() : null);
-    setStudioDoc(scopedDocument);
+    // ONE canonical runtime per scope: returning to a scope REUSES its runtime
+    // (and its single lane), so no second concurrent runtime is created for it.
+    const rt = getRuntime(storageScope);
+    const isNewRuntime = rt.ready === null;
+    activeRuntimeRef.current = rt;
+    // Use the runtime's OWN latest document: a new runtime was seeded from its
+    // own scoped storage by makeRuntime (never the active studioDoc); a returning
+    // runtime's in-memory latestDoc is canonical (storage may be staler when
+    // localStorage writes are failing). Never seed from another scope's document.
+    const docToShow = rt.latestDoc;
+    setStudioDoc(docToShow);
     setSaveState((current) => ({
       ...current,
       status: "idle",
-      lastSavedAt: scopedDocument.lastSavedAt || null,
+      lastSavedAt: docToShow.lastSavedAt || null,
       error: null,
     }));
+    // Build combined local-recovery readiness exactly once per runtime.
+    if (isNewRuntime) rt.ready = buildReadiness(rt);
+    // The outbound lane owns initialization (retryable) + drain + live save.
+    // Only signed-in scopes talk to the server.
+    if (userId) rt.ready.then(() => { if (isActive(rt)) pumpLane(rt); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getToken, storageScope, userId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!userId) {
-      return () => { cancelled = true; };
-    }
-    fetchStudioDocument()
-      .then((payload) => {
-        if (cancelled || !payload?.document) return;
-        // Merge rather than replace: edits made in the seconds before this
-        // fetch resolves (per-row, newest updatedAt wins) must not vanish.
-        const merged = mergeStudioDocuments(payload.document, latestDocRef.current);
-        setStudioDoc(merged);
-        setDocumentVersion(payload.version ?? null);
-        persistStudioDocument(
-          { ...merged, lastSavedAt: payload.updatedAt || payload.document.lastSavedAt || null },
-          storageScope,
-        );
-        setSaveState({
-          status: "saved",
-          lastSavedAt: payload.updatedAt || payload.document.lastSavedAt || null,
-          error: null,
-        });
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [storageScope, userId]);
-
   const updateDocument = useCallback((mutator, auditEntryFactory) => {
+    const rt = activeRuntimeRef.current;
     setStudioDoc((current) => {
       const next = mutator(current);
       const withAudit = auditEntryFactory
         ? appendAuditEntries(next, [auditEntryFactory(next)])
         : next;
+      // Capture EXPLICIT dirty intent at mutation time: which top-level domains
+      // this real user mutation actually changed (rows excluded — they use
+      // updatedAt merge).
+      const changed = changedTopLevelDomains(current, withAudit);
+      if (changed.length) {
+        // Record in the runtime synchronously so a save begun before this render
+        // (and finalized after a switch) compares against the freshest doc, and
+        // so a pre-hydration edit is not lost.
+        changed.forEach((d) => rt.pendingDirty.add(d));
+        // Persist immediately once hydration is done; otherwise readiness merges
+        // pendingDirty at a higher revision when it completes.
+        if (rt.hydrated) markDirtyDomains(rt.scope, changed);
+      }
+      // Update the runtime's latest document synchronously (not just on render),
+      // so an in-flight save's finalization sees this edit.
+      rt.latestDoc = withAudit;
       return withAudit;
     });
     setSaveState((current) => ({ ...current, status: "saving", error: null }));
   }, []);
 
-  // Server saves are SERIALIZED: one request in flight at a time, always
-  // sending the freshest document. Overlapping saves were the root cause of
-  // self-inflicted "Version conflict" errors while typing -- save A bumps the
-  // server version, then save B (debounced in carrying the old version)
-  // conflicts, and the old handler swapped in the server copy, deleting the
-  // keystrokes typed since. Conflicts now MERGE per row (newest updatedAt
-  // wins) and quietly re-save on the fresh version; typing survives.
-  const runServerSave = useCallback(function run() {
-    if (saveInFlightRef.current) { saveDirtyRef.current = true; return; }
-    saveInFlightRef.current = true;
-    const savedAt = new Date().toISOString();
-    const nextDocument = { ...latestDocRef.current, lastSavedAt: savedAt };
-    saveStudioDocument(nextDocument, documentVersionRef.current)
-      .then((payload) => {
-        conflictRunRef.current = 0;
-        if (payload?.version != null) {
-          setDocumentVersion(payload.version);
-        }
-        setSaveState({ status: "saved", lastSavedAt: payload?.updatedAt || savedAt, error: null });
-      })
-      .catch((error) => {
-        if (error?.message === "Studio persistence is not configured" || error?.message === "user context is required") {
-          setSaveState({ status: "saved", lastSavedAt: savedAt, error: null });
-          return;
-        }
-        if (error?.message === "Version conflict") {
-          conflictRunRef.current += 1;
-          if (conflictRunRef.current > 3) {
-            // Merging keeps conflicting -- stop fighting and take the server copy.
-            conflictRunRef.current = 0;
-            showToast("Your changes conflict with a newer version. Refreshing\u2026", T.red);
-            fetchStudioDocument()
-              .then((payload) => {
-                if (!payload?.document) return;
-                setStudioDoc(payload.document);
-                setDocumentVersion(payload.version ?? null);
-                persistStudioDocument(
-                  { ...payload.document, lastSavedAt: payload.updatedAt || null },
-                  storageScope,
-                );
-                setSaveState({ status: "saved", lastSavedAt: payload.updatedAt || null, error: null });
-              })
-              .catch(() => {});
-            return;
-          }
-          fetchStudioDocument()
-            .then((payload) => {
-              if (!payload?.document) return;
-              setDocumentVersion(payload.version ?? null);
-              // setStudioDoc re-arms the debounced save, which re-sends the
-              // merged document on the fresh version -- no toast, no lost text.
-              setStudioDoc(mergeStudioDocuments(payload.document, latestDocRef.current));
-            })
-            .catch(() => {});
-          return;
-        }
-        // Queue for offline sync if it was a retryable/network error
-        if (error?.retryable) {
-          addToSyncQueue({ type: "save", document: nextDocument, scope: storageScope, version: documentVersionRef.current }).catch(() => {});
-          setSaveState({ status: "offline", lastSavedAt: savedAt, error: "Offline \u2014 changes saved locally and will sync when reconnected." });
-        } else {
-          setSaveState({ status: "error", lastSavedAt: savedAt, error: "Server persistence failed. Local browser copy is still available." });
-        }
-      })
-      .finally(() => {
-        saveInFlightRef.current = false;
-        if (saveDirtyRef.current) { saveDirtyRef.current = false; run(); }
-      });
-  }, [showToast, storageScope]);
-
+  // Debounced local persist + lane pump. The single outbound lane owns all
+  // server writes (drain queue, then one live save) and serializes them per scope.
   useEffect(() => {
+    const rt = activeRuntimeRef.current;
     const timeoutId = window.setTimeout(() => {
       const savedAt = new Date().toISOString();
       const nextDocument = { ...studioDoc, lastSavedAt: savedAt };
-      const saved = persistStudioDocument(nextDocument, storageScope);
-      if (!saved) {
-        setSaveState((current) => ({
-          status: "error",
-          error: "Browser storage is full. Your latest changes are not safely persisted yet.",
-          lastSavedAt: current.lastSavedAt,
-        }));
-        return;
-      }
-      runServerSave();
+      // Durable persist: localStorage failure alone must not block the outbound
+      // lane — an immediate IndexedDB write still satisfies durability. Only
+      // when BOTH stores fail is the lane withheld and the error surfaced.
+      persistStudioDocumentDurably(nextDocument, rt.scope).then((saved) => {
+        if (!saved) {
+          setSaveState((current) => ({
+            status: "error",
+            error: "Browser storage is full. Your latest changes are not safely persisted yet.",
+            lastSavedAt: current.lastSavedAt,
+          }));
+          return;
+        }
+        if (userId) pumpLane(rt); // only signed-in scopes drive the server lane
+      });
     }, 180);
     return () => window.clearTimeout(timeoutId);
-  }, [runServerSave, storageScope, studioDoc]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageScope, studioDoc, userId]);
 
   // On tab close, synchronously flush the latest doc so an edit made inside
   // the 180ms/400ms debounce windows isn't lost. localStorage.setItem is
@@ -412,54 +682,47 @@ export function StudioProvider({ children }) {
     };
   }, []);
 
-  // ─── Replay sync queue when coming back online ──────────────────
+  // ─── Reconnect: pump the outbound lane ──────────────────────────
+  // The lane (drain queue oldest-first, then one live save) is the single
+  // outbound path per scope; coming online just triggers it.
   useEffect(() => {
     if (!isOnline || !userId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const queue = await getSyncQueue();
-        if (cancelled || queue.length === 0) return;
-        for (const entry of queue) {
-          if (cancelled) return;
-          if (entry.type === "save" && entry.document) {
-            await saveStudioDocument(entry.document, entry.version ?? null);
-          }
-        }
-        await clearSyncQueue();
-        showToast("Offline changes synced to server", T.mint);
-      } catch {
-        // Will retry next time we come online
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isOnline, userId, showToast]);
+    pumpLane(activeRuntimeRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline, userId, storageScope]);
 
   // ─── Multi-device sync polling ──────────────────────────────────
   useEffect(() => {
     if (!userId) return;
 
+    const rt = activeRuntimeRef.current;
     const interval = setInterval(async () => {
-      // Never poll-refresh over an in-flight or pending save -- the version
-      // is about to bump and swapping in the server copy would erase the
-      // very keystrokes that save is carrying.
-      if (saveInFlightRef.current || saveDirtyRef.current) return;
+      // Poll only when the outbound lane is IDLE — never over an in-flight write.
+      if (rt.laneBusy || !isActive(rt)) return;
       try {
         const payload = await fetchStudioDocument();
-        if (!payload?.document) return;
+        if (!payload?.document || !isActive(rt)) return;
 
         // Only update if the server version is newer -- and MERGE with the
-        // local copy (per row, newest edit wins) instead of replacing it, so
-        // typing that hasn't reached the server yet survives the refresh.
-        if (payload.version != null && payload.version > (documentVersionRef.current || 0)) {
-          const merged = mergeStudioDocuments(payload.document, latestDocRef.current);
-          const changed = JSON.stringify(merged) !== JSON.stringify(latestDocRef.current);
-          setDocumentVersion(payload.version);
+        // local copy (per row newest-wins; per domain by EXPLICIT dirty set)
+        // instead of replacing it, so unsynced local state survives the refresh.
+        if (payload.version != null && payload.version > (rt.version || 0)) {
+          // Normalize + ESTABLISH the accepted server document, merge by explicit
+          // dirty domains, and INSTALL as rt.latestDoc before setStudioDoc so the
+          // lane never sees the pre-merge document.
+          rt.acceptedDoc = normalizeDocument(payload.document);
+          const merged = mergeStudioDocuments(rt.acceptedDoc, rt.latestDoc, { dirtyDomains: getDirtyDomains(rt.scope) });
+          const changed = !isSameDocumentContent(merged, rt.latestDoc);
+          rt.version = payload.version;
+          // Accepted a newer server snapshot -> advance the accepted version even
+          // when the merged result is byte-identical (dirty domains preserved).
+          acceptServerSnapshot(rt.scope, { version: payload.version });
           if (!changed) return;
+          rt.latestDoc = merged;
           setStudioDoc(merged);
           persistStudioDocument(
             { ...merged, lastSavedAt: payload.updatedAt },
-            storageScope,
+            rt.scope,
           );
           showToast("Updated from another device", T.mint);
         }
@@ -471,19 +734,9 @@ export function StudioProvider({ children }) {
     return () => clearInterval(interval);
   }, [userId, storageScope, showToast]);
 
-  // ─── IndexedDB async hydration (progressive enhancement) ────────
-  useEffect(() => {
-    let cancelled = false;
-    loadStudioDocumentAsync(storageScope).then((idbDoc) => {
-      if (cancelled || !idbDoc) return;
-      // Only use IDB doc if it's newer than what we have
-      if (idbDoc.lastSavedAt && (!studioDoc.lastSavedAt || idbDoc.lastSavedAt > studioDoc.lastSavedAt)) {
-        setStudioDoc(idbDoc);
-      }
-    });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageScope]);
+  // (IndexedDB raw recovery is now part of the runtime readiness promise —
+  // buildReadiness — so no independent recovery effect is needed. This keeps
+  // outbound work gated on complete local recovery.)
 
   useEffect(() => {
     let cancelled = false;

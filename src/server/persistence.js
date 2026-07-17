@@ -19,6 +19,11 @@ export function hasStudioPersistence(env) {
 }
 
 async function getClient(env) {
+  // Injection seam (tests / alternative runtimes): an explicit client bypasses
+  // the cached factory entirely.
+  if (env && env.supabaseClient) {
+    return env.supabaseClient;
+  }
   if (!hasStudioPersistence(env)) {
     return null;
   }
@@ -246,7 +251,11 @@ export async function saveStudioDocumentRecord(env, ownerUserId, document, expec
     });
   }
 
-  // First save (upsert)
+  // No expected version = CREATE ONLY. Insert a fresh row at version 1. If a
+  // row already exists for this owner, a unique-violation on owner_user_id
+  // surfaces (never an upsert/overwrite) and we return a conflict so the client
+  // reconciles against the existing document instead of clobbering it. This
+  // guarantee lives on the server; it does not depend on client timing.
   return withRetry(async () => {
     const cl = await getClient(env);
     if (!cl) return null;
@@ -254,20 +263,29 @@ export async function saveStudioDocumentRecord(env, ownerUserId, document, expec
     const { data, error } = await withTimeout(
       cl
         .from("studio_documents")
-        .upsert(
-          {
-            owner_user_id: ownerUserId,
-            document,
-            version: 1,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "owner_user_id" },
-        )
+        .insert({
+          owner_user_id: ownerUserId,
+          document,
+          version: 1,
+          updated_at: new Date().toISOString(),
+        })
         .select("updated_at, version")
         .single(),
     );
 
     if (error) {
+      // Existing row -> owner_user_id unique violation. Do NOT overwrite:
+      // report the current server version so the client can reconcile.
+      if (error.code === "23505") {
+        const { data: current } = await withTimeout(
+          cl
+            .from("studio_documents")
+            .select("version")
+            .eq("owner_user_id", ownerUserId)
+            .maybeSingle(),
+        );
+        return { conflict: true, serverVersion: current?.version ?? null };
+      }
       const meta = categorizeError(error);
       error.__category = meta.category;
       error.__statusCode = meta.statusCode;

@@ -13,6 +13,15 @@ const MAX_RETRIES = 3;
 async function requestJson(url, options = {}, { timeoutMs = DEFAULT_TIMEOUT_MS, retries = MAX_RETRIES } = {}) {
   let lastError;
 
+  // Capture the account context ONCE at invocation. The token provider is
+  // invoked exactly once and the resulting promise is reused across every retry,
+  // so if the user switches accounts mid-flight (setApiUserId mutates the module
+  // globals, and a provider may then resolve a different account/token) this
+  // request — and all its retries — still use the ORIGINAL user id and token.
+  const requestUserId = currentApiUserId;
+  const requestTokenProvider = currentApiTokenProvider;
+  const requestTokenPromise = requestTokenProvider ? requestTokenProvider().catch(() => "") : Promise.resolve("");
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) {
       // Exponential backoff: 1s, 2s, 4s
@@ -23,10 +32,10 @@ async function requestJson(url, options = {}, { timeoutMs = DEFAULT_TIMEOUT_MS, 
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const token = currentApiTokenProvider ? await currentApiTokenProvider().catch(() => "") : "";
+      const token = await requestTokenPromise; // same token for every attempt
       const headers = {
         "Content-Type": "application/json",
-        ...(currentApiUserId ? { "X-RF-User-Id": currentApiUserId } : {}),
+        ...(requestUserId ? { "X-RF-User-Id": requestUserId } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers || {}),
       };
