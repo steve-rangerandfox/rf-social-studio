@@ -36,7 +36,7 @@ Passing lint, build, and unrelated unit tests does **not** prove that a major Re
 - test payload/media-type mapping;
 - test container creation, readiness polling, and publish ordering;
 - test both designed-frame and raw-media paths when shared resolution changes;
-- verify the `/api` production entrypoint exists.
+- verify the `/api` production entrypoint exists. This deployment contract is enforced automatically by `tests/deployment-contract.test.js` in the `test:node` gate, in both directions: (A) every `/api` route registered in `src/server/app.js` must have a matching `api/<route>.js` entrypoint, so local and production route availability cannot silently diverge; and (B) every `api/` entrypoint must be configured in `vercel.json`, export a callable handler, and meet route-specific memory/`maxDuration` policy. Adding a route to `src/server/app.js` therefore requires adding both its `api/<route>.js` bridge and its `vercel.json` functions entry, or the gate fails route-specifically.
 
 ### Persistence or synchronization
 

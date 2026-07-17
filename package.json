@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "npm run test:node && npm run test:unit",
-    "test:node": "node --test tests/validation.test.js tests/server.test.js tests/persistence.test.js",
+    "test:node": "node --test tests/validation.test.js tests/server.test.js tests/persistence.test.js tests/deployment-contract.test.js",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:validation": "node --test tests/validation.test.js",
