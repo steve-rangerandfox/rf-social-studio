@@ -26,7 +26,7 @@
         window.location.origin
       );
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }

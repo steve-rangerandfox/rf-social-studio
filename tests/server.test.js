@@ -80,11 +80,14 @@ function makeClerkToken(claims = {}) {
 const sharedEnv = {
   nodeEnv: "test",
   port: 0,
-  fbAppId: "test_app_id",
-  fbAppSecret: "test_app_secret",
-  fbRedirectUri: "http://localhost:5173/instagram/oauth/callback",
   igAppId: "test_app_id",
   igAppSecret: "test_app_secret",
+  // Canonical redirect key produced by loadServerEnv (IG_REDIRECT_URI ||
+  // FB_REDIRECT_URI both resolve to env.igRedirectUri). The Instagram OAuth
+  // handlers ensureEnv(["igRedirectUri", ...]); a fixture using the retired
+  // fbRedirectUri key surfaced as a 500 "not configured" instead of the
+  // real handshake behavior these tests assert.
+  igRedirectUri: "http://localhost:5173/instagram/oauth/callback",
   sessionSecret: "test_session_secret_123",
   allowedOrigins: new Set(["http://localhost:5173"]),
 };
@@ -131,7 +134,7 @@ test("GET /api/ig-oauth returns authorize URL and state cookie", async () => {
   );
 
   assert.equal(res.status, 200);
-  assert.ok(res.body.authorizeUrl.includes("api.instagram.com/oauth/authorize"));
+  assert.ok(res.body.authorizeUrl.includes("www.instagram.com/oauth/authorize"));
   assert.ok(res.body.scopes.includes("instagram_business_basic"));
   assert.ok(Array.isArray(res.headers["set-cookie"]));
   assert.ok(res.headers["set-cookie"][0].includes("rf_ig_oauth_state="));
@@ -292,5 +295,5 @@ test("GET /api/ig-oauth accepts a verified Clerk bearer token", async () => {
   );
 
   assert.equal(res.status, 200);
-  assert.ok(res.body.authorizeUrl.includes("api.instagram.com/oauth/authorize"));
+  assert.ok(res.body.authorizeUrl.includes("www.instagram.com/oauth/authorize"));
 });
