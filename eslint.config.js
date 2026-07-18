@@ -42,6 +42,9 @@ export default defineConfig([
       'migrations/**/*.js',
       'tests/**/*.js',
       'vitest.config.js',
+      'vite.harness.config.js',
+      'playwright.config.js',
+      'browser-tests/**/*.js',
     ],
     languageOptions: {
       globals: {

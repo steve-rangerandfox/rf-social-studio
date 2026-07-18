@@ -41,3 +41,10 @@ dist-ssr
 # claude-flow runtime artifacts
 .claude-flow/
 .swarm/
+
+# Playwright (real-browser test tier) output — never source
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+playwright/.cache/
