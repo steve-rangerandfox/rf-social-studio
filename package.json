@@ -18,7 +18,8 @@
     "test:unit:watch": "vitest",
     "test:browser": "playwright test",
     "test:validation": "node --test tests/validation.test.js",
-    "test:server": "node --test tests/server.test.js"
+    "test:server": "node --test tests/server.test.js",
+    "release:check": "npm run lint && npm run test:node && npm run test:unit && npm run build && npm run test:browser"
   },
   "dependencies": {
     "@clerk/react": "^6.0.1",

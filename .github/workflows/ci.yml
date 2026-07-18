@@ -9,7 +9,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -22,13 +22,15 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      # Real-browser tier (test:browser) needs a chromium matching the
+      # installed @playwright/test. Installed before the gate runs.
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Test
-        run: npm test
-
-      - name: Build
-        run: npm run build
+      # One canonical release gate: lint → node tests (validation, server,
+      # persistence, deployment-contract, route-smoke) → vitest → production
+      # build → real-browser tier. Fail-fast; any tier's failure fails CI.
+      - name: Release gate
+        run: npm run release:check
         env:
           VITE_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
