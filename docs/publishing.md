@@ -2,6 +2,19 @@
 
 Relay publishes social content from either raw gallery media or designed frames. Treat media resolution and platform publishing as separate concerns.
 
+## Ownership
+
+Deterministic publishing policy has one owner; orchestration and side effects stay separate.
+
+- `src/features/studio/publish-policy.js` — the canonical, pure Instagram policy: deterministic source resolution, source provenance, story-frame selection and order, carousel-frame selection and order, carousel classification, Relay→Instagram media-type mapping, caption/carousel limits, selected-media URL validity, authoritative publish operations, and stable invalid results. No I/O, scheduling, or UI. Same inputs → same result.
+- `src/features/studio/publish-adapters.js` — mechanical mapping of a policy operation to each path's platform arguments (field renames only, e.g. `imageUrl`⇆`mediaUrl`). No re-decisions.
+- `src/features/studio/materialize-designed-media.js` — browser-only rendering and upload of legacy `carouselSlides` (`materializeCarouselSlides`, `needsCarouselMaterialization`, `materializeForSchedule`). Returns media results and a media patch only; it decides nothing about scheduled lifecycle.
+- `StudioContext.schedulePost` — the sole owner of the browser-side pre-schedule materialization step and the scheduled-state transition. Every UI path into scheduled (Approve & schedule, DetailPanel status select, Row inline status) routes through it; generic `update()` carries no scheduling behavior.
+- `src/features/studio/components/Composer.jsx` (immediate) and `src/inngest/publish-scheduled.js` (scheduled) — independent orchestrators that consume the same canonical policy and own their own retries, resume, tokens, conflict recovery, and API execution.
+- `publishLinkedInText` (`src/server/linkedin.js`) — canonical LinkedIn payload-text normalization; LinkedIn stays outside the Instagram policy.
+
+Already-scheduled legacy `carouselSlides`-only rows (never rendered in a browser) fail safely with `CAROUSEL_NOT_RENDERED` on the scheduled path; this mission adds no server-side rendering and no load-time migration.
+
 ## Source priority
 
 When publishing an existing row, resolve media in this order unless the caller explicitly supplies files:
@@ -11,7 +24,7 @@ When publishing an existing row, resolve media in this order unless the caller e
 3. Raw gallery media attached to the row.
 4. A generated video poster is preview metadata only; it is not the published media.
 
-Keep this resolution logic centralized. Do not reimplement it independently in Composer, scheduler, previews, and API handlers.
+This resolution is owned by `publish-policy.js` (see Ownership). Do not reimplement it independently in Composer, scheduler, previews, or API handlers.
 
 ## Instagram mapping
 

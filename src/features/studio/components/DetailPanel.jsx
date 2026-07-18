@@ -40,6 +40,7 @@ export function DetailPanel() {
     connections, currentUser, team,
     addComment,
     approveAndSchedule,
+    schedulePost,
   } = useStudio();
 
   const row = rows.find((r) => r.id === selectedRowId);
@@ -398,7 +399,12 @@ export function DetailPanel() {
   const handleApprovalStatusChange = (toStatus) => {
     if (toStatus === row.status) { setIsApprovalOpen(false); return; }
     const check = canTransition(row.status, toStatus, row, hasConnectedAccount);
-    if (check.allowed) onChange({ status: toStatus });
+    if (check.allowed) {
+      // The transition into scheduled must go through the canonical scheduling
+      // operation so legacy carousels are materialized before scheduled state.
+      if (toStatus === "scheduled") schedulePost(row.id, row.scheduledAt);
+      else onChange({ status: toStatus });
+    }
     setIsApprovalOpen(false);
   };
 

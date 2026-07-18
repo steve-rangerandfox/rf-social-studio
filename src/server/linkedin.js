@@ -80,12 +80,16 @@ export async function fetchLinkedInProfile(accessToken) {
 
 export async function publishLinkedInText({ accessToken, personUrn, text }) {
   if (!personUrn) throw new Error("personUrn is required");
+  // Normalize here so immediate and scheduled publishing construct identical
+  // payload text from the same row (immediate trimmed at the UI; scheduled
+  // passed row.caption raw). Transport-boundary validation stays independent.
+  const normalizedText = (text ?? "").trim();
   const body = {
     author: personUrn,
     lifecycleState: "PUBLISHED",
     specificContent: {
       "com.linkedin.ugc.ShareContent": {
-        shareCommentary: { text },
+        shareCommentary: { text: normalizedText },
         shareMediaCategory: "NONE",
       },
     },

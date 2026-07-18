@@ -35,6 +35,7 @@ import {
   setInstagramSession,
 } from "./instagram-session.js";
 import { requireRequestAuth, checkRateLimit } from "./middleware.js";
+import { apiPayloadToOperation, metaPostArgs, metaCarouselArgs } from "../lib/publish-adapters.js";
 import { handleReviewLinkPost, handleReviewGet, handleReviewActionPost } from "./review.js";
 import { handleCaptionRequest } from "./handlers/captions.js";
 import {
@@ -291,11 +292,20 @@ async function handleInstagramPublish(req, res, env, reqId, auth) {
     } else if (!imageUrls.every((u) => isHttpsUrl(u))) {
       errors.push("every imageUrls entry must be a valid public HTTPS URL");
     }
-  } else if (mediaType === "VIDEO" || mediaType === "REELS" || mediaType === "STORIES") {
+  } else if (mediaType === "VIDEO" || mediaType === "REELS") {
     if (!videoUrl) {
       errors.push(`videoUrl is required for ${mediaType} posts`);
     } else if (!isHttpsUrl(videoUrl)) {
       errors.push("videoUrl must be a valid public HTTPS URL");
+    }
+  } else if (mediaType === "STORIES") {
+    // A story can be an image (flattened frame) OR a video, matching meta.js.
+    if (!videoUrl && !mediaUrl) {
+      errors.push("imageUrl or videoUrl is required for STORIES posts");
+    } else if (videoUrl && !isHttpsUrl(videoUrl)) {
+      errors.push("videoUrl must be a valid public HTTPS URL");
+    } else if (!videoUrl && mediaUrl && !isHttpsUrl(mediaUrl)) {
+      errors.push("mediaUrl must be a valid public HTTPS URL");
     }
   }
 
@@ -321,21 +331,15 @@ async function handleInstagramPublish(req, res, env, reqId, auth) {
   }
 
   try {
-    const result = mediaType === "CAROUSEL"
-      ? await publishInstagramCarousel({
-          igUserId: session.igUserId,
-          userToken: session.igUserToken,
-          imageUrls,
-          caption,
-        })
-      : await publishInstagramPost({
-          igUserId: session.igUserId,
-          userToken: session.igUserToken,
-          imageUrl: mediaType === "IMAGE" ? mediaUrl : undefined,
-          videoUrl: mediaType !== "IMAGE" ? videoUrl : undefined,
-          caption,
-          mediaType,
-        });
+    // Reuse the shared mechanical adapter so the wire→meta mapping is not a
+    // second implementation that can drift from the scheduled path. The handler
+    // does not re-decide source, frame order, caption, or type — it maps the
+    // validated wire payload to the canonical operation and delegates.
+    const op = apiPayloadToOperation({ mediaType, caption, mediaUrl, videoUrl, imageUrls });
+    const tok = { igUserId: session.igUserId, userToken: session.igUserToken };
+    const result = op.mediaType === "CAROUSEL"
+      ? await publishInstagramCarousel(metaCarouselArgs(op, tok))
+      : await publishInstagramPost(metaPostArgs(op, tok));
 
     logger("info", reqId, "instagram_published", {
       mediaId: result.mediaId,

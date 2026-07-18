@@ -12,6 +12,7 @@ export function ListView() {
     sorted, grouped, sel, toggleSel, toggleAll,
     connections,
     update,
+    schedulePost,
     selectedRowId, setSelectedRowId,
     makeDrag, add,
     monthRefs,
@@ -117,6 +118,7 @@ export function ListView() {
       sel={sel.has(row.id)}
       onSel={v => toggleSel(row.id, v)}
       onChange={p => update(row.id, p)}
+      onSchedule={(scheduledAt) => schedulePost(row.id, scheduledAt)}
       onSelect={() => setSelectedRowId(row.id)}
       isSelected={selectedRowId === row.id}
       isFocused={isFocused}

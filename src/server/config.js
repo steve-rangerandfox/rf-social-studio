@@ -19,11 +19,16 @@ export const IG_PENDING_TTL_MS = 10 * 60 * 1000; // 10 minutes
 // SET NX EX or Supabase advisory) is the longer-term fix.
 export const REFRESH_LOCK_TTL_MS = 30 * 1000; // 30 seconds
 
-// Instagram Graph API publish limits (Meta-enforced).
-export const IG_PUBLISH_MEDIA_TYPES = ["IMAGE", "VIDEO", "REELS", "STORIES", "CAROUSEL"];
-export const IG_PUBLISH_MAX_CAPTION = 2200; // IG Graph API hard limit
-export const IG_CAROUSEL_MIN_ITEMS = 2; // Meta-enforced minimum carousel children
-export const IG_CAROUSEL_MAX_ITEMS = 10; // Meta-enforced maximum carousel children
+// Instagram Graph API publish limits (Meta-enforced). Owned by the neutral
+// browser-and-node-safe module so the canonical publishing policy and this
+// server-side validation share one definition; re-exported here so existing
+// server consumers keep importing from config.
+export {
+  IG_PUBLISH_MEDIA_TYPES,
+  IG_PUBLISH_MAX_CAPTION,
+  IG_CAROUSEL_MIN_ITEMS,
+  IG_CAROUSEL_MAX_ITEMS,
+} from "../lib/publishing-constants.js";
 
 // In-memory Instagram sync cache size cap. Above this, we evict the oldest
 // 20% of entries. Primarily a safety valve against unbounded memory growth

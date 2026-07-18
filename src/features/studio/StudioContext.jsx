@@ -41,6 +41,7 @@ import {
 } from "./document-store.js";
 import { addToSyncQueue, getSyncQueueByScope, deleteSyncEntry } from "../../lib/idb-store.js";
 import { useToast } from "../../components/Toaster.jsx";
+import { materializeForSchedule } from "./materialize-designed-media.js";
 import {
   ACCENTS,
   DEFAULT_APPEARANCE,
@@ -805,21 +806,58 @@ export function StudioProvider({ children }) {
         : () => createAuditEntry("post.updated", currentUser, "Updated a post", { id, fields: Object.keys(patch) }),
     );
 
-  // One-click approve: flip status→scheduled and pick the next sensible
-  // slot for the row's platform. No-op for already-posted rows.
-  const approveAndSchedule = useCallback((id) => {
+  // Canonical scheduling operation — the ONE path a row takes into scheduled
+  // state, so materialization is guaranteed before the scheduled worker can see
+  // it. Every UI transition into "scheduled" (Approve & schedule, DetailPanel
+  // status select, Row inline status) must route through this.
+  //
+  // Legacy designed carousels store `carouselSlides` with no rendered frames.
+  // The scheduled worker runs in Node and cannot render them, so they are
+  // rendered + uploaded in the browser here FIRST; carouselFrameUrls (and the
+  // scheduled status) are persisted together in one document write. If
+  // materialization fails, the row is left unscheduled and the failure surfaced.
+  const schedulePost = useCallback(async (id, scheduledAt) => {
     const row = rows.find((r) => r.id === id);
-    if (!row || row.status === "posted") return null;
-    const scheduledAt = suggestBestSlot(row.platform, rows, new Date());
-    update(id, { status: "scheduled", scheduledAt });
+    if (!row || row.status === "posted") return false;
+    if (!scheduledAt) {
+      showToast("A scheduled date is required", T.amber);
+      return false;
+    }
+
+    let mediaPatch = null;
+    try {
+      // Materialization (render + upload) is owned by the materialization module
+      // and returns media results only — no scheduled-state decision.
+      mediaPatch = await materializeForSchedule(row);
+    } catch {
+      showToast("Couldn't render the carousel slides — post was not scheduled", T.amber);
+      return false;
+    }
+
+    // schedulePost is the SOLE owner of the scheduled lifecycle: one atomic
+    // update carrying the materialized media patch (if any) plus the scheduled
+    // status and scheduledAt. The row is never scheduled without its frames.
+    update(id, { ...(mediaPatch || {}), status: "scheduled", scheduledAt });
     const when = new Date(scheduledAt).toLocaleString("en-US", {
       weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
     });
     showToast(`Scheduled for ${when}`, T.mint);
-    return scheduledAt;
+    return true;
   // `update` is defined above and is stable per-render; safe to omit.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, showToast]);
+
+  // One-click approve: pick the next sensible slot for the row's platform and
+  // schedule through the canonical operation. No-op for already-posted rows.
+  const approveAndSchedule = useCallback((id) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row || row.status === "posted") return null;
+    const scheduledAt = suggestBestSlot(row.platform, rows, new Date());
+    schedulePost(id, scheduledAt);
+    return scheduledAt;
+  // `schedulePost` is stable per-render; safe to omit.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   const softDelete = useCallback((ids) => {
     const idSet = new Set(Array.isArray(ids) ? ids : [ids]);
@@ -1199,7 +1237,7 @@ export function StudioProvider({ children }) {
     monthCounts, maxMonthCount,
 
     // Actions
-    update, approveAndSchedule, softDelete, undoDelete, remove,
+    update, approveAndSchedule, schedulePost, softDelete, undoDelete, remove,
     toggleSel, toggleAll, bulkDel,
     bulkSetStatus, bulkSetPlatform, bulkSetAssignee,
     toggleOC, addComment,

@@ -20,6 +20,8 @@ import { listActiveIGTokenOwners, loadIGToken, saveIGToken } from "../server/ig-
 import { listActiveLITokenOwners, loadLIToken } from "../server/li-token-store.js";
 import { publishInstagramPost, publishInstagramCarousel, refreshInstagramToken } from "../server/meta.js";
 import { publishLinkedInText } from "../server/linkedin.js";
+import { resolvePublishPlan } from "../features/studio/publish-policy.js";
+import { metaPostArgs, metaCarouselArgs } from "../lib/publish-adapters.js";
 
 // ─── Constants ─────────────────────────────────────────────────────
 
@@ -48,51 +50,9 @@ async function getSupabaseClient(env) {
 }
 
 // Exported for unit tests only — treat as module-internal in app code.
-export { MAX_LATE_MS, REFRESH_AHEAD_MS, platformToMediaType, findDueRows, findDueLinkedInRows, resolveStoryFrames, resolveCarouselFrames, applyRowPatches, saveDocumentWithRetry };
-
-/** Map platform identifier → Instagram mediaType string. */
-function platformToMediaType(platform) {
-  if (platform === "ig_reel") return "REELS";
-  if (platform === "ig_story") return "STORIES";
-  return "IMAGE"; // ig_post default
-}
-
-/** The ordered list of media frames to publish for a row, each `{ url, kind }`
- *  where kind is "image" or "video". A multi-canvas story carries one frame
- *  per canvas in `storyFrames`; a pure-video canvas is kind "video" (published
- *  as the raw video), everything else is a flattened "image". Falls back to the
- *  legacy `storyFrameUrls` (all images) and then the single `mediaUrl`. */
-function resolveStoryFrames(row) {
-  if (row.platform === "ig_story") {
-    if (Array.isArray(row.storyFrames)) {
-      const frames = row.storyFrames
-        .filter((f) => f && f.url)
-        .map((f) => ({ url: f.url, kind: f.kind === "video" ? "video" : "image" }));
-      if (frames.length) return frames;
-    }
-    if (Array.isArray(row.storyFrameUrls)) {
-      const frames = row.storyFrameUrls.filter(Boolean).map((url) => ({ url, kind: "image" }));
-      if (frames.length) return frames;
-    }
-  }
-  const single = row.mediaUrl || row.imageUrl || null;
-  return single ? [{ url: single, kind: "image" }] : [];
-}
-
-/** The ordered slide-image URLs for a carousel row. Prefers designer-rendered
- *  frames (`carouselFrameUrls`, written by "Render & save"); otherwise falls
- *  back to the raw uploaded gallery (`mediaItems`) so a native multi-image
- *  post publishes without going through the designer. */
-function resolveCarouselFrames(row) {
-  if (row.mediaKind !== "carousel") return [];
-  if (Array.isArray(row.carouselFrameUrls) && row.carouselFrameUrls.length) {
-    return row.carouselFrameUrls.filter(Boolean);
-  }
-  if (Array.isArray(row.mediaItems) && row.mediaItems.length) {
-    return row.mediaItems.filter((it) => it && it.kind !== "video" && it.url).map((it) => it.url);
-  }
-  return [];
-}
+// Deterministic media/type/frame/carousel decisions now live in the canonical
+// publish-policy module (resolvePublishPlan); this worker only orchestrates.
+export { MAX_LATE_MS, REFRESH_AHEAD_MS, findDueRows, findDueLinkedInRows, applyRowPatches, saveDocumentWithRetry };
 
 /** Find rows that are due for publishing right now. */
 function findDueRows(document) {
@@ -262,77 +222,37 @@ export const publishScheduledPosts = inngest.createFunction(
         };
 
         for (const row of dueRows) {
-          const isStory = row.platform === "ig_story";
-          const isCarousel = row.platform === "ig_post" && row.mediaKind === "carousel";
-          const carouselFrames = resolveCarouselFrames(row);
-          const frames = resolveStoryFrames(row);
-
-          // Designed carousel with rendered slides: publish as a real IG
-          // carousel (atomic — the three-step container flow only goes live
-          // at the final publish, so no resume bookkeeping is needed). A
-          // single-slide carousel falls through to the single-image path.
-          if (isCarousel && carouselFrames.length >= 2) {
-            try {
-              const { mediaId } = await publishInstagramCarousel({
-                igUserId: tokenRecord.igUserId,
-                userToken: tokenRecord.igUserToken,
-                imageUrls: carouselFrames.slice(0, 10),
-                caption: row.caption || "",
-              });
-              patchRow(row.id, {
-                status: "posted",
-                postedAt: new Date().toISOString(),
-                igPostId: mediaId,
-                publishError: null,
-                publishErrorAt: null,
-              });
-              published++;
-            } catch (err) {
-              logger.error(`publish-scheduled: carousel ${row.id} failed for ${ownerUserId}`, { error: err.message });
-              patchRow(row.id, {
-                status: "approved",
-                publishError: err.message || "Carousel publish error",
-                publishErrorAt: new Date().toISOString(),
-              });
-            }
-            continue;
-          }
-
-          if (!frames.length) {
-            // No publishable media — mark as failed so it doesn't re-run endlessly
+          // Canonical, path-independent decision. No transient media on the
+          // scheduled path — a legacy carouselSlides-only row (never rendered
+          // in the browser) resolves to CAROUSEL_NOT_RENDERED and fails cleanly
+          // instead of publishing incorrect media.
+          const plan = resolvePublishPlan({ row });
+          if (plan.invalid) {
+            // Revert to "approved" so the user sees and can fix it.
             patchRow(row.id, {
-              status: "approved", // revert to approved so user can fix it
-              publishError: isCarousel
-                ? "Carousel isn't rendered — open the carousel composer, hit Render & save, then reschedule"
-                : "No media URL attached — re-approve and reschedule after attaching media",
+              status: "approved",
+              publishError: plan.invalid.message,
               publishErrorAt: new Date().toISOString(),
             });
             continue;
           }
 
-          // Resume support for multi-frame stories: `storyFramesPosted` records
-          // how many frames already went live on a prior attempt, so a
-          // reschedule after a partial failure posts only the remaining frames
-          // instead of duplicating the whole story.
-          const startIdx = isStory && Number.isInteger(row.storyFramesPosted) ? row.storyFramesPosted : 0;
-          const frameIds = isStory && Array.isArray(row.storyFrameIds) ? [...row.storyFrameIds] : [];
-          let postedNow = 0;
+          const isStory = row.platform === "ig_story";
 
-          try {
-            if (isStory) {
-              // Each canvas publishes as its own STORIES frame, in order. A
-              // flattened canvas goes up as image_url; a stand-alone video
-              // canvas as video_url. IG ignores captions on stories.
-              for (let i = startIdx; i < frames.length; i++) {
-                const frame = frames[i];
-                const { mediaId } = await publishInstagramPost({
-                  igUserId: tokenRecord.igUserId,
-                  userToken: tokenRecord.igUserToken,
-                  imageUrl: frame.kind === "video" ? undefined : frame.url,
-                  videoUrl: frame.kind === "video" ? frame.url : undefined,
-                  caption: "",
-                  mediaType: "STORIES",
-                });
+          if (isStory) {
+            // Each operation is one STORIES frame, in order. Resume support:
+            // `storyFramesPosted` records how many frames already went live, so
+            // a reschedule after a partial failure posts only the remaining
+            // operations instead of duplicating the whole story.
+            const ops = plan.operations;
+            const startIdx = Number.isInteger(row.storyFramesPosted) ? row.storyFramesPosted : 0;
+            const frameIds = Array.isArray(row.storyFrameIds) ? [...row.storyFrameIds] : [];
+            let postedNow = 0;
+            try {
+              for (let i = startIdx; i < ops.length; i++) {
+                const { mediaId } = await publishInstagramPost(
+                  metaPostArgs(ops[i], { igUserId: tokenRecord.igUserId, userToken: tokenRecord.igUserToken }),
+                );
                 frameIds.push(mediaId);
                 postedNow++;
               }
@@ -341,47 +261,49 @@ export const publishScheduledPosts = inngest.createFunction(
                 postedAt: new Date().toISOString(),
                 igPostId: frameIds[0] || null,
                 storyFrameIds: frameIds,
-                storyFramesPosted: frames.length,
+                storyFramesPosted: ops.length,
                 publishError: null,
                 publishErrorAt: null,
               });
-            } else {
-              const mediaType = platformToMediaType(row.platform);
-              const isVideo = mediaType === "REELS" || mediaType === "VIDEO";
-              const single = frames[0].url;
-              const { mediaId } = await publishInstagramPost({
-                igUserId: tokenRecord.igUserId,
-                userToken: tokenRecord.igUserToken,
-                imageUrl: isVideo ? undefined : single,
-                videoUrl: isVideo ? single : undefined,
-                caption: row.caption || "",
-                mediaType,
-              });
+              published++;
+            } catch (err) {
+              logger.error(`publish-scheduled: story ${row.id} failed for ${ownerUserId}`, { error: err.message });
+              const done = startIdx + postedNow;
               patchRow(row.id, {
-                status: "posted",
-                postedAt: new Date().toISOString(),
-                igPostId: mediaId,
-                publishError: null,
-                publishErrorAt: null,
+                status: "approved",
+                storyFramesPosted: done,
+                storyFrameIds: frameIds,
+                publishError: `Published ${done} of ${ops.length} story frames — reschedule to post the rest. (${err.message || "error"})`,
+                publishErrorAt: new Date().toISOString(),
               });
             }
+            continue;
+          }
+
+          // Feed / reel: a single authoritative operation (CAROUSEL is atomic —
+          // the three-step container flow only goes live at the final publish,
+          // so no resume bookkeeping is needed).
+          try {
+            const op = plan.operations[0];
+            const tok = { igUserId: tokenRecord.igUserId, userToken: tokenRecord.igUserToken };
+            const { mediaId } = op.mediaType === "CAROUSEL"
+              ? await publishInstagramCarousel(metaCarouselArgs(op, tok))
+              : await publishInstagramPost(metaPostArgs(op, tok));
+            patchRow(row.id, {
+              status: "posted",
+              postedAt: new Date().toISOString(),
+              igPostId: mediaId,
+              publishError: null,
+              publishErrorAt: null,
+            });
             published++;
           } catch (err) {
             logger.error(`publish-scheduled: post ${row.id} failed for ${ownerUserId}`, { error: err.message });
-            // Mark the row with the error — revert to "approved" so the user sees it
-            const patch = {
+            patchRow(row.id, {
               status: "approved",
               publishError: err.message || "Unknown publish error",
               publishErrorAt: new Date().toISOString(),
-            };
-            if (isStory) {
-              // Persist how far we got so the reschedule resumes cleanly.
-              const done = startIdx + postedNow;
-              patch.storyFramesPosted = done;
-              patch.storyFrameIds = frameIds;
-              patch.publishError = `Published ${done} of ${frames.length} story frames — reschedule to post the rest. (${err.message || "error"})`;
-            }
-            patchRow(row.id, patch);
+            });
           }
         }
 

@@ -169,6 +169,55 @@ test("GET /api/ig-posts returns 401 when disconnected", async () => {
   assert.ok(typeof res.body.error === "string");
 });
 
+// STORIES transport contract (app.js handleInstagramPublish). A story can be an
+// image (mediaUrl) OR a video (videoUrl), matching meta.js. These exercise the
+// real handler's validation branch; the imageUrl/videoUrl DISPATCH mapping is
+// proven by src/features/studio/__tests__/publish-adapters.test.js, whose
+// appDispatchToMetaArgs mirrors this handler's dispatch. Validation runs before
+// the IG-session check, so an accepted payload surfaces as 401 (no session),
+// never a 400 VALIDATION_ERROR.
+test("POST /api/ig-publish accepts an image STORIES (mediaUrl, no videoUrl)", async () => {
+  const res = await runRequest(
+    new MockRequest({
+      method: "POST",
+      url: "/api/ig-publish",
+      headers: verifiedUserHeaders,
+      body: { mediaType: "STORIES", mediaUrl: "https://cdn.example.com/s.jpg", caption: "" },
+    }),
+    verifiedEnv,
+  );
+  assert.notEqual(res.status, 400); // not rejected by validation (was 400 before the fix)
+  assert.equal(res.status, 401); // passes validation, then fails only on missing IG session
+});
+
+test("POST /api/ig-publish accepts a video STORIES (videoUrl)", async () => {
+  const res = await runRequest(
+    new MockRequest({
+      method: "POST",
+      url: "/api/ig-publish",
+      headers: verifiedUserHeaders,
+      body: { mediaType: "STORIES", videoUrl: "https://cdn.example.com/s.mp4", caption: "" },
+    }),
+    verifiedEnv,
+  );
+  assert.notEqual(res.status, 400);
+  assert.equal(res.status, 401);
+});
+
+test("POST /api/ig-publish rejects STORIES with neither image nor video", async () => {
+  const res = await runRequest(
+    new MockRequest({
+      method: "POST",
+      url: "/api/ig-publish",
+      headers: verifiedUserHeaders,
+      body: { mediaType: "STORIES", caption: "" },
+    }),
+    verifiedEnv,
+  );
+  assert.equal(res.status, 400);
+  assert.ok(res.body.error.toLowerCase().includes("imageurl or videourl"));
+});
+
 test("POST /api/captions returns 503 when AI configuration is missing", async () => {
   const res = await runRequest(
     new MockRequest({

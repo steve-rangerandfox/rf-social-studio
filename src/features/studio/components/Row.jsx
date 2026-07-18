@@ -24,7 +24,7 @@ function Grip() {
   );
 }
 
-export const Row = React.memo(function Row({ row, sel, onSel, onChange, onSelect, isSelected, isFocused, dragHandlers, hasConnectedAccount = false }) {
+export const Row = React.memo(function Row({ row, sel, onSel, onChange, onSchedule, onSelect, isSelected, isFocused, dragHandlers, hasConnectedAccount = false }) {
   const s = STATUSES[row.status];
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isPlatformOpen, setIsPlatformOpen] = useState(false);
@@ -56,7 +56,12 @@ export const Row = React.memo(function Row({ row, sel, onSel, onChange, onSelect
 
   const handleStatusTransition = (toStatus) => {
     const check = canTransition(row.status, toStatus, row, hasConnectedAccount);
-    if (check.allowed) onChange({ status: toStatus });
+    if (check.allowed) {
+      // Scheduling goes through the canonical operation so legacy carousels are
+      // materialized before scheduled state is persisted.
+      if (toStatus === "scheduled" && onSchedule) onSchedule(row.scheduledAt);
+      else onChange({ status: toStatus });
+    }
     setIsStatusDropdownOpen(false);
   };
 

@@ -3,7 +3,9 @@ import { Check, Close as X, Upload } from "../../../components/icons/index.jsx";
 import { T, PLATFORMS, toPTDisplay } from "../shared.js";
 import { publishToInstagram, publishToLinkedIn } from "../../../lib/api-client.js";
 import { uploadAssetWithProgress, checkFileSize } from "../../../lib/supabase.js";
-import { renderCarouselSlidesToFiles } from "../carouselRender.js";
+import { resolvePublishPlan } from "../publish-policy.js";
+import { materializeCarouselSlides } from "../materialize-designed-media.js";
+import { operationToApiClientPayload } from "../../../lib/publish-adapters.js";
 import { CaptionEditor } from "./CaptionEditor.jsx";
 import { LinkedInPreview } from "./LinkedInPreview.jsx";
 
@@ -75,128 +77,35 @@ export function Composer({ row, onClose, onPosted, postNow, onOpenCarousel }) {
         return;
       }
 
-      // Carousel: render each designed slide to an image, upload all, then
-      // publish them as a single IG carousel.
-      const slides = row?.carouselSlides;
-      if (plat === "ig_post" && Array.isArray(slides) && slides.length >= 2) {
+      // Build transient media via browser side effects only (upload a session
+      // file, or render + upload a legacy designed carousel). The canonical
+      // policy then owns every deterministic decision; operations execute
+      // mechanically. Rendering/uploading never happen inside the policy.
+      let transientMedia = null;
+      if (files.length > 0) {
+        const file = files[0]; // IG accepts one session file (carousel = designed)
+        const isVideo = file.type.startsWith("video/");
         setUploadProgress(0);
-        const slideFiles = await renderCarouselSlidesToFiles(slides);
-        const imageUrls = [];
-        for (let i = 0; i < slideFiles.length; i++) {
-          const u = await uploadAssetWithProgress(slideFiles[i], (prog) => {
-            setUploadProgress((i + prog) / slideFiles.length);
-          });
-          imageUrls.push(u);
-        }
-        setSt("publishing");
-        const result = await publishToInstagram({
-          caption: caption.trim(),
-          imageUrls,
-          mediaType: "CAROUSEL",
-          rowId: row?.id,
-        });
-        setSt("done");
-        onPosted?.({ mediaId: result.mediaId, mediaUrl: result.permalink || imageUrls[0] });
-        return;
+        const publicUrl = await uploadAssetWithProgress(file, (prog) => setUploadProgress(prog));
+        transientMedia = isVideo ? { images: [], video: publicUrl } : { images: [publicUrl], video: null };
+      } else if (plat === "ig_post" && Array.isArray(row?.carouselSlides) && row.carouselSlides.length >= 2) {
+        // Legacy designed carousel — render + upload the slides on the fly so
+        // immediate legacy carousel publishing stays supported.
+        setUploadProgress(0);
+        const materialized = await materializeCarouselSlides(row, (prog) => setUploadProgress(prog));
+        transientMedia = materialized?.transientMedia || null;
       }
 
-      // No files attached in THIS modal — publish the media already stored on
-      // the row (post-editor uploads / designer renders are public URLs).
-      // Mirrors the scheduler's resolution: designer frames first, then the
-      // raw gallery. Without this, "Post now" on any post built in the editor
-      // dead-ended at "Add media before publishing".
-      if (files.length === 0) {
-        const gallery = Array.isArray(row?.mediaItems) ? row.mediaItems.filter((it) => it?.url) : [];
-        const galleryImages = gallery.filter((it) => it.kind !== "video").map((it) => it.url);
-        const galleryVideo = gallery.find((it) => it.kind === "video")?.url || null;
+      const plan = resolvePublishPlan({ row: { ...row, platform: plat, caption }, transientMedia });
+      if (plan.invalid) throw new Error(plan.invalid.message);
 
-        if (plat === "ig_story") {
-          // One publish per designed frame (image or video), like the scheduler.
-          const frames = (Array.isArray(row?.storyFrames) ? row.storyFrames.filter((f) => f?.url) : [])
-            .map((f) => ({ url: f.url, kind: f.kind === "video" ? "video" : "image" }));
-          if (!frames.length && (row?.mediaUrl || galleryImages[0] || galleryVideo)) {
-            const u = row?.mediaUrl || galleryImages[0] || galleryVideo;
-            frames.push({ url: u, kind: row?.mediaKind === "video" || u === galleryVideo ? "video" : "image" });
-          }
-          if (frames.length) {
-            setSt("publishing");
-            let last = null;
-            for (const f of frames) {
-              last = await publishToInstagram({
-                caption: "",
-                mediaUrl: f.kind === "video" ? undefined : f.url,
-                videoUrl: f.kind === "video" ? f.url : undefined,
-                mediaType: "STORIES",
-                rowId: row?.id,
-              });
-            }
-            setSt("done");
-            onPosted?.({ mediaId: last.mediaId, mediaUrl: frames[0].url });
-            return;
-          }
-        } else if (plat === "ig_post") {
-          const urls = Array.isArray(row?.carouselFrameUrls) && row.carouselFrameUrls.length
-            ? row.carouselFrameUrls.filter(Boolean)
-            : galleryImages;
-          if (urls.length >= 2) {
-            setSt("publishing");
-            const result = await publishToInstagram({ caption: caption.trim(), imageUrls: urls, mediaType: "CAROUSEL", rowId: row?.id });
-            setSt("done");
-            onPosted?.({ mediaId: result.mediaId, mediaUrl: result.permalink || urls[0] });
-            return;
-          }
-          const single = urls[0] || row?.mediaUrl || galleryVideo;
-          if (single) {
-            const isVid = single === galleryVideo || row?.mediaKind === "video";
-            setSt("publishing");
-            const result = await publishToInstagram({
-              caption: caption.trim(),
-              mediaUrl: isVid ? undefined : single,
-              videoUrl: isVid ? single : undefined,
-              mediaType: isVid ? "VIDEO" : "IMAGE",
-              rowId: row?.id,
-            });
-            setSt("done");
-            onPosted?.({ mediaId: result.mediaId, mediaUrl: single });
-            return;
-          }
-        } else if (plat === "ig_reel") {
-          const vid = galleryVideo || (row?.mediaKind === "video" ? row?.mediaUrl : null);
-          if (vid) {
-            setSt("publishing");
-            const result = await publishToInstagram({ caption: caption.trim(), videoUrl: vid, mediaType: "REELS", rowId: row?.id });
-            setSt("done");
-            onPosted?.({ mediaId: result.mediaId, mediaUrl: vid });
-            return;
-          }
-        }
-        throw new Error("Add media before publishing");
-      }
-
-      // Step 1: Upload to Supabase Storage to get a public HTTPS URL
-      const file = files[0]; // IG only supports single file (carousel is a future feature)
-      const isVideo = file.type.startsWith("video/");
-      setUploadProgress(0);
-      const publicUrl = await uploadAssetWithProgress(file, (p) => setUploadProgress(p));
-
-      // Step 2: Determine media type for Instagram
-      let mediaType = "IMAGE";
-      if (plat === "ig_story") mediaType = "STORIES";
-      else if (plat === "ig_reel") mediaType = "REELS";
-      else if (isVideo) mediaType = "VIDEO";
-
-      // Step 3: Publish via the server
       setSt("publishing");
-      const result = await publishToInstagram({
-        caption: caption.trim(),
-        mediaUrl: !isVideo ? publicUrl : undefined,
-        videoUrl: isVideo ? publicUrl : undefined,
-        mediaType,
-        rowId: row?.id,
-      });
-
+      let last = null;
+      for (const op of plan.operations) {
+        last = await publishToInstagram(operationToApiClientPayload(op, row?.id));
+      }
       setSt("done");
-      onPosted?.({ mediaId: result.mediaId, mediaUrl: publicUrl });
+      onPosted?.({ mediaId: last?.mediaId, mediaUrl: last?.permalink || plan.frames[0]?.url });
     } catch (err) {
       setSt("error");
       const msg = err.body?.error || err.message || "Publishing failed";

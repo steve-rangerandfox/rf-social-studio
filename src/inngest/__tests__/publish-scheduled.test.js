@@ -2,119 +2,16 @@ import { describe, it, expect, vi } from "vitest";
 
 import {
   MAX_LATE_MS,
-  platformToMediaType,
   findDueRows,
   findDueLinkedInRows,
-  resolveStoryFrames,
-  resolveCarouselFrames,
   applyRowPatches,
   saveDocumentWithRetry,
 } from "../publish-scheduled.js";
 
-describe("platformToMediaType", () => {
-  it("maps ig_reel to REELS", () => {
-    expect(platformToMediaType("ig_reel")).toBe("REELS");
-  });
-
-  it("maps ig_story to STORIES", () => {
-    expect(platformToMediaType("ig_story")).toBe("STORIES");
-  });
-
-  it("maps ig_post to IMAGE", () => {
-    expect(platformToMediaType("ig_post")).toBe("IMAGE");
-  });
-
-  it("defaults unknown platforms to IMAGE", () => {
-    expect(platformToMediaType("tiktok")).toBe("IMAGE");
-    expect(platformToMediaType(undefined)).toBe("IMAGE");
-    expect(platformToMediaType("")).toBe("IMAGE");
-  });
-});
-
-describe("resolveStoryFrames", () => {
-  it("returns each frame with its kind for a multi-canvas story", () => {
-    expect(resolveStoryFrames({
-      platform: "ig_story",
-      storyFrames: [
-        { url: "a.png", kind: "image" },
-        { url: "clip.mp4", kind: "video" },
-        { url: "c.png", kind: "image" },
-      ],
-    })).toEqual([
-      { url: "a.png", kind: "image" },
-      { url: "clip.mp4", kind: "video" },
-      { url: "c.png", kind: "image" },
-    ]);
-  });
-
-  it("drops frames without a url and defaults an unknown kind to image", () => {
-    expect(resolveStoryFrames({
-      platform: "ig_story",
-      storyFrames: [{ url: "a.png" }, { kind: "video" }, null, { url: "b.png", kind: "weird" }],
-    })).toEqual([
-      { url: "a.png", kind: "image" },
-      { url: "b.png", kind: "image" },
-    ]);
-  });
-
-  it("falls back to legacy storyFrameUrls as image frames", () => {
-    expect(resolveStoryFrames({
-      platform: "ig_story",
-      storyFrameUrls: ["a.png", null, "b.png"],
-    })).toEqual([
-      { url: "a.png", kind: "image" },
-      { url: "b.png", kind: "image" },
-    ]);
-  });
-
-  it("falls back to the single mediaUrl when a story has no frame array", () => {
-    expect(resolveStoryFrames({ platform: "ig_story", mediaUrl: "solo.png" })).toEqual([{ url: "solo.png", kind: "image" }]);
-    expect(resolveStoryFrames({ platform: "ig_story", storyFrames: [], mediaUrl: "solo.png" })).toEqual([{ url: "solo.png", kind: "image" }]);
-  });
-
-  it("ignores story frames for non-story platforms (single media only)", () => {
-    expect(resolveStoryFrames({
-      platform: "ig_post",
-      storyFrames: [{ url: "a.png", kind: "image" }, { url: "b.png", kind: "image" }],
-      mediaUrl: "post.png",
-    })).toEqual([{ url: "post.png", kind: "image" }]);
-  });
-
-  it("returns [] when there is no media at all", () => {
-    expect(resolveStoryFrames({ platform: "ig_story" })).toEqual([]);
-    expect(resolveStoryFrames({ platform: "ig_post" })).toEqual([]);
-  });
-
-  it("uses imageUrl as a last-resort single fallback", () => {
-    expect(resolveStoryFrames({ platform: "ig_post", imageUrl: "img.png" })).toEqual([{ url: "img.png", kind: "image" }]);
-  });
-});
-
-describe("resolveCarouselFrames", () => {
-  it("returns rendered slide URLs for a carousel row", () => {
-    expect(resolveCarouselFrames({
-      mediaKind: "carousel",
-      carouselFrameUrls: ["s1.jpg", "s2.jpg", "s3.jpg"],
-    })).toEqual(["s1.jpg", "s2.jpg", "s3.jpg"]);
-  });
-
-  it("drops empty entries", () => {
-    expect(resolveCarouselFrames({
-      mediaKind: "carousel",
-      carouselFrameUrls: ["s1.jpg", null, "", "s2.jpg"],
-    })).toEqual(["s1.jpg", "s2.jpg"]);
-  });
-
-  it("returns [] for an un-rendered carousel (frames cleared or never rendered)", () => {
-    expect(resolveCarouselFrames({ mediaKind: "carousel" })).toEqual([]);
-    expect(resolveCarouselFrames({ mediaKind: "carousel", carouselFrameUrls: null })).toEqual([]);
-  });
-
-  it("returns [] for non-carousel rows even if frame URLs are present", () => {
-    expect(resolveCarouselFrames({ carouselFrameUrls: ["s1.jpg", "s2.jpg"] })).toEqual([]);
-    expect(resolveCarouselFrames({ mediaKind: "single", carouselFrameUrls: ["s1.jpg"] })).toEqual([]);
-  });
-});
+// Deterministic media/type/frame/carousel decisions moved to the canonical
+// publish-policy module; their exhaustive matrix lives in publish-policy.test.js.
+// This suite keeps only the scheduler's own orchestration (due selection,
+// conflict-safe save, patch re-application).
 
 describe("findDueRows", () => {
   const now = Date.now();
