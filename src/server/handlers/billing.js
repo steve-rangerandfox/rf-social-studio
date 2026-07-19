@@ -11,7 +11,13 @@
 import { ensureEnv, isAllowedOrigin } from "../env.js";
 import { errorJson, json, readJsonBody, readRawBody } from "../http.js";
 import { createLogger, sanitizeLogValue } from "../log.js";
-import { PLANS, TRIAL_DAYS, resolvePlan } from "../entitlements.js";
+import {
+  PLANS,
+  TRIAL_DAYS,
+  resolveCommercialAccess,
+  serializeCommercialAccess,
+  BILLING_UNAVAILABLE,
+} from "../entitlements.js";
 import {
   loadSubscription,
   loadSubscriptionByStripeCustomer,
@@ -46,20 +52,29 @@ function publicPlans() {
 }
 
 export async function handleBillingGet(req, res, env, reqId, auth) {
-  const subscription = await loadSubscription(env, auth.userId).catch((err) => {
+  let subscription = null;
+  let unavailable = false;
+  try {
+    subscription = await loadSubscription(env, auth.userId);
+  } catch (err) {
+    // Distinguish an infra failure from "no subscription": the projection
+    // reports "temporarily unavailable / retry" instead of claiming Free.
     logger("warn", reqId, "billing_load_failed", { error: sanitizeLogValue(err.message) });
-    return null;
-  });
-  const plan = resolvePlan(subscription);
-  return json(res, 200, {
-    plan: plan.id,
-    status: subscription?.status || "none",
-    trialEnd: subscription?.trial_end || null,
-    currentPeriodEnd: subscription?.current_period_end || null,
-    cancelAtPeriodEnd: Boolean(subscription?.cancel_at_period_end),
+    unavailable = true;
+  }
+
+  const access = resolveCommercialAccess(unavailable ? BILLING_UNAVAILABLE : subscription);
+  // `trialEligible` mirrors the checkout handler's trial rule exactly so the
+  // client CTA ("Start 14-day trial" vs "Switch to …") can't drift from it.
+  const trialEligible = !(subscription?.status === "active" || subscription?.status === "trialing");
+
+  return json(res, 200, serializeCommercialAccess(access, {
     plans: publicPlans(),
     trialDays: TRIAL_DAYS,
-  });
+    trialEligible,
+    hasCustomer: Boolean(subscription?.stripe_customer_id),
+    rawStatus: unavailable ? null : (subscription?.status || "none"),
+  }));
 }
 
 function pickReturnOrigin(req, env) {
@@ -142,7 +157,13 @@ export async function handleBillingPortal(req, res, env, reqId, auth) {
     return errorJson(res, 503, "SERVER_ERROR", "Billing is not configured", { missing: envCheck.missing });
   }
 
-  const subscription = await loadSubscription(env, auth.userId);
+  let subscription;
+  try {
+    subscription = await loadSubscription(env, auth.userId);
+  } catch (error) {
+    logger("error", reqId, "billing_portal_load_failed", { error: sanitizeLogValue(error.message) });
+    return errorJson(res, 503, "SERVER_ERROR", "Billing is temporarily unavailable");
+  }
   if (!subscription?.stripe_customer_id) {
     return errorJson(res, 404, "NO_CUSTOMER", "No billing account exists for this user yet");
   }
@@ -164,8 +185,26 @@ export async function handleBillingPortal(req, res, env, reqId, auth) {
   }
 }
 
+// Webhook idempotency + ordering decision (pure, unit-tested). Stripe delivers
+// at-least-once and does NOT guarantee order, so:
+//   • a repeat of the last-applied event id is a duplicate → skip;
+//   • an event created before the last-applied one is out of order → skip, so
+//     a delayed older event cannot overwrite newer authoritative state.
+// `existing` is the stored row (or null). Event identity/timestamp come from
+// the Stripe event envelope, which is durable and provider-owned.
+export function decideStripeEvent({ existing, eventId, eventCreated }) {
+  if (existing && eventId && existing.last_stripe_event_id === eventId) {
+    return { apply: false, reason: "duplicate" };
+  }
+  const prev = Number(existing?.last_stripe_event_created);
+  if (existing && Number.isFinite(prev) && Number.isFinite(eventCreated) && eventCreated < prev) {
+    return { apply: false, reason: "out_of_order" };
+  }
+  return { apply: true, reason: "ok" };
+}
+
 // Maps a Stripe subscription object to the columns we persist.
-function fieldsFromStripeSubscription(env, sub) {
+export function fieldsFromStripeSubscription(env, sub) {
   const priceId = sub?.items?.data?.[0]?.price?.id;
   const plan = priceIdToPlan(env, priceId) || "free";
   return {
@@ -203,6 +242,8 @@ export async function handleBillingWebhook(req, res, env, reqId) {
   try {
     const type = event.type;
     const obj = event.data?.object;
+    const eventId = event.id || null;
+    const eventCreated = Number.isFinite(event.created) ? event.created : null;
 
     // Resolve owner user ID — checkout carries it via metadata or
     // client_reference_id; subscription updates carry it via metadata.
@@ -211,11 +252,26 @@ export async function handleBillingWebhook(req, res, env, reqId) {
       || obj?.subscription_details?.metadata?.ownerUserId
       || null;
 
-    let ownerUserId = ownerUserIdFromObj;
-    if (!ownerUserId && obj?.customer) {
-      const existing = await loadSubscriptionByStripeCustomer(env, obj.customer);
-      ownerUserId = existing?.owner_user_id || null;
+    // Load the existing row once (by customer) — used both to resolve the
+    // owner when the event lacks metadata AND for idempotency/ordering.
+    let existing = null;
+    if (obj?.customer) {
+      existing = await loadSubscriptionByStripeCustomer(env, obj.customer);
     }
+    let ownerUserId = ownerUserIdFromObj || existing?.owner_user_id || null;
+
+    // Duplicate or out-of-order → acknowledge (200 so Stripe stops retrying)
+    // without touching authoritative state.
+    const decision = decideStripeEvent({ existing, eventId, eventCreated });
+    if (!decision.apply) {
+      logger("info", reqId, "webhook_skipped", { type, reason: decision.reason, eventId });
+      return json(res, 200, { received: true, skipped: decision.reason });
+    }
+
+    const eventFields = {
+      last_stripe_event_id: eventId,
+      last_stripe_event_created: eventCreated,
+    };
 
     if (type === "checkout.session.completed") {
       if (!ownerUserId) {
@@ -228,6 +284,7 @@ export async function handleBillingWebhook(req, res, env, reqId) {
         await upsertSubscription(env, ownerUserId, {
           stripe_customer_id: obj?.customer || sub?.customer,
           ...fieldsFromStripeSubscription(env, sub),
+          ...eventFields,
         });
       }
     } else if (
@@ -247,6 +304,7 @@ export async function handleBillingWebhook(req, res, env, reqId) {
       await upsertSubscription(env, ownerUserId, {
         stripe_customer_id: obj?.customer,
         ...fields,
+        ...eventFields,
       });
     }
 

@@ -25,8 +25,10 @@ export function compSubscription(env, ownerUserId) {
   return null;
 }
 
-// Loads the subscription row for a user. Returns null when no row
-// exists — callers should treat that as the free tier.
+// Loads the subscription row for a user. Returns null when no row exists —
+// callers should treat that as the free tier. THROWS on an infrastructure
+// error (Supabase/network) so callers can tell "no subscription" apart from
+// "billing temporarily unavailable" and fail closed accordingly.
 export async function loadSubscription(env, ownerUserId) {
   const comped = compSubscription(env, ownerUserId);
   if (comped) return comped;
@@ -37,8 +39,8 @@ export async function loadSubscription(env, ownerUserId) {
     .select("*")
     .eq("owner_user_id", ownerUserId)
     .maybeSingle();
-  if (error || !data) return null;
-  return data;
+  if (error) throw new Error(`subscription load failed: ${error.message}`);
+  return data || null;
 }
 
 // Upserts the row by owner_user_id. Touches updated_at on every write.

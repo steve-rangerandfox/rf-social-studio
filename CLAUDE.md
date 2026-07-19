@@ -47,7 +47,7 @@ npm run lint && npm run test && npm run build
 - `server.js` — local API server and shared backend routing
 - `tests/` — Node integration and validation tests
 
-Read `docs/architecture.md` for system boundaries, `docs/publishing.md` for media and publishing rules, `docs/designer.md` for interaction invariants, and `docs/testing.md` for validation expectations.
+Read `docs/architecture.md` for system boundaries, `docs/publishing.md` for media and publishing rules, `docs/designer.md` for interaction invariants, `docs/testing.md` for validation expectations, and `docs/commercial-access.md` for the server-owned billing/entitlement contract (the single resolver, account-state matrix, trial/grace/cancellation/complimentary semantics, and webhook ordering).
 
 ## Core rules
 
