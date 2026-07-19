@@ -415,23 +415,22 @@ function BillingTab() {
     return <div className="settings-stack"><div className="settings-card">Loading billing\u2026</div></div>;
   }
 
+  // Everything here is presentation of the server's authoritative
+  // commercial-access projection. The client does NOT recompute access policy
+  // from raw Stripe fields \u2014 it renders the server-owned `statusLine`,
+  // `canManageBilling`, `trialEligible`, and `limits`.
   const data = state.data || {};
   const currentPlan = data.plan || "free";
-  const status = data.status || "none";
-  const trialEnd = data.trialEnd ? new Date(data.trialEnd) : null;
-  const periodEnd = data.currentPeriodEnd ? new Date(data.currentPeriodEnd) : null;
-  const cancelAt = data.cancelAtPeriodEnd;
   const plans = data.plans || [];
-  const planLabel = plans.find((p) => p.id === currentPlan)?.label || currentPlan;
-
-  const statusLine = (() => {
-    if (status === "trialing" && trialEnd) return `Trial \u00B7 ends ${trialEnd.toLocaleDateString()}`;
-    if (status === "active" && cancelAt && periodEnd) return `Active \u00B7 cancels ${periodEnd.toLocaleDateString()}`;
-    if (status === "active" && periodEnd) return `Active \u00B7 renews ${periodEnd.toLocaleDateString()}`;
-    if (status === "past_due") return "Past due \u00B7 update payment to keep access";
-    if (status === "canceled") return "Canceled \u00B7 dropped to Free";
-    return "Free tier";
-  })();
+  const planLabel = data.planLabel || plans.find((p) => p.id === currentPlan)?.label || currentPlan;
+  const statusLine = data.statusLine || "Free tier";
+  const canManage = Boolean(data.canManageBilling);
+  const trialEligible = Boolean(data.trialEligible);
+  const limits = data.limits || {};
+  const fmtLimit = (v) => (v == null ? "Unlimited" : v);
+  const limitLine = limits.connections !== undefined
+    ? `${fmtLimit(limits.connections)} connection${limits.connections === 1 ? "" : "s"} \u00B7 ${fmtLimit(limits.seats)} seat${limits.seats === 1 ? "" : "s"}`
+    : "";
 
   return (
     <div className="settings-stack">
@@ -441,8 +440,9 @@ function BillingTab() {
           <div>
             <div className="settings-field-label">{planLabel}</div>
             <div className="settings-field-sub">{statusLine}</div>
+            {limitLine && <div className="settings-field-sub">{limitLine}</div>}
           </div>
-          {currentPlan !== "free" && (
+          {canManage && (
             <button
               className="btn btn-ghost btn-sm"
               onClick={handlePortal}
@@ -467,7 +467,7 @@ function BillingTab() {
               onClick={() => handleUpgrade(p.id)}
               disabled={busy === `upgrade:${p.id}`}
             >
-              {busy === `upgrade:${p.id}` ? "Starting\u2026" : (status === "none" || status === "canceled" ? `Start 14-day trial` : `Switch to ${p.label}`)}
+              {busy === `upgrade:${p.id}` ? "Starting\u2026" : (trialEligible ? `Start 14-day trial` : `Switch to ${p.label}`)}
             </button>
           </div>
         </div>
